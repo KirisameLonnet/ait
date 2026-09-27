@@ -43,9 +43,16 @@ jobs:
       EXPO_NO_TELEMETRY: "1"
       PASEO_DESKTOP_SMOKE: "1"
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out release source
+        uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag || github.ref }}
+
+      - name: Check out release tooling
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .tmp/release-tools
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -64,7 +71,7 @@ jobs:
         run: npm ci
 
       - name: Validate release tooling
-        run: npm run test:release
+        run: node --test .tmp/release-tools/scripts/release-assets.test.mjs .tmp/release-tools/scripts/prepare-desktop-server.test.mjs .tmp/release-tools/scripts/verify-packaged-resources.test.cjs
 
       - name: Install Linux packaging and smoke-test dependencies
         if: matrix.platform == 'linux'
@@ -111,7 +118,7 @@ jobs:
         run: npm run package:mac
 
       - name: Collect installers and updater assets
-        run: node scripts/release-assets.mjs collect "${{ matrix.platform }}" "${RELEASE_TAG#v}" apps/paseo/release release-assets
+        run: node .tmp/release-tools/scripts/release-assets.mjs collect "${{ matrix.platform }}" "${RELEASE_TAG#v}" apps/paseo/release release-assets
 
       - uses: actions/upload-artifact@v4
         with:
@@ -130,9 +137,15 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out release source
+        uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag || github.ref }}
+      - name: Check out release tooling
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .tmp/release-tools
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -143,7 +156,7 @@ jobs:
           merge-multiple: true
 
       - name: Verify assets and write checksums
-        run: node scripts/release-assets.mjs verify "${RELEASE_TAG#v}" release-assets
+        run: node .tmp/release-tools/scripts/release-assets.mjs verify "${RELEASE_TAG#v}" release-assets
 
       - name: Create or repair GitHub Release
         shell: bash

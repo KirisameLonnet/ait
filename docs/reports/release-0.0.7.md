@@ -74,11 +74,28 @@ hardened runtime，DMG、应用及 server 均有 Developer ID 签名和时间戳
 本机针对该文件的测试结果为 1 项通过、9 项因 macOS 跳过；oxfmt、oxlint 和差异空白检查通过。
 本次修复仅修改测试样本和报告，没有 Rust 源代码变化，不运行 Rust workspace tests。
 
-## 发布前仍由 CI 验证的范围
+## 首次 Release workflow 与 AppImage 收集修复
 
-- Linux 原生编译、AppImage/tar.gz 生成与 Xvfb 成品启动测试；本机没有运行 Linux 二进制。
-- 使用 GitHub Secrets 完成 macOS Developer ID 签名和 Apple 公证。
-- 双平台资产汇总与实际 GitHub Release 上传；本次没有创建、移动或推送标签。
+`v0.0.7` 固定在合并提交 `4583883`。首次发布运行中，Linux 原生编译、AppImage/tar.gz
+打包与成品启动测试通过；macOS 的 Developer ID 签名、Apple 公证、启动验证及资产收集均通过。
+由于 Linux 资产收集失败，汇总发布步骤未运行，没有创建 GitHub Release。
+
+原因是 electron-builder 针对 AppImage 把 `${arch}` 展开为 `x86_64`，而 tar.gz 使用 `x64`。
+收集器误把 AppImage 文件名写为 `Ait-linux-x64.AppImage`，导致文件不存在错误。收集器现改为
+匹配实际的 `Ait-linux-x86_64.AppImage`，并保留版本、文件清单、大小与摘要验证。
+
+回归测试使用仓库 builder 配置及其真实的架构/文件名展开方法生成模拟产物，避免收集器和
+测试样本共用错误文件名。恢复流程将发布工具与标签源码分别检出，允许从修复分支发起
+workflow_dispatch，继续构建原始 `v0.0.7` 而不移动标签。
+
+本次工具修复的 10 项 Node 测试全部通过；未修改 Rust 源代码，按 AGENTS.md 跳过本地
+Rust workspace tests，Rust 覆盖率不适用。
+
+## 发布验证范围
+
+- Linux 原生编译、AppImage/tar.gz 生成与 Xvfb 成品启动测试：首轮 Release CI 已通过。
+- 使用 GitHub Secrets 完成 macOS Developer ID 签名和 Apple 公证：首轮 Release CI 已通过。
+- 双平台资产汇总与实际 GitHub Release 上传：使用修复后的发布工具重跑验证。
 
 工作流使用 `ubuntu-24.04` 和 `macos-15`；后者的 arm64 架构已按
 [GitHub 官方 runner 文档](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)核对。

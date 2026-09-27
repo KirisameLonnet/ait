@@ -5,14 +5,14 @@ Rust `server`。`apps/desktop` 是旧实现，不再发布。决策见 [ADR-053]
 
 ## 发布产物
 
-| 平台 | 架构 | 文件 |
-| --- | --- | --- |
-| Linux | x86_64 | `Ait-linux-x64.AppImage` |
-| Linux | x86_64 | `Ait-VERSION-linux-x64.tar.gz` |
-| macOS | Apple Silicon arm64 | `Ait-VERSION-macos-arm64.dmg` |
-| macOS | Apple Silicon arm64 | `Ait-VERSION-macos-arm64.zip` |
-| 自动更新 | 各平台 | `latest-linux.yml`、`latest-mac.yml`、生成的 `.blockmap` |
-| 校验 | 全部资产 | `SHA256SUMS` |
+| 平台     | 架构                | 文件                                                     |
+| -------- | ------------------- | -------------------------------------------------------- |
+| Linux    | x86_64              | `Ait-linux-x86_64.AppImage`                              |
+| Linux    | x86_64              | `Ait-VERSION-linux-x64.tar.gz`                           |
+| macOS    | Apple Silicon arm64 | `Ait-VERSION-macos-arm64.dmg`                            |
+| macOS    | Apple Silicon arm64 | `Ait-VERSION-macos-arm64.zip`                            |
+| 自动更新 | 各平台              | `latest-linux.yml`、`latest-mac.yml`、生成的 `.blockmap` |
+| 校验     | 全部资产            | `SHA256SUMS`                                             |
 
 AppImage 文件名保持稳定，版本体现在 Release 标签和应用内部。Windows、deb/rpm、其他架构
 和独立 CLI 不属于本次发布。安装包 `resources/bin/` 中只有 `server`；Electron 主程序与
@@ -58,6 +58,17 @@ Release Note 由 `.github/release.yml` 根据合并 PR 分组生成。
 
 手动重跑：Actions → Release Ait → Run workflow，输入已存在的标签。工作流不会创建标签。
 已有 Release 保留说明，覆盖同名资产；不要移动已经公开使用的标签。
+
+应用源码固定从输入的发布标签检出；资产收集、校验和相关测试从工作流自身的提交检出到
+`.tmp/release-tools`。因此修复发布工具后，可以选择包含修复的工作流分支重跑原始标签：
+
+```bash
+gh workflow run release.yml --ref main -f tag=v0.0.7
+```
+
+修复尚在 PR 分支时，`--ref` 可以指定该分支。`github.workflow_sha` 固定该次运行使用的
+工具提交，应用仍由原始标签构建，不改写标签。普通 Re-run jobs 沿用旧工作流，不能加载
+新提交的工具修复。[GitHub 工作流版本说明](https://docs.github.com/en/actions/reference/workflows-and-actions/variables)
 
 ## 本地验证
 
