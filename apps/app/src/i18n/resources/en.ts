@@ -1312,6 +1312,13 @@ export const en = {
       detail: "Stopping the local daemon.",
     },
     daemon: {
+      listen: {
+        host: "Listen address",
+        port: "Port",
+        override:
+          "AIT_SERVER_LISTEN overrides this setting: {{address}}. Remove the environment variable to use the saved address.",
+        invalid: "Enter an IPv4 or IPv6 address (or localhost) and a port from 0 to 65535.",
+      },
       title: "Daemon",
       lifecycle: {
         owned: "Launched by this Desktop session",
@@ -1963,7 +1970,7 @@ export const en = {
     },
     remoteSsh: {
       title: "Remote SSH",
-      helper: "Connect to a Ait daemon running on the remote host.",
+      helper: "Connect to the remote Ait server over SSH (default server port: 7316).",
       fields: {
         target: "SSH host",
       },
@@ -1973,6 +1980,7 @@ export const en = {
         connecting: "Connecting...",
       },
       errors: {
+        tokenRequired: "Enter the remote Ait server token (32–256 characters).",
         targetRequired: "SSH host is required",
         invalidTarget: "Enter a valid ssh:// host",
         failedToConnect: "Unable to connect over SSH. {{detail}}",

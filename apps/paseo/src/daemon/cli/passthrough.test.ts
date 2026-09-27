@@ -6,7 +6,7 @@ import {
 } from "./passthrough";
 
 const originalDefaultApp = process.defaultApp;
-const originalDesktopCli = process.env.PASEO_DESKTOP_CLI;
+const originalDesktopCli = process.env.AIT_DESKTOP_CLI;
 
 function setDefaultApp(value: boolean): void {
   Object.defineProperty(process, "defaultApp", {
@@ -19,9 +19,9 @@ describe("passthrough CLI", () => {
   afterEach(() => {
     setDefaultApp(originalDefaultApp);
     if (originalDesktopCli === undefined) {
-      delete process.env.PASEO_DESKTOP_CLI;
+      delete process.env.AIT_DESKTOP_CLI;
     } else {
-      process.env.PASEO_DESKTOP_CLI = originalDesktopCli;
+      process.env.AIT_DESKTOP_CLI = originalDesktopCli;
     }
   });
 
@@ -141,7 +141,7 @@ describe("passthrough CLI", () => {
 
   it("parses terminal args for direct app CLI passthrough", () => {
     setDefaultApp(false);
-    delete process.env.PASEO_DESKTOP_CLI;
+    delete process.env.AIT_DESKTOP_CLI;
 
     expect(
       parsePassthroughCliArgsFromArgv([

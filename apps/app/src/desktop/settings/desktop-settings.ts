@@ -1,3 +1,7 @@
+import {
+  DEFAULT_DESKTOP_SERVER_LISTEN,
+  ServerListenSchema,
+} from "@getpaseo/protocol/server-listen";
 import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getIsElectron } from "@/constants/platform";
@@ -19,6 +23,7 @@ export interface DesktopSettings {
   daemon: {
     manageBuiltInDaemon: boolean;
     keepRunningAfterQuit: boolean;
+    listen: string;
   };
 }
 
@@ -36,6 +41,7 @@ export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = {
   daemon: {
     manageBuiltInDaemon: true,
     keepRunningAfterQuit: false,
+    listen: DEFAULT_DESKTOP_SERVER_LISTEN,
   },
 };
 
@@ -163,6 +169,7 @@ function parseDesktopSettings(raw: unknown): DesktopSettings {
           : DEFAULT_DESKTOP_SETTINGS.notifications.playSound,
     },
     daemon: {
+      listen: ServerListenSchema.catch(DEFAULT_DESKTOP_SERVER_LISTEN).parse(daemon.listen),
       manageBuiltInDaemon:
         typeof daemon.manageBuiltInDaemon === "boolean"
           ? daemon.manageBuiltInDaemon

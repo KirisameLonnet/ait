@@ -11,17 +11,17 @@ const require = createRequire(import.meta.url);
 const desktop = fileURLToPath(new URL("..", import.meta.url));
 const root = path.resolve(desktop, "../..");
 const temporary = mkdtempSync(path.join(os.tmpdir(), "ait-paseo-desktop-smoke-"));
-const packagedApp = process.env.PASEO_PACKAGED_APP;
+const packagedApp = process.env.AIT_PACKAGED_APP;
 const env = {
   ...process.env,
   EXPO_DEV_URL: process.env.EXPO_DEV_URL || "http://localhost:8082",
-  PASEO_TEST_APP_NAME: "Ait Settings Audit",
-  PASEO_DISABLE_SINGLE_INSTANCE_LOCK: "1",
+  AIT_TEST_APP_NAME: "Ait Settings Audit",
+  AIT_DISABLE_SINGLE_INSTANCE_LOCK: "1",
   AIT_SERVER_DATA_DIR: path.join(temporary, "server"),
   AIT_SERVER_BIN:
     process.env.AIT_SERVER_BIN ||
     path.join(root, "target/debug", process.platform === "win32" ? "server.exe" : "server"),
-  PASEO_ELECTRON_USER_DATA_DIR: path.join(temporary, "electron"),
+  AIT_ELECTRON_USER_DATA_DIR: path.join(temporary, "electron"),
 };
 if (packagedApp) delete env.AIT_SERVER_BIN;
 delete env.ELECTRON_RUN_AS_NODE;

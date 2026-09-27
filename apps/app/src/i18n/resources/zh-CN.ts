@@ -1293,6 +1293,13 @@ export const zhCN: TranslationResources = {
       detail: "正在停止本地 daemon。",
     },
     daemon: {
+      listen: {
+        host: "监听地址",
+        port: "端口",
+        override:
+          "环境变量 AIT_SERVER_LISTEN 正在覆盖此设置：{{address}}。移除该环境变量后将使用保存的地址。",
+        invalid: "请输入 IPv4、IPv6 地址或 localhost，端口范围为 0–65535。",
+      },
       lifecycle: en.desktop.daemon.lifecycle,
       title: "Daemon",
       status: {
@@ -1930,6 +1937,7 @@ export const zhCN: TranslationResources = {
         connecting: "正在连接...",
       },
       errors: {
+        tokenRequired: "请输入远程 Ait 服务令牌（32–256 个字符）。",
         targetRequired: "SSH 主机为必填项",
         invalidTarget: "请输入有效的 ssh:// 主机",
         failedToConnect: "无法通过 SSH 连接。{{detail}}",

@@ -41,17 +41,17 @@ fn clean_custom_selection_installs_only_selected_skills_in_every_target() {
             fs::read_to_string(
                 root.path()
                     .join(target)
-                    .join("alpha/references/nested/readme.md")
+                    .join("ait-alpha/references/nested/readme.md")
             )
             .unwrap(),
             "reference"
         );
-        assert!(!root.path().join(target).join("beta").exists());
+        assert!(!root.path().join(target).join("ait-beta").exists());
     }
 }
 
 #[test]
-fn mixed_add_update_delete_operations_are_sorted_by_skill_name() {
+fn mixed_operations_ignore_paseo_skills() {
     let root = tempfile::tempdir().unwrap();
     for name in ["alpha", "beta"] {
         put(
@@ -60,7 +60,8 @@ fn mixed_add_update_delete_operations_are_sorted_by_skill_name() {
         );
     }
     for target in ["agents", "claude", "codex"] {
-        put(&root.path().join(target).join("beta/SKILL.md"), "old");
+        put(&root.path().join(target).join("ait-beta/SKILL.md"), "old");
+        mark_owned(&root.path().join(target).join("ait-beta"));
         put(
             &root.path().join(target).join("paseo-chat/SKILL.md"),
             "legacy",
@@ -73,8 +74,7 @@ fn mixed_add_update_delete_operations_are_sorted_by_skill_name() {
         status["ops"],
         json!([
             {"kind":"add","name":"alpha"},
-            {"kind":"update","name":"beta"},
-            {"kind":"delete","name":"paseo-chat"}
+            {"kind":"update","name":"beta"}
         ])
     );
 }
@@ -85,15 +85,15 @@ fn no_op_resync_keeps_installed_file_revision_and_user_extras() {
     put(&root.path().join("bundle/alpha/SKILL.md"), "current");
     let mut service = Skills::new(Box::new(store(root.path())));
     call(&mut service, skills::RECONCILE, json!({}));
-    let path = root.path().join("agents/alpha/SKILL.md");
+    let path = root.path().join("agents/ait-alpha/SKILL.md");
     let before = fs::metadata(&path).unwrap().modified().unwrap();
-    put(&root.path().join("agents/alpha/personal"), "keep");
+    put(&root.path().join("agents/ait-alpha/personal"), "keep");
     let result = call(&mut service, skills::RECONCILE, json!({}));
     assert_eq!(result["state"], "up-to-date");
     assert_eq!(result["ops"], json!([]));
     assert_eq!(fs::metadata(path).unwrap().modified().unwrap(), before);
     assert_eq!(
-        fs::read_to_string(root.path().join("agents/alpha/personal")).unwrap(),
+        fs::read_to_string(root.path().join("agents/ait-alpha/personal")).unwrap(),
         "keep"
     );
 }
@@ -112,7 +112,7 @@ fn all_selection_picks_up_a_new_bundle_skill_on_the_next_reconcile() {
         json!(["alpha", "beta"])
     );
     assert_eq!(
-        fs::read_to_string(root.path().join("codex/beta/SKILL.md")).unwrap(),
+        fs::read_to_string(root.path().join("codex/ait-beta/SKILL.md")).unwrap(),
         "beta"
     );
 }
@@ -134,7 +134,7 @@ fn unshipped_custom_names_are_preserved_until_the_bundle_ships_them() {
     put(&root.path().join("bundle/future/SKILL.md"), "future");
     let result = call(&mut service, skills::RECONCILE, json!({}));
     assert_eq!(result["installed"], json!(["future"]));
-    assert!(!root.path().join("agents/alpha").exists());
+    assert!(!root.path().join("agents/ait-alpha").exists());
 }
 
 #[test]
@@ -163,7 +163,8 @@ fn incomplete_deletion_confirmation_keeps_all_targets_and_previous_selection() {
     for target in ["agents", "claude", "codex"] {
         for name in ["alpha", "beta"] {
             assert_eq!(
-                fs::read_to_string(root.path().join(target).join(name).join("SKILL.md")).unwrap(),
+                fs::read_to_string(target_path(&root.path().join(target), name).join("SKILL.md"))
+                    .unwrap(),
                 name
             );
         }
@@ -172,19 +173,17 @@ fn incomplete_deletion_confirmation_keeps_all_targets_and_previous_selection() {
 }
 
 #[test]
-fn removed_bundle_skill_is_left_on_disk_as_an_unmanaged_directory() {
+fn removed_bundle_skill_remains_owned_and_can_be_uninstalled() {
     let root = tempfile::tempdir().unwrap();
     put(&root.path().join("bundle/alpha/SKILL.md"), "original");
     let mut service = Skills::new(Box::new(store(root.path())));
     call(&mut service, skills::RECONCILE, json!({}));
     fs::remove_dir_all(root.path().join("bundle/alpha")).unwrap();
     call(&mut service, skills::RECONCILE, json!({}));
+    assert!(root.path().join("agents/ait-alpha/SKILL.md").exists());
     call(&mut service, skills::UNINSTALL, json!({}));
     for target in ["agents", "claude", "codex"] {
-        assert_eq!(
-            fs::read_to_string(root.path().join(target).join("alpha/SKILL.md")).unwrap(),
-            "original"
-        );
+        assert!(!root.path().join(target).join("ait-alpha").exists());
     }
 }
 
@@ -203,7 +202,7 @@ fn uninstall_is_idempotent_with_missing_targets_and_unrelated_user_skills() {
         call(&mut service, skills::UNINSTALL, json!({}))["state"],
         "not-installed"
     );
-    assert!(!root.path().join("claude/paseo-chat").exists());
+    assert!(root.path().join("claude/paseo-chat").exists());
     assert_eq!(
         fs::read_to_string(root.path().join("codex/personal/SKILL.md")).unwrap(),
         "personal"

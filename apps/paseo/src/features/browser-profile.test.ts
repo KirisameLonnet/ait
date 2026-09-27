@@ -106,9 +106,9 @@ describe("legacy browser profiles", () => {
     );
 
     expect(partitions).toEqual([
-      "persist:paseo-browser",
-      `persist:paseo-browser-${uuid}`,
-      `persist:paseo-browser-${fallbackId}`,
+      "persist:ait-browser",
+      `persist:ait-browser-${uuid}`,
+      `persist:ait-browser-${fallbackId}`,
     ]);
     expect(sessions).toHaveLength(3);
   });
@@ -124,7 +124,7 @@ describe("legacy browser profiles", () => {
 
     expect(getLegacyPaseoBrowserProfileSession(sessions, "1700000000000-abcd")).not.toBeNull();
     expect(getLegacyPaseoBrowserProfileSession(sessions, "invalid")).toBeNull();
-    expect(partitions).toEqual(["persist:paseo-browser-1700000000000-abcd"]);
+    expect(partitions).toEqual(["persist:ait-browser-1700000000000-abcd"]);
   });
 });
 

@@ -624,7 +624,7 @@ pub struct CheckoutStashPopRequest {
 pub struct CheckoutStashListRequest {
     /// Directory inside the checkout.
     pub cwd: String,
-    /// Return only Paseo-created stashes. Defaults to true.
+    /// Return only Ait-created stashes; wire name retained for compatibility. Defaults to true.
     #[serde(default)]
     pub paseo_only: Option<bool>,
 }
@@ -637,9 +637,9 @@ pub struct CheckoutStashEntry {
     pub index: usize,
     /// Full Git stash subject.
     pub message: String,
-    /// Paseo branch label, when present.
+    /// Ait auto-stash branch label, when present.
     pub branch: Option<String>,
-    /// Whether the stash uses the Paseo prefix.
+    /// Whether the stash uses the Ait prefix; wire name retained for compatibility.
     pub is_paseo: bool,
 }
 

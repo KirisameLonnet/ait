@@ -73,9 +73,21 @@ export async function verifyReleaseAssets({ version, directory }) {
   const required = [...releaseAssetNames("linux", version), ...releaseAssetNames("mac", version)];
   const allowed = new Set([
     ...required,
+    "BUILD-INFO.json",
     ...required.filter((name) => !name.endsWith(".yml")).map((name) => `${name}.blockmap`),
   ]);
   const names = (await readdir(directory)).filter((name) => name !== "SHA256SUMS").sort();
+  if (names.includes("BUILD-INFO.json")) {
+    const info = JSON.parse(await readFile(path.join(directory, "BUILD-INFO.json"), "utf8"));
+    assert.equal(info.version, version, "Build information version differs from release");
+    assert.equal(info.releaseTag, `v${version}`, "Build information tag differs from release");
+    assert.match(info.sourceCommit, /^[0-9a-f]{40}$/, "Build source must be a full commit SHA");
+    assert.match(
+      info.workflowCommit,
+      /^[0-9a-f]{40}$/,
+      "Workflow source must be a full commit SHA",
+    );
+  }
   for (const name of required) assert(names.includes(name), `Missing release asset: ${name}`);
   for (const name of names) {
     assert(allowed.has(name), `Unexpected release asset: ${name}`);

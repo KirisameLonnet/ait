@@ -698,3 +698,33 @@ fn git_output(cwd: &Path, arguments: &[&str]) -> String {
     );
     String::from_utf8_lossy(&output.stdout).trim().to_owned()
 }
+
+#[test]
+fn ait_auto_stash_does_not_restore_or_classify_paseo_stashes() {
+    let fixture = Fixture::new();
+    let runtime = LocalCheckout::new(fixture.temp.path().join("managed"));
+    let cwd = fixture.repo.to_str().unwrap();
+    std::fs::write(fixture.repo.join("tracked.txt"), "paseo changes").unwrap();
+    git(
+        &fixture.repo,
+        &["stash", "push", "-m", "paseo-auto-stash: feature"],
+    );
+    let paseo = git_output(&fixture.repo, &["rev-parse", "stash@{0}"]);
+    assert!(runtime.stashes(cwd, true).unwrap().is_empty());
+    std::fs::write(fixture.repo.join("tracked.txt"), "ait changes").unwrap();
+    runtime.stash_save(cwd, Some("feature")).unwrap();
+    let own = runtime.stashes(cwd, true).unwrap();
+    assert_eq!(own.len(), 1);
+    assert_eq!(own[0].branch.as_deref(), Some("feature"));
+    runtime.stash_pop(cwd, own[0].index).unwrap();
+    assert_eq!(
+        std::fs::read_to_string(fixture.repo.join("tracked.txt")).unwrap(),
+        "ait changes"
+    );
+    assert_eq!(
+        git_output(&fixture.repo, &["rev-parse", "stash@{0}"]),
+        paseo
+    );
+    assert!(runtime.stashes(cwd, true).unwrap().is_empty());
+    assert!(!runtime.stashes(cwd, false).unwrap()[0].is_paseo);
+}

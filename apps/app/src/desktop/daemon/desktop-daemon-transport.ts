@@ -11,7 +11,7 @@ import {
   type LocalDaemonTransportRpc,
 } from "./local-daemon-transport-rpc";
 
-const DESKTOP_TRANSPORT_SCHEME = "paseo+desktop:";
+const DESKTOP_TRANSPORT_SCHEME = "ait+desktop:";
 
 function encodeBinaryToBase64(data: Uint8Array | ArrayBuffer): string {
   const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : data;
@@ -171,7 +171,8 @@ export function createDesktopDaemonTransportFactory(
         await rpc.openSession({
           sessionId,
           target,
-          ...(target.transportType === "rustTcp" && authorization?.startsWith("Bearer ")
+          ...((target.transportType === "rustTcp" || target.transportType === "ssh") &&
+          authorization?.startsWith("Bearer ")
             ? { bearerToken: authorization.slice(7) }
             : {}),
         });

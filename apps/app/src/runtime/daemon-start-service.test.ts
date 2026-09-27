@@ -385,3 +385,17 @@ describe("upsertDesktopDaemonConnection", () => {
     expect(fake.upserts).toEqual([]);
   });
 });
+
+it("registers the reachable desktop address for a wildcard listener", async () => {
+  const { store, upserts } = createFakeStore();
+  expect(
+    await upsertDesktopDaemonConnection(
+      store,
+      makeStatus({
+        listen: "0.0.0.0:7316",
+        connectAddress: "127.0.0.1:7316",
+      }),
+    ),
+  ).toEqual({ ok: true });
+  expect(upserts[0].listenAddress).toBe("127.0.0.1:7316");
+});

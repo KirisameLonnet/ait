@@ -18,6 +18,8 @@ export interface DesktopDaemonStatus {
   serverId: string;
   status: DesktopDaemonState;
   listen: string | null;
+  connectAddress?: string | null;
+  listenOverride?: string | null;
   hostname: string | null;
   pid: number | null;
   home: string;
@@ -137,6 +139,8 @@ function parseDesktopDaemonStatus(raw: unknown): DesktopDaemonStatus {
     serverId: toStringOrNull(raw.serverId) ?? "",
     status: parseDesktopDaemonState(raw.status),
     listen: toStringOrNull(raw.listen),
+    connectAddress: toStringOrNull(raw.connectAddress),
+    listenOverride: toStringOrNull(raw.listenOverride),
     hostname: toStringOrNull(raw.hostname),
     pid: toNumberOrNull(raw.pid),
     home: toStringOrNull(raw.home) ?? "",

@@ -19,6 +19,13 @@ fn put(path: &std::path::Path, text: &str) {
     fs::write(path, text).unwrap();
 }
 
+fn mark_owned(path: &std::path::Path) {
+    put(
+        &path.join(tree::MANIFEST),
+        r#"{"version":1,"owner":"ait","files":{}}"#,
+    );
+}
+
 fn call(service: &mut Skills, method: &str, params: Value) -> Value {
     service.execute(method, params).unwrap()
 }
@@ -42,9 +49,12 @@ fn install_repairs_all_targets_preserves_extras_and_requires_deletion_consent() 
     let installed = call(&mut service, skills::RECONCILE, json!({}));
     assert_eq!(installed["state"], "up-to-date");
     for target in ["agents", "claude", "codex"] {
-        put(&root.join(target).join("alpha/notes/personal.txt"), "keep");
+        put(
+            &root.join(target).join("ait-alpha/notes/personal.txt"),
+            "keep",
+        );
         assert_eq!(
-            fs::read_to_string(root.join(target).join("beta/SKILL.md")).unwrap(),
+            fs::read_to_string(root.join(target).join("ait-beta/SKILL.md")).unwrap(),
             "two"
         );
     }
@@ -52,11 +62,11 @@ fn install_repairs_all_targets_preserves_extras_and_requires_deletion_consent() 
         call(&mut service, skills::GET_STATUS, json!({}))["state"],
         "up-to-date"
     );
-    put(&root.join("codex/alpha/SKILL.md"), "drift");
+    put(&root.join("codex/ait-alpha/SKILL.md"), "drift");
     put(&root.join("agents/paseo-chat/extra"), "legacy");
     assert_eq!(
         call(&mut service, skills::GET_STATUS, json!({}))["ops"],
-        json!([{"kind":"update","name":"alpha"},{"kind":"delete","name":"paseo-chat"}])
+        json!([{"kind":"update","name":"alpha"}])
     );
     call(&mut service, skills::RECONCILE, json!({}));
     assert!(root.join("agents/paseo-chat/extra").exists());
@@ -66,11 +76,11 @@ fn install_repairs_all_targets_preserves_extras_and_requires_deletion_consent() 
     assert_eq!(pending["selection"], json!({"mode":"all"}));
     assert_eq!(
         pending["confirmationRequired"],
-        json!({"removals":["beta","paseo-chat"]})
+        json!({"removals":["beta"]})
     );
     assert!(!root.join("state/selection.json").exists());
     let mut confirmed = request;
-    confirmed["confirmedRemovals"] = json!(["beta", "paseo-chat"]);
+    confirmed["confirmedRemovals"] = json!(["beta"]);
     let saved = call(&mut service, skills::SAVE_SELECTION, confirmed);
     assert!(saved["confirmationRequired"].is_null());
     assert_eq!(
@@ -79,10 +89,10 @@ fn install_repairs_all_targets_preserves_extras_and_requires_deletion_consent() 
     );
     for target in ["agents", "claude", "codex"] {
         assert_eq!(
-            fs::read_to_string(root.join(target).join("alpha/notes/personal.txt")).unwrap(),
+            fs::read_to_string(root.join(target).join("ait-alpha/notes/personal.txt")).unwrap(),
             "keep"
         );
-        assert!(!root.join(target).join("beta").exists());
+        assert!(!root.join(target).join("ait-beta").exists());
     }
     assert!(root.join("agents/personal/note").exists());
     drop(service);
@@ -111,19 +121,19 @@ fn managed_file_manifest_prunes_only_unmodified_obsolete_files() {
     }
     let mut service = Skills::new(Box::new(store(root)));
     call(&mut service, skills::RECONCILE, json!({}));
-    put(&root.join("agents/alpha/modified"), "user changed");
-    put(&root.join("agents/alpha/extra"), "personal");
+    put(&root.join("agents/ait-alpha/modified"), "user changed");
+    put(&root.join("agents/ait-alpha/extra"), "personal");
     fs::remove_file(root.join("bundle/alpha/obsolete")).unwrap();
     fs::remove_file(root.join("bundle/alpha/modified")).unwrap();
     put(&root.join("bundle/alpha/SKILL.md"), "v2");
     call(&mut service, skills::RECONCILE, json!({}));
-    assert!(!root.join("agents/alpha/obsolete").exists());
+    assert!(!root.join("agents/ait-alpha/obsolete").exists());
     assert_eq!(
-        fs::read_to_string(root.join("agents/alpha/modified")).unwrap(),
+        fs::read_to_string(root.join("agents/ait-alpha/modified")).unwrap(),
         "user changed"
     );
-    assert!(root.join("agents/alpha/extra").exists());
-    assert!(!root.join("codex/alpha/modified").exists());
+    assert!(root.join("agents/ait-alpha/extra").exists());
+    assert!(!root.join("codex/ait-alpha/modified").exists());
     assert_eq!(
         call(&mut service, skills::RECONCILE, json!({}))["state"],
         "up-to-date"
@@ -176,7 +186,8 @@ fn legacy_import_is_normalized_once_and_does_not_install() {
 fn missing_target_takes_precedence_and_stale_plans_are_rejected() {
     let root = tempfile::tempdir().unwrap();
     put(&root.path().join("bundle/alpha/SKILL.md"), "v1");
-    put(&root.path().join("agents/alpha/SKILL.md"), "edited");
+    put(&root.path().join("agents/ait-alpha/SKILL.md"), "edited");
+    mark_owned(&root.path().join("agents/ait-alpha"));
     let mut store = store(root.path());
     let snapshot = store.scan(&Selection::All {}).unwrap();
     assert_eq!(snapshot.installed, ["alpha"]);
@@ -215,15 +226,15 @@ fn symlinks_and_hostile_manifest_are_rejected_without_mutating_targets() {
     let root = tempfile::tempdir().unwrap();
     let root = root.path();
     put(&root.join("bundle/alpha/SKILL.md"), "new");
-    put(&root.join("agents/alpha/SKILL.md"), "old");
+    put(&root.join("agents/ait-alpha/SKILL.md"), "old");
     put(
-        &root.join("agents/alpha/.paseo-managed-files.json"),
-        r#"{"version":1,"files":{"../outside":"abc"}}"#,
+        &root.join("agents/ait-alpha/.ait-managed-files.json"),
+        r#"{"version":1,"owner":"ait","files":{"../outside":"abc"}}"#,
     );
     let mut service = Skills::new(Box::new(store(root)));
     assert!(service.execute(skills::RECONCILE, json!({})).is_err());
     assert_eq!(
-        fs::read_to_string(root.join("agents/alpha/SKILL.md")).unwrap(),
+        fs::read_to_string(root.join("agents/ait-alpha/SKILL.md")).unwrap(),
         "old"
     );
     assert!(fs::read_dir(root.join("agents")).unwrap().all(|entry| {
@@ -233,10 +244,10 @@ fn symlinks_and_hostile_manifest_are_rejected_without_mutating_targets() {
             .to_string_lossy()
             .starts_with(".ait-skills-")
     }));
-    fs::remove_file(root.join("agents/alpha/.paseo-managed-files.json")).unwrap();
+    fs::remove_file(root.join("agents/ait-alpha/.ait-managed-files.json")).unwrap();
     std::os::unix::fs::symlink(
         root.join("bundle/alpha/SKILL.md"),
-        root.join("agents/alpha/link"),
+        root.join("agents/ait-alpha/link"),
     )
     .unwrap();
     assert!(service.execute(skills::GET_STATUS, json!({})).is_err());
@@ -249,29 +260,111 @@ fn updates_preserve_user_file_and_directory_permissions() {
     let root = tempfile::tempdir().unwrap();
     let root = root.path();
     put(&root.join("bundle/alpha/SKILL.md"), "new");
-    put(&root.join("agents/alpha/SKILL.md"), "old");
-    put(&root.join("agents/alpha/private/run.sh"), "personal");
+    put(&root.join("agents/ait-alpha/SKILL.md"), "old");
+    put(&root.join("agents/ait-alpha/private/run.sh"), "personal");
+    mark_owned(&root.join("agents/ait-alpha"));
     fs::set_permissions(
-        root.join("agents/alpha/private/run.sh"),
+        root.join("agents/ait-alpha/private/run.sh"),
         fs::Permissions::from_mode(0o700),
     )
     .unwrap();
     fs::set_permissions(
-        root.join("agents/alpha/private"),
+        root.join("agents/ait-alpha/private"),
         fs::Permissions::from_mode(0o700),
     )
     .unwrap();
-    fs::set_permissions(root.join("agents/alpha"), fs::Permissions::from_mode(0o700)).unwrap();
+    fs::set_permissions(
+        root.join("agents/ait-alpha"),
+        fs::Permissions::from_mode(0o700),
+    )
+    .unwrap();
     let mut service = Skills::new(Box::new(store(root)));
     call(&mut service, skills::RECONCILE, json!({}));
     for name in [
-        "agents/alpha",
-        "agents/alpha/private",
-        "agents/alpha/private/run.sh",
+        "agents/ait-alpha",
+        "agents/ait-alpha/private",
+        "agents/ait-alpha/private/run.sh",
     ] {
         assert_eq!(
             fs::metadata(root.join(name)).unwrap().permissions().mode() & 0o777,
             0o700
         );
+    }
+}
+
+#[test]
+fn paseo_and_same_named_foreign_skills_survive_install_save_and_uninstall() {
+    let root = tempfile::tempdir().unwrap();
+    let root = root.path();
+    put(&root.join("bundle/alpha/SKILL.md"), "ait");
+    for target in ["agents", "claude", "codex"] {
+        for name in [
+            "alpha",
+            "paseo-chat",
+            "paseo-epic",
+            "paseo-orchestrate",
+            "paseo-orchestrator",
+        ] {
+            put(&root.join(target).join(name).join("SKILL.md"), "foreign");
+            put(
+                &root
+                    .join(target)
+                    .join(name)
+                    .join(".paseo-managed-files.json"),
+                r#"{"version":1,"files":{}}"#,
+            );
+        }
+    }
+    let mut service = Skills::new(Box::new(store(root)));
+    assert_eq!(
+        call(&mut service, skills::GET_STATUS, json!({}))["installed"],
+        json!([])
+    );
+    call(&mut service, skills::RECONCILE, json!({}));
+    call(
+        &mut service,
+        skills::SAVE_SELECTION,
+        json!({"selection":{"mode":"custom","skills":[]},"confirmedRemovals":["alpha"]}),
+    );
+    call(&mut service, skills::UNINSTALL, json!({}));
+    for target in ["agents", "claude", "codex"] {
+        for name in [
+            "alpha",
+            "paseo-chat",
+            "paseo-epic",
+            "paseo-orchestrate",
+            "paseo-orchestrator",
+        ] {
+            assert_eq!(
+                fs::read_to_string(root.join(target).join(name).join("SKILL.md")).unwrap(),
+                "foreign"
+            );
+        }
+        assert!(!root.join(target).join("ait-alpha").exists());
+    }
+}
+
+#[test]
+fn unowned_namespaced_collision_is_never_adopted_or_deleted() {
+    for marker in [None, Some(r#"{"version":1,"owner":"paseo","files":{}}"#)] {
+        let root = tempfile::tempdir().unwrap();
+        let root = root.path();
+        put(&root.join("bundle/alpha/SKILL.md"), "ait");
+        put(&root.join("agents/ait-alpha/SKILL.md"), "foreign");
+        if let Some(marker) = marker {
+            put(
+                &root.join("agents/ait-alpha/.ait-managed-files.json"),
+                marker,
+            );
+        }
+        let mut service = Skills::new(Box::new(store(root)));
+        for method in [skills::RECONCILE, skills::UNINSTALL] {
+            assert!(service.execute(method, json!({})).is_err());
+        }
+        assert_eq!(
+            fs::read_to_string(root.join("agents/ait-alpha/SKILL.md")).unwrap(),
+            "foreign"
+        );
+        assert!(!root.join("state/transaction.json").exists());
     }
 }

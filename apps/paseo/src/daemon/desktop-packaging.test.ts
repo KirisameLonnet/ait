@@ -99,7 +99,8 @@ describe("desktop packaging", () => {
     const config = readFileSync(join(packageRoot, "electron-builder.yml"), "utf8");
 
     expect(config).toContain("name: Ait agent link");
-    expect(config).toContain("- paseo");
+    expect(config).toContain("- ait");
+    expect(config).not.toContain("- paseo");
   });
 
   // electron-builder packs production dependencies declared in package.json into

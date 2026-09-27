@@ -1318,6 +1318,7 @@ export const ja: TranslationResources = {
       detail: "ローカルデーモンを停止中。",
     },
     daemon: {
+      listen: en.desktop.daemon.listen,
       lifecycle: en.desktop.daemon.lifecycle,
       title: "デーモン",
       status: {
@@ -1705,6 +1706,7 @@ export const ja: TranslationResources = {
         connecting: "接続中...",
       },
       errors: {
+        tokenRequired: "リモート Ait サーバートークン（32〜256 文字）を入力してください。",
         targetRequired: "SSH ホストは必須です",
         invalidTarget: "有効な ssh:// ホストを入力してください",
         failedToConnect: "SSH で接続できません。{{detail}}",

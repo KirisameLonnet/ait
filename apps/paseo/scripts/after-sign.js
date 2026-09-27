@@ -4,7 +4,7 @@ const { execFileSync } = require("node:child_process");
 const EXECUTABLE_NAME = "Ait";
 
 exports.default = async function afterSign(context) {
-  if (process.env.PASEO_DESKTOP_SMOKE !== "1") {
+  if (process.env.AIT_DESKTOP_SMOKE !== "1") {
     return;
   }
 
@@ -16,7 +16,7 @@ exports.default = async function afterSign(context) {
     stdio: "inherit",
     env: {
       ...process.env,
-      PASEO_PACKAGED_APP: path.join(context.appOutDir, `${EXECUTABLE_NAME}.app`),
+      AIT_PACKAGED_APP: path.join(context.appOutDir, `${EXECUTABLE_NAME}.app`),
     },
   });
 };

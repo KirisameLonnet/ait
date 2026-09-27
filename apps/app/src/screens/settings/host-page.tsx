@@ -1,3 +1,4 @@
+import { getIsElectron } from "@/constants/platform";
 import {
   ArrowDown,
   ArrowUp,
@@ -376,7 +377,13 @@ export function HostSettingsPage({
 
       <HostAppearanceSection host={host} />
 
-      {isLocalDaemon ? <LocalDaemonSection /> : null}
+      {getIsElectron() &&
+      (isLocalDaemon ||
+        host.connections.some(
+          (connection) => connection.id === `desktop-managed-${host.serverId}`,
+        )) ? (
+        <LocalDaemonSection />
+      ) : null}
 
       {!isLocalDaemon ? <UpdateDaemonCard key={host.serverId} host={host} /> : null}
 

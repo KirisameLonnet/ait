@@ -3,7 +3,7 @@ import type { DaemonClientConfig } from "@getpaseo/client/internal/daemon-client
 import type { HostConnection } from "@/types/host-connection";
 import { getOrCreateClientId } from "./client-id";
 import { resolveAppVersion } from "./app-version";
-import { buildRustClientConfig } from "@/runtime/rust-server/connection";
+import { buildRustClientConfig, buildRustSshClientConfig } from "@/runtime/rust-server/connection";
 import { buildRelayWebSocketUrl, shouldUseTlsForDefaultHostedRelay } from "./daemon-endpoints";
 import {
   buildDesktopDaemonTransportUrl,
@@ -33,29 +33,6 @@ const defaultDaemonConnectionDependencies: DaemonConnectionDependencies<DaemonCl
   buildDesktopTransportUrl: buildDesktopDaemonTransportUrl,
   createClient: (config) => new DaemonClient(config),
 };
-
-function buildRemoteSshClientConfig(input: {
-  connection: Extract<HostConnection, { type: "remoteSsh" }>;
-  base: Omit<DaemonClientConfig, "url">;
-  desktopTransportFactory: DaemonClientConfig["transportFactory"] | null;
-  buildDesktopTransportUrl: (target: DesktopDaemonTransportTarget) => string;
-}): DaemonClientConfig {
-  if (!input.desktopTransportFactory) {
-    throw new Error("Remote SSH is only available in the desktop app.");
-  }
-  return {
-    ...input.base,
-    transportFactory: input.desktopTransportFactory,
-    url: input.buildDesktopTransportUrl({
-      transportType: "ssh",
-      host: input.connection.host,
-      ...(input.connection.sshPort !== undefined ? { sshPort: input.connection.sshPort } : {}),
-      ...(input.connection.daemonPort !== undefined
-        ? { daemonPort: input.connection.daemonPort }
-        : {}),
-    }),
-  };
-}
 
 function normalizeNonEmptyString(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -152,12 +129,14 @@ export async function buildClientConfig(
   }
 
   if (connection.type === "remoteSsh") {
-    return buildRemoteSshClientConfig({
-      connection,
-      base,
-      desktopTransportFactory,
-      buildDesktopTransportUrl: deps.buildDesktopTransportUrl,
-    });
+    return {
+      ...base,
+      ...buildRustSshClientConfig(
+        connection,
+        desktopTransportFactory,
+        deps.buildDesktopTransportUrl,
+      ),
+    };
   }
 
   if (connection.type === "directTcp") {

@@ -181,7 +181,7 @@ impl Checkout {
         self.runtime.discard_changes(cwd, paths)
     }
 
-    /// Save a Paseo-tagged stash.
+    /// Save an Ait-tagged stash.
     ///
     /// # Errors
     /// Returns categorized Git failures.

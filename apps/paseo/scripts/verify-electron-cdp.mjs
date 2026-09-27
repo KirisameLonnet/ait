@@ -3,7 +3,7 @@ import path from "node:path";
 import process from "node:process";
 import { chromium } from "playwright";
 
-const CDP_PORT = process.env.PASEO_ELECTRON_REMOTE_DEBUGGING_PORT ?? "9223";
+const CDP_PORT = process.env.AIT_ELECTRON_REMOTE_DEBUGGING_PORT ?? "9223";
 const EXPO_PORT = process.env.EXPO_PORT ?? "8082";
 const CDP_URL = process.env.CDP_URL ?? `http://127.0.0.1:${CDP_PORT}`;
 const OUTPUT_DIR = process.env.ELECTRON_VERIFY_OUTPUT_DIR ?? "/tmp/electron-verification";

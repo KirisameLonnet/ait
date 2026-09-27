@@ -10,7 +10,7 @@ import { basename } from "node:path";
 import defaultLog from "electron-log/main";
 
 const DEFAULT_RESOLVE_TIMEOUT_MS = 30_000;
-const TIMEOUT_ENV_KEY = "PASEO_SHELL_ENV_TIMEOUT_MS";
+const TIMEOUT_ENV_KEY = "AIT_SHELL_ENV_TIMEOUT_MS";
 const STDERR_LOG_LIMIT = 2000;
 
 type LoginShellEnvLogger = Pick<typeof defaultLog, "info" | "warn">;

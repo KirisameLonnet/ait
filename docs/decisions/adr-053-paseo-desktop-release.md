@@ -3,6 +3,7 @@
 - 状态：Accepted
 - 日期：2026-09-27
 - 关联：ADR-001 v4、ADR-048、ADR-051
+- 修订：链接协议和桌面数据隔离以 [ADR-055](adr-055-desktop-profile-isolation.md) 为准。
 
 ## 背景
 

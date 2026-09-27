@@ -1330,6 +1330,7 @@ export const ptBR: TranslationResources = {
       detail: "Parando o daemon local.",
     },
     daemon: {
+      listen: en.desktop.daemon.listen,
       lifecycle: en.desktop.daemon.lifecycle,
       title: "Daemon",
       status: {
@@ -1720,6 +1721,7 @@ export const ptBR: TranslationResources = {
         connecting: "Conectando...",
       },
       errors: {
+        tokenRequired: "Insira o token do servidor Ait remoto (32–256 caracteres).",
         targetRequired: "O host SSH é obrigatório",
         invalidTarget: "Insira um host ssh:// válido",
         failedToConnect: "Não foi possível conectar por SSH. {{detail}}",

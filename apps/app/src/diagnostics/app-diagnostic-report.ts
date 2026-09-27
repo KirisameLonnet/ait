@@ -100,6 +100,8 @@ export function describeConnectionKind(type: HostConnection["type"] | string): s
       return "local pipe";
     case "relay":
       return "relay";
+    case "remoteSsh":
+      return "remote SSH";
     default:
       return "unknown";
   }
@@ -111,7 +113,7 @@ export function redactAppDiagnosticReport(report: string, hosts: HostProfile[]):
     redacted = redacted.split(value).join("[redacted]");
   }
   return redacted
-    .replace(/paseo:\/\/\S+/gi, "paseo://[redacted]")
+    .replace(/(ait|paseo):\/\/\S+/gi, "$1://[redacted]")
     .replace(
       /([?&](?:password|token|secret|key|publicKey|daemonPublicKeyB64)=)[^&\s"']+/gi,
       "$1[redacted]",
@@ -129,6 +131,9 @@ function collectSensitiveHostValues(hosts: HostProfile[]): string[] {
       values.add(connection.id);
       if (connection.type === "directTcp") {
         values.add(connection.endpoint);
+        if (connection.password) values.add(connection.password);
+      } else if (connection.type === "remoteSsh") {
+        values.add(connection.host);
         if (connection.password) values.add(connection.password);
       } else if (connection.type === "relay") {
         values.add(connection.relayEndpoint);

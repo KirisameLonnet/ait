@@ -48,7 +48,7 @@ const env = {
   APP_VARIANT: process.env.APP_VARIANT ?? "production",
 };
 // A mobile bundle must never inherit the desktop Metro platform switch.
-delete env.PASEO_WEB_PLATFORM;
+delete env.AIT_WEB_PLATFORM;
 function run(command, args, cwd = app) {
   execFileSync(command, args, { cwd, env, stdio: "inherit" });
 }

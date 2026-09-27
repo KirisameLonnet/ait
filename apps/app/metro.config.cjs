@@ -14,7 +14,7 @@ const fdroidModuleOverrides = {
   "expo-camera": path.resolve(appSrcRoot, "fdroid/expo-camera.tsx"),
   "expo-notifications": path.resolve(appSrcRoot, "fdroid/expo-notifications.ts"),
 };
-const customWebPlatform = (process.env.PASEO_WEB_PLATFORM ?? "")
+const customWebPlatform = (process.env.AIT_WEB_PLATFORM ?? "")
   .trim()
   .replace(/^\./, "")
   .toLowerCase();

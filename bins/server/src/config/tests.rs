@@ -92,13 +92,6 @@ fn invalid_configuration_fails_without_creating_state() {
     let directory = tempfile::tempdir().unwrap();
     let missing = directory.path().join("not-created");
     for args in [
-        vec![
-            "server",
-            "--data-dir",
-            missing.to_str().unwrap(),
-            "--listen",
-            "0.0.0.0:7316",
-        ],
         vec!["server", "--config", missing.to_str().unwrap()],
         vec!["server", "--log-level", "invalid"],
     ] {
@@ -119,7 +112,7 @@ fn invalid_configuration_fails_without_creating_state() {
     for contents in [
         "bad toml",
         "token = 'never-supported'",
-        "listen = '0.0.0.0:7316'",
+        "listen = '127.0.0.1:65536'",
     ] {
         std::fs::write(directory.path().join("config.toml"), contents).unwrap();
         assert!(
@@ -171,4 +164,13 @@ fn invalid_configuration_fails_without_creating_state() {
         })
         .is_err()
     );
+}
+
+#[test]
+fn supports_explicit_network_listeners_without_changing_loopback_default() {
+    for listen in ["0.0.0.0:7316", "[::]:0", "192.168.1.2:7316"] {
+        let config =
+            Config::load(Cli::parse_from(["server", "--listen", listen]), environment).unwrap();
+        assert_eq!(config.listen, listen.parse().unwrap());
+    }
 }

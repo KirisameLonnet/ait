@@ -2,6 +2,10 @@
 
 ## 0.0.7 - 2026-09-27
 
+- Isolate Ait profiles, browser sessions, links, updater caches and launch variables from Paseo.
+- Protect Paseo skills and Git stashes with independent Ait ownership and naming.
+- Connect Remote SSH to the authenticated Rust server and separate mobile application IDs.
+- Add persistent desktop server listen settings and update the copyright name to Necokeine.
 - Switch Linux and macOS desktop releases to the new Ait app in apps/paseo.
 - Bundle only the independent Rust server; remove legacy daemon, worker and CLI sidecars.
 - Include automatic update metadata and verify packaged server startup and lifecycle.

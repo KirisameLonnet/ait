@@ -3,7 +3,10 @@ import { CHANNEL_CAPABILITIES, createRustServerTransportFactory } from "./transp
 import { METHODS } from "./methods";
 import type { Payload, TransportFactory } from "./types";
 
-function harness(implemented = Object.values(METHODS).map((spec) => spec.method)) {
+function harness(
+  implemented = Object.values(METHODS).map((spec) => spec.method),
+  url = "ws://127.0.0.1:7316/v1/ws",
+) {
   const sockets: {
     send: ReturnType<typeof vi.fn>;
     close: ReturnType<typeof vi.fn>;
@@ -57,7 +60,7 @@ function harness(implemented = Object.values(METHODS).map((spec) => spec.method)
   };
   const base = vi.fn(factory);
   const transport = createRustServerTransportFactory(base)({
-    url: "ws://127.0.0.1:7316/v1/ws",
+    url,
     headers: { Authorization: "Bearer test" },
     protocols: ["paseo.bearer.test"],
   });
@@ -104,6 +107,26 @@ function harness(implemented = Object.values(METHODS).map((spec) => spec.method)
 }
 
 describe("Rust protocol adapter", () => {
+  it("uses Rust negotiation and RPC for SSH channels", () => {
+    const h = harness(undefined, "ait+desktop://ssh?host=build-box&daemonPort=7316");
+    try {
+      h.ready();
+      expect(h.received).toHaveLength(1);
+      expect(h.base).toHaveBeenCalledTimes(4);
+      for (const [options] of h.base.mock.calls) {
+        expect(options).toMatchObject({
+          url: "ait+desktop://ssh?host=build-box&daemonPort=7316",
+          headers: { Authorization: "Bearer test" },
+        });
+      }
+      expect(h.last(0)).toMatchObject({ type: "hello", protocol: { major: 1 } });
+      h.send({ type: "project.list.request", requestId: "ssh-projects" });
+      expect(h.last(1)).toMatchObject({ method: "project.list.request" });
+    } finally {
+      h.transport.close();
+    }
+  });
+
   it("maps the scoped pinned surface and stays within Rust's per-connection limits", () => {
     expect(Object.keys(METHODS)).toHaveLength(171);
     expect(new Set(Object.values(METHODS).map((spec) => spec.method)).size).toBe(168);

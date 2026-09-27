@@ -54,7 +54,7 @@ describe("browser webview attachment", () => {
     expect(
       isPaseoBrowserWebviewAttach({
         src: "https://example.com",
-        partition: "persist:paseo-browser-tab-a",
+        partition: "persist:ait-browser-tab-a",
       }),
     ).toBe(false);
     expect(

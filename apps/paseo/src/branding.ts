@@ -1,20 +1,25 @@
 import { mkdirSync } from "node:fs";
+import path from "node:path";
 import type { App } from "electron";
 
-export function setDesktopDisplayName(
+export function configureDesktopProfile(
   app: Pick<App, "getPath" | "setPath" | "setName">,
-  name: string,
+  options: { name?: string; userDataPath?: string; worktreeName?: string | null } = {},
 ): void {
-  // Pin the already selected legacy, worktree or custom profile before renaming.
-  // Electron otherwise derives new storage paths from the new display name.
-  const userData = app.getPath("userData");
-  const sessionData = app.getPath("sessionData");
+  const name = options.name ?? "Ait";
+  const profileName = options.worktreeName ? `${name}-${options.worktreeName}` : name;
+  const userData = options.userDataPath || path.join(app.getPath("appData"), profileName);
   app.setName(name);
-  for (const [key, value] of [
-    ["userData", userData],
-    ["sessionData", sessionData],
-  ] as const) {
-    mkdirSync(value, { recursive: true });
-    app.setPath(key, value);
-  }
+  mkdirSync(userData, { recursive: true });
+  // Select both paths before Chromium or the single-instance lock is initialized.
+  // Never adopt the shared Paseo profile, which may contain another app's state.
+  app.setPath("userData", userData);
+  app.setPath("sessionData", userData);
+}
+
+export function desktopProfileOptions(env: NodeJS.ProcessEnv = process.env) {
+  return {
+    name: env.AIT_TEST_APP_NAME?.trim() || "Ait",
+    userDataPath: env.AIT_ELECTRON_USER_DATA_DIR?.trim() || undefined,
+  };
 }

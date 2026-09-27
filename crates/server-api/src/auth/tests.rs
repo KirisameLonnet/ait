@@ -3,6 +3,25 @@ use super::*;
 const TOKEN: &str = "test-token-with-at-least-32-characters";
 
 #[test]
+fn equivalent_ipv6_authorities_match_without_accepting_other_hosts_or_ports() {
+    assert!(authority_matches("[::1]:7316", "[0:0:0:0:0:0:0:1]:7316"));
+    assert!(authority_matches(
+        "[::ffff:127.0.0.1]:80",
+        "[::ffff:7f00:1]"
+    ));
+    assert!(authority_matches("localhost:7316", "LOCALHOST:7316"));
+    for requested in [
+        "[::1]:7317",
+        "[::1]:65536",
+        "[::2]:7316",
+        "evil.test:7316",
+        "user@[::1]:7316",
+    ] {
+        assert!(!authority_matches("[::1]:7316", requested), "{requested}");
+    }
+}
+
+#[test]
 fn credentials_are_bounded_and_never_reported() {
     assert!(validate_token(TOKEN).is_ok());
     for value in [

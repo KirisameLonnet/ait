@@ -139,7 +139,7 @@ exports.default = async function afterPack(context) {
 };
 
 async function smokeUnpackedAppIfRequested(appOutDir) {
-  if (process.env.PASEO_DESKTOP_SMOKE !== "1") {
+  if (process.env.AIT_DESKTOP_SMOKE !== "1") {
     return;
   }
 
@@ -148,7 +148,7 @@ async function smokeUnpackedAppIfRequested(appOutDir) {
     ["-a", process.execPath, path.join(__dirname, "../e2e/rust-startup.e2e.mjs")],
     {
       stdio: "inherit",
-      env: { ...process.env, PASEO_PACKAGED_APP: appOutDir },
+      env: { ...process.env, AIT_PACKAGED_APP: appOutDir },
     },
   );
 }

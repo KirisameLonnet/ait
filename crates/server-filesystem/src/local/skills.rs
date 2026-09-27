@@ -12,13 +12,6 @@ use crate::protocol::skills::{Kind, Operation, Selection, Snapshot};
 mod transaction;
 mod tree;
 
-const LEGACY: &[&str] = &[
-    "paseo-chat",
-    "paseo-epic",
-    "paseo-orchestrate",
-    "paseo-orchestrator",
-];
-
 /// Filesystem adapter. Targets are fixed by host configuration, never by WebSocket parameters.
 #[derive(Debug)]
 pub struct LocalSkills {
@@ -94,6 +87,10 @@ impl LocalSkills {
     }
 }
 
+fn target_path(root: &Path, name: &str) -> PathBuf {
+    root.join(format!("ait-{name}"))
+}
+
 fn valid_name(name: &str) -> bool {
     tree::valid_relative(name) && !name.contains('/') && !name.starts_with(".ait-skills-")
 }
@@ -113,24 +110,56 @@ impl SkillStore for LocalSkills {
 
     fn scan(&self, selection: &Selection) -> Result<Snapshot, ErrorCode> {
         let available = self.available()?;
-        let names: BTreeSet<_> = available
-            .iter()
-            .map(String::as_str)
-            .chain(LEGACY.iter().copied())
-            .collect();
+        let mut names: BTreeSet<String> = available.iter().cloned().collect();
+        for root in &self.targets {
+            tree::safe(root)?;
+            let entries = match fs::read_dir(root) {
+                Ok(entries) => entries,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(_) => return Err(ErrorCode::RegistryIo),
+            };
+            for (index, entry) in entries.enumerate() {
+                if index >= 4096 {
+                    return Err(ErrorCode::ResourceExhausted);
+                }
+                let entry = entry.map_err(|_| ErrorCode::RegistryIo)?;
+                let filename = entry.file_name();
+                let Some(name) = filename.to_str().and_then(|name| name.strip_prefix("ait-"))
+                else {
+                    continue;
+                };
+                if !valid_name(name)
+                    || !entry
+                        .file_type()
+                        .map_err(|_| ErrorCode::RegistryIo)?
+                        .is_dir()
+                {
+                    continue;
+                }
+                if tree::owned_path(&entry.path())? {
+                    names.insert(name.to_owned());
+                }
+                if names.len() > 256 {
+                    return Err(ErrorCode::ResourceExhausted);
+                }
+            }
+        }
         let mut installed = Vec::new();
         let mut ops = Vec::new();
         for name in names {
-            let desired = selection.contains(name) && available.iter().any(|entry| entry == name);
+            let desired = selection.contains(&name) && available.iter().any(|entry| entry == &name);
             let bundle = if desired {
-                tree::read(&self.source.join(name))?
+                tree::read(&self.source.join(&name))?
             } else {
                 None
             };
             let mut present = 0;
             let mut changed = false;
             for root in &self.targets {
-                if let Some(tree) = tree::read(&root.join(name))? {
+                if let Some(tree) = tree::read(&target_path(root, &name))? {
+                    if !tree.is_owned() {
+                        return Err(ErrorCode::ResourceExhausted);
+                    }
                     present += 1;
                     changed |= bundle
                         .as_ref()
@@ -138,7 +167,7 @@ impl SkillStore for LocalSkills {
                 }
             }
             if present > 0 {
-                installed.push(name.to_owned());
+                installed.push(name.clone());
             }
             let kind = if bundle.is_some() {
                 if present < 3 {
@@ -154,10 +183,7 @@ impl SkillStore for LocalSkills {
                 None
             };
             if let Some(kind) = kind {
-                ops.push(Operation {
-                    kind,
-                    name: name.to_owned(),
-                });
+                ops.push(Operation { kind, name });
             }
         }
         let state = if installed.is_empty() {

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use server_model::ErrorCode;
 use uuid::Uuid;
 
-use super::{LocalSkills, tree, valid_name};
+use super::{LocalSkills, target_path, tree, valid_name};
 use crate::ports::skills::{ApplyMode, SkillStore};
 use crate::protocol::skills::{Kind, Operation, Selection};
 
@@ -19,6 +19,7 @@ struct Entry {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Journal {
+    namespace: String,
     id: String,
     roots: [std::path::PathBuf; 3],
     previous: Option<Selection>,
@@ -33,6 +34,7 @@ pub(super) fn apply(
     mode: ApplyMode,
 ) -> Result<(), ErrorCode> {
     let mut journal = Journal {
+        namespace: "ait-v1".to_owned(),
         id: Uuid::new_v4().to_string(),
         roots: store.targets.clone(),
         previous: store.selection()?,
@@ -67,8 +69,11 @@ fn prepare(store: &LocalSkills, journal: &mut Journal, ops: &[Operation]) -> Res
             Some(tree::read(&store.source.join(&op.name))?.ok_or(ErrorCode::RegistryIo)?)
         };
         for target in 0..3 {
-            let path = store.targets[target].join(&op.name);
+            let path = target_path(&store.targets[target], &op.name);
             let before = tree::read(&path)?;
+            if before.as_ref().is_some_and(|tree| !tree.is_owned()) {
+                return Err(ErrorCode::ResourceExhausted);
+            }
             if before.is_none() && bundle.is_none() {
                 continue;
             }
@@ -112,7 +117,7 @@ fn publish(
     mode: ApplyMode,
 ) -> Result<(), ErrorCode> {
     for entry in &journal.entries {
-        let path = store.targets[entry.target].join(&entry.name);
+        let path = target_path(&store.targets[entry.target], &entry.name);
         let stage = stage(journal, entry.target, &entry.name);
         if fingerprint(&path)? != entry.before {
             return Err(ErrorCode::ResourceExhausted);
@@ -146,7 +151,8 @@ pub(super) fn recover(store: &mut LocalSkills) -> Result<(), ErrorCode> {
     let Some(journal): Option<Journal> = tree::load(&path)? else {
         return Ok(());
     };
-    if Uuid::parse_str(&journal.id).is_err()
+    if journal.namespace != "ait-v1"
+        || Uuid::parse_str(&journal.id).is_err()
         || journal.roots != store.targets
         || journal.entries.len() > 780
         || journal
@@ -181,7 +187,7 @@ fn cleanup(journal: &Journal) -> Result<(), ErrorCode> {
 }
 
 fn rollback(journal: &Journal, entry: &Entry) -> Result<(), ErrorCode> {
-    let path = journal.roots[entry.target].join(&entry.name);
+    let path = target_path(&journal.roots[entry.target], &entry.name);
     let stage = stage(journal, entry.target, &entry.name);
     let backup = stage.join("before");
     let current = fingerprint(&path)?;

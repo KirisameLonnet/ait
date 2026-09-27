@@ -47,9 +47,9 @@ class FakeDaemonProbe {
     buildDesktopTransportUrl: (target) => {
       if (target.transportType === "rustTcp") return target.url;
       if (target.transportType === "ssh") {
-        return `paseo+desktop://ssh?host=${encodeURIComponent(target.host)}`;
+        return `ait+desktop://ssh?host=${encodeURIComponent(target.host)}`;
       }
-      return `paseo+desktop://${target.transportType}?path=${encodeURIComponent(target.transportPath)}`;
+      return `ait+desktop://${target.transportType}?path=${encodeURIComponent(target.transportPath)}`;
     },
     createClient: (config) => {
       const client = new FakeDaemonClient(this, config);
@@ -137,7 +137,7 @@ describe("test-daemon-connection connectToDaemon", () => {
     );
     await result.client.close();
 
-    expect(probe.createdConfigs()[0]?.url).toBe("paseo+desktop://socket?path=%2Ftmp%2Fpaseo.sock");
+    expect(probe.createdConfigs()[0]?.url).toBe("ait+desktop://socket?path=%2Ftmp%2Fpaseo.sock");
   });
 
   it("uses the desktop transport for Remote SSH connections", async () => {
@@ -150,6 +150,7 @@ describe("test-daemon-connection connectToDaemon", () => {
         host: "deploy@example.com",
         sshPort: 2222,
         daemonPort: 7777,
+        password: "t".repeat(32),
       },
       undefined,
       {
@@ -160,8 +161,9 @@ describe("test-daemon-connection connectToDaemon", () => {
     await result.client.close();
 
     expect(probe.createdConfigs()[0]).toMatchObject({
-      url: "paseo+desktop://ssh?host=deploy%40example.com",
-      transportFactory,
+      url: "ait+desktop://ssh?host=deploy%40example.com",
+      password: "t".repeat(32),
+      transportFactory: expect.any(Function),
     });
   });
 

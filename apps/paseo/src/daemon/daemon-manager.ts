@@ -58,6 +58,7 @@ function getRustServer(): RustServerManager {
           )),
     home: getPaseoHome(),
     listen: process.env.AIT_SERVER_LISTEN,
+    getListen: async () => (await getDesktopSettingsStore().get()).daemon.listen,
   });
   return manager;
 }
@@ -251,7 +252,7 @@ export function createDaemonCommandHandlers(): Record<string, DesktopCommandHand
     desktop_sandbox_diagnostics: () =>
       describeSandbox({
         disabled: app.commandLine.hasSwitch("no-sandbox"),
-        launcherReason: process.env.PASEO_DESKTOP_SANDBOX_REASON,
+        launcherReason: process.env.AIT_DESKTOP_SANDBOX_REASON,
       }),
     desktop_app_logs: () => getDesktopAppLogs(),
     desktop_update_diagnostics: () => getDesktopUpdaterDiagnostics(),
@@ -276,7 +277,7 @@ export function createDaemonCommandHandlers(): Record<string, DesktopCommandHand
               bearerToken: token,
               target: {
                 transportType: "rustTcp",
-                url: `ws://${manager!.status().listen}/v1/ws`,
+                url: `ws://${manager!.status().connectAddress ?? manager!.status().listen}/v1/ws`,
               },
             }
           : args,

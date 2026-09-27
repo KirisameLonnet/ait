@@ -10,7 +10,7 @@ iOS 最低版本为 16.0，与当前 Skia 二进制依赖一致。
 ```sh
 npm run build:dmg
 # 同时验证内置 Rust server 的启动、鉴权 RPC、重启重连和退出清理：
-PASEO_DESKTOP_SMOKE=1 npm run build:dmg
+AIT_DESKTOP_SMOKE=1 npm run build:dmg
 ```
 
 流程：共享 TypeScript 包 → Electron 专用 Web 导出 → Rust `server` release binary →
@@ -41,6 +41,11 @@ Rust 可执行文件也列入签名范围。本机钥匙串 profile 不会自动
 
 ## iOS 模拟器 App
 
+移动端默认应用 ID 为 `dev.ait.mobile`，`APP_VARIANT=development` 时为
+`dev.ait.mobile.debug`，均使用 `ait://`。原生目录由 Expo prebuild 更新；旧 Paseo
+应用不被覆盖。正式签名、推送及 Firebase 配置须对应新的应用 ID；需要自定义 iOS ID
+时使用 `IOS_BUNDLE_IDENTIFIER`，不要指向 Paseo 的应用注册。
+
 ```sh
 npm run build:ios:simulator
 ```
@@ -52,7 +57,7 @@ npm run build:ios:simulator
 ```sh
 xcrun simctl boot 'iPhone 17 Pro'  # 使用本机已有的模拟器名称
 xcrun simctl install booted apps/app/release/ios/simulator/DerivedData/Build/Products/Release-iphonesimulator/Paseo.app
-xcrun simctl launch booted sh.paseo
+xcrun simctl launch booted dev.ait.mobile
 ```
 
 模拟器 App 不能安装到实体 iPhone。
@@ -74,7 +79,7 @@ ExportOptions.plist（development / ad-hoc / App Store Connect），保存在 Gi
 
 ```sh
 export APPLE_TEAM_ID='YOURTEAMID'
-export IOS_BUNDLE_IDENTIFIER='com.yourcompany.paseo'
+export IOS_BUNDLE_IDENTIFIER='com.yourcompany.ait'
 export IOS_EXPORT_OPTIONS_PLIST='/absolute/path/to/ExportOptions.plist'
 # 如需 Xcode 联系 Apple 更新 provisioning profile，可显式启用：
 # export IOS_ALLOW_PROVISIONING_UPDATES=1

@@ -5,7 +5,7 @@ import {
 } from "./desktop-daemon-transport";
 import { createFakeLocalDaemonTransportRpc } from "./test-local-daemon-transport-rpc";
 
-const LOCAL_URL = "paseo+desktop://socket?path=%2Ftmp%2Fpaseo.sock";
+const LOCAL_URL = "ait+desktop://socket?path=%2Ftmp%2Fpaseo.sock";
 
 vi.mock("@/desktop/host", () => ({ isElectronRuntime: () => true }));
 vi.mock("./local-daemon-transport-rpc", () => ({ defaultLocalDaemonTransportRpc: {} }));
@@ -100,11 +100,14 @@ describe("desktop-daemon-transport", () => {
       sshPort: 2222,
       daemonPort: 7777,
     });
-    transportFactory!({ url });
+    const transport = transportFactory!({ url, headers: { Authorization: "Bearer secret-token" } });
     rpc.resolveListen(vi.fn());
     await Promise.resolve();
 
     expect(rpc.openCalls).toHaveLength(1);
+    expect(rpc.openCalls[0].bearerToken).toBe("secret-token");
+    expect(url).not.toContain("secret-token");
+    transport.close();
     expect(rpc.openCalls[0]?.target).toEqual({
       transportType: "ssh",
       host: "deploy@example.com",

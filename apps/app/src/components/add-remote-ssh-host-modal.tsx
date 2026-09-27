@@ -51,6 +51,8 @@ export function AddRemoteSshHostModal({
   const isCompact = useIsCompactFormFactor();
   const { probeAndUpsertRemoteSshConnection } = useHostMutations();
   const targetRef = useRef("");
+  const tokenRef = useRef("");
+  const tokenInputRef = useRef<EditingTextInputHandle>(null);
   const inputRef = useRef<EditingTextInputHandle>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -58,6 +60,8 @@ export function AddRemoteSshHostModal({
 
   const clear = useCallback(() => {
     targetRef.current = "";
+    tokenRef.current = "";
+    tokenInputRef.current?.replaceText("");
     inputRef.current?.replaceText("");
     setErrorMessage("");
   }, []);
@@ -82,6 +86,11 @@ export function AddRemoteSshHostModal({
       return;
     }
 
+    if (!/^[\x21-\x7e]{32,256}$/.test(tokenRef.current.trim())) {
+      setErrorMessage(t("pairing.remoteSsh.errors.tokenRequired"));
+      return;
+    }
+
     let target: ReturnType<typeof parseSshTransportUri>;
     try {
       target = parseSshTransportUri(rawTarget);
@@ -94,7 +103,10 @@ export function AddRemoteSshHostModal({
     try {
       setIsSaving(true);
       setErrorMessage("");
-      result = await probeAndUpsertRemoteSshConnection(target);
+      result = await probeAndUpsertRemoteSshConnection({
+        ...target,
+        password: tokenRef.current.trim(),
+      });
     } catch (error) {
       const message =
         error instanceof DaemonConnectionTestError
@@ -139,6 +151,24 @@ export function AddRemoteSshHostModal({
           initialValue=""
           onChangeText={handleTargetChange}
           placeholder="ssh://user@host"
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!isSaving}
+          returnKeyType="done"
+          onSubmitEditing={handleSubmit}
+        />
+      </Field>
+      <Field label={t("pairing.direct.fields.password")} testID="remote-ssh-token">
+        <FormTextInput
+          ref={tokenInputRef}
+          size={isCompact ? "md" : "sm"}
+          testID="remote-ssh-token-input"
+          accessibilityLabel={t("pairing.direct.fields.password")}
+          initialValue=""
+          onChangeText={(value) => {
+            tokenRef.current = value;
+          }}
+          secureTextEntry
           autoCapitalize="none"
           autoCorrect={false}
           editable={!isSaving}

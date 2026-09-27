@@ -517,7 +517,7 @@ impl CheckoutRuntime for LocalCheckout {
     fn stash_save(&self, cwd: &str, branch: Option<&str>) -> Result<(), CheckoutRuntimeError> {
         let cwd = require_git_directory(cwd)?;
         let branch = branch.map(str::trim).filter(|branch| !branch.is_empty());
-        let message = format!("paseo-auto-stash: {}", branch.unwrap_or("unnamed"));
+        let message = format!("ait-auto-stash: {}", branch.unwrap_or("unnamed"));
         git_write(
             &cwd,
             &["stash", "push", "--include-untracked", "-m", &message],
@@ -1338,13 +1338,15 @@ fn parse_stashes(output: &str, paseo_only: bool) -> Vec<CheckoutStashEntry> {
                 .strip_suffix('}')?
                 .parse::<usize>()
                 .ok()?;
-            let prefix = "paseo-auto-stash:";
-            let branch = message
-                .find(prefix)
-                .map(|position| message[position + prefix.len()..].trim())
+            // Keep the existing wire field names; ownership is exclusively Ait's.
+            let owned = message
+                .split_once(": ")
+                .and_then(|(_, subject)| subject.strip_prefix("ait-auto-stash: "));
+            let branch = owned
+                .map(str::trim)
                 .filter(|branch| !branch.is_empty())
                 .map(str::to_owned);
-            let is_paseo = message.contains(prefix);
+            let is_paseo = owned.is_some();
             (!paseo_only || is_paseo).then(|| CheckoutStashEntry {
                 index,
                 message: message.to_owned(),

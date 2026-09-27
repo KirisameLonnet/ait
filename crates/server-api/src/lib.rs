@@ -5,6 +5,7 @@ mod browser_auth;
 mod capabilities;
 mod connection;
 mod files;
+mod listener;
 mod outbound;
 
 use std::net::SocketAddr;
@@ -13,7 +14,7 @@ use std::sync::{Arc, Mutex};
 use server_model::Runtime;
 use std::time::Duration;
 
-use axum::extract::{Request, State, WebSocketUpgrade};
+use axum::extract::{ConnectInfo, Request, State, WebSocketUpgrade};
 use axum::http::{HeaderMap, Method, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
@@ -42,12 +43,14 @@ use tower_http::trace::TraceLayer;
 pub use auth::validate_token;
 pub use browser_auth::validate_browser_origin;
 use capabilities::installed_capabilities;
+pub use listener::LocalAddress;
+use listener::allowed_authorities;
 
 /// Invalid startup configuration for the transport.
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
-    /// Only loopback addresses with an assigned port are supported.
-    #[error("server requires a loopback address with an assigned port")]
+    /// Only addresses with an assigned port are supported.
+    #[error("server requires an address with an assigned port")]
     InvalidAddress,
     /// Tokens must contain 32–256 visible ASCII characters without spaces.
     #[error("AIT_SERVER_TOKEN must contain 32–256 visible ASCII characters without spaces")]
@@ -68,6 +71,7 @@ struct Shared {
     token: SecretString,
     browser_auth: browser_auth::BrowserAuth,
     authorities: Vec<String>,
+    wildcard_listener: bool,
     connections: Arc<Semaphore>,
     metadata: Arc<server_metadata::dispatch::State>,
     filesystem: Arc<server_filesystem::dispatch::State>,
@@ -149,14 +153,14 @@ pub struct Api {
 }
 
 impl Api {
-    /// Construct transport state for an already-bound loopback listener.
+    /// Construct transport state for an already-bound TCP listener.
     ///
     /// `server_id` is persisted by the host; `instance_id` is unique to this process start.
     /// `token` authenticates the info and upgrade endpoints and is never returned to clients.
     /// `services` selects implemented methods; catalog placeholders remain negotiable.
     ///
     /// # Errors
-    /// Returns an error for non-loopback/unassigned addresses or invalid tokens.
+    /// Returns an error for unassigned ports or invalid tokens.
     pub fn new(
         address: SocketAddr,
         server_id: String,
@@ -165,7 +169,7 @@ impl Api {
         services: Services,
     ) -> Result<Self, ConfigError> {
         use secrecy::ExposeSecret;
-        if !address.ip().is_loopback() || address.port() == 0 {
+        if address.port() == 0 {
             return Err(ConfigError::InvalidAddress);
         }
         validate_token(token.expose_secret())?;
@@ -246,6 +250,7 @@ impl Api {
                 token,
                 browser_auth: browser_auth::BrowserAuth::default(),
                 authorities: allowed_authorities(address),
+                wildcard_listener: address.ip().is_unspecified(),
                 connections: Arc::new(Semaphore::new(server_protocol::MAX_CONNECTIONS)),
             }),
         };
@@ -347,16 +352,6 @@ impl Api {
     }
 }
 
-fn allowed_authorities(address: SocketAddr) -> Vec<String> {
-    let mut authorities = vec![address.to_string(), format!("localhost:{}", address.port())];
-    if address.port() == 80 {
-        // HTTP clients omit the default port in Host and Origin.
-        authorities.push(address.to_string().trim_end_matches(":80").to_owned());
-        authorities.push("localhost".to_owned());
-    }
-    authorities
-}
-
 fn registered_capabilities(implemented: &[String]) -> Vec<String> {
     let mut capabilities = implemented.to_vec();
     for method in server_protocol::methods::PASEO_METHODS {
@@ -390,7 +385,18 @@ async fn guard(
     request: Request,
     next: Next,
 ) -> Result<Response, ApiError> {
-    auth::validate_source(request.headers(), &state.authorities, &state.browser_auth)?;
+    let destination_authorities;
+    let authorities = if state.wildcard_listener {
+        let local = request
+            .extensions()
+            .get::<ConnectInfo<LocalAddress>>()
+            .ok_or(ApiError(StatusCode::FORBIDDEN))?;
+        destination_authorities = local.0.authorities();
+        &destination_authorities
+    } else {
+        &state.authorities
+    };
+    auth::validate_source(request.headers(), authorities, &state.browser_auth)?;
     if request.uri().path() == browser_auth::TICKET_PATH {
         let origin = request
             .headers()

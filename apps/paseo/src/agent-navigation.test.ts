@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 import { AgentNavigationInbox, parseAgentDeepLinkFromArgv } from "./agent-navigation.js";
 
 describe("desktop agent navigation", () => {
+  it("ignores Paseo links when receiving launch arguments", () => {
+    expect(parseAgentDeepLinkFromArgv(["Ait", "paseo://h/server-1/agent/agent-2"])).toBeNull();
+  });
+
   it("finds an agent deep link among Electron launch arguments", () => {
     expect(
       parseAgentDeepLinkFromArgv([
-        "/Applications/Paseo.app/Contents/MacOS/Paseo",
+        "/Applications/Ait.app/Contents/MacOS/Ait",
         "--no-sandbox",
-        "paseo://h/server-1/agent/agent-2",
+        "ait://h/server-1/agent/agent-2",
       ]),
     ).toEqual({ serverId: "server-1", agentId: "agent-2" });
   });

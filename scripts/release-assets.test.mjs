@@ -123,3 +123,33 @@ test("release workflow builds only server and packages apps/paseo on the support
   assert.equal(config.win, undefined);
   assert.deepEqual(config.linux.target, ["AppImage", "tar.gz"]);
 });
+
+test("checksums build provenance and rejects a mismatched source version", async (t) => {
+  const linux = await fixture(t, "linux");
+  const mac = await fixture(t, "mac");
+  await collectReleaseAssets(linux);
+  await collectReleaseAssets({ ...mac, destination: linux.destination });
+  const info = {
+    version: "0.0.7",
+    releaseTag: "v0.0.7",
+    sourceCommit: "a".repeat(40),
+    workflowCommit: "b".repeat(40),
+  };
+  const file = path.join(linux.destination, "BUILD-INFO.json");
+  await writeFile(file, JSON.stringify(info));
+  await verifyReleaseAssets({ version: linux.version, directory: linux.destination });
+  assert.match(
+    await readFile(path.join(linux.destination, "SHA256SUMS"), "utf8"),
+    /  BUILD-INFO\.json/,
+  );
+  await writeFile(file, JSON.stringify({ ...info, version: "0.0.6" }));
+  await assert.rejects(
+    verifyReleaseAssets({ version: linux.version, directory: linux.destination }),
+    /version differs/,
+  );
+  await writeFile(file, JSON.stringify({ ...info, sourceCommit: "main" }));
+  await assert.rejects(
+    verifyReleaseAssets({ version: linux.version, directory: linux.destination }),
+    /full commit SHA/,
+  );
+});

@@ -8,7 +8,7 @@ mod schedule;
 mod voice;
 
 use chrono::{SecondsFormat, Utc};
-use server_api::{Api, LifecycleIntent, Services};
+use server_api::{Api, LifecycleIntent, LocalAddress, Services};
 use server_filesystem::local::{
     checkout::LocalCheckout, forge::LocalForge, github_projects::LocalGithubProjects,
     provisioning::LocalDirectorySource, worktrees::LocalManagedWorktrees,
@@ -103,15 +103,19 @@ impl Server {
         } = self;
         let result: anyhow::Result<()> = async {
             let shutdown_api = api.clone();
-            let server = axum::serve(listener, api.router())
-                .with_graceful_shutdown(async move {
-                    tokio::select! {
-                        () = shutdown => {},
-                        () = shutdown_api.wait_draining() => {},
-                    }
-                    shutdown_api.begin_shutdown();
-                })
-                .into_future();
+            let server = axum::serve(
+                listener,
+                api.router()
+                    .into_make_service_with_connect_info::<LocalAddress>(),
+            )
+            .with_graceful_shutdown(async move {
+                tokio::select! {
+                    () = shutdown => {},
+                    () = shutdown_api.wait_draining() => {},
+                }
+                shutdown_api.begin_shutdown();
+            })
+            .into_future();
             tokio::pin!(server);
             // Readiness changes in the signal future before HTTP acceptance stops.
             // Also clean up WS tasks if the HTTP server terminates with an error.

@@ -16,6 +16,7 @@ function createStoreMock(): DesktopSettingsStore {
       daemon: {
         manageBuiltInDaemon: false,
         keepRunningAfterQuit: true,
+        listen: "127.0.0.1:0",
       },
     })),
   };
@@ -57,6 +58,7 @@ describe("desktop-settings-commands", () => {
       daemon: {
         manageBuiltInDaemon: false,
         keepRunningAfterQuit: true,
+        listen: "127.0.0.1:0",
       },
     });
     expect(store.migrateLegacyRendererSettings).toHaveBeenCalledWith({

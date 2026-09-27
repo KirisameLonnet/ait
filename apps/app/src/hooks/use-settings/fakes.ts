@@ -38,6 +38,7 @@ const DEFAULT_DESKTOP: DesktopSettings = {
   daemon: {
     manageBuiltInDaemon: true,
     keepRunningAfterQuit: false,
+    listen: "127.0.0.1:0",
   },
 };
 

@@ -1340,6 +1340,7 @@ export const es: TranslationResources = {
       detail: "Deteniendo el demonio local.",
     },
     daemon: {
+      listen: en.desktop.daemon.listen,
       lifecycle: en.desktop.daemon.lifecycle,
       title: "Daemon",
       status: {
@@ -1735,6 +1736,7 @@ export const es: TranslationResources = {
         connecting: "Conectando...",
       },
       errors: {
+        tokenRequired: "Introduce el token del servidor Ait remoto (32–256 caracteres).",
         targetRequired: "El host SSH es obligatorio",
         invalidTarget: "Introduce un host ssh:// válido",
         failedToConnect: "No se pudo conectar por SSH. {{detail}}",
