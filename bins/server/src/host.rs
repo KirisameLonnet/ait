@@ -21,11 +21,13 @@ use server_filesystem::service::{
     github_projects::GithubProjects, workspace_recovery::WorkspaceRecovery,
 };
 use server_metadata::local::workspace_automation::LocalWorkspaceAutomation;
+use server_metadata::ports::generation::MetadataGenerator;
 use server_metadata::ports::registry::{ProjectRegistry, WorkspaceRegistry};
 use server_metadata::service::daemon::{Daemon, DaemonRuntime};
 use server_metadata::service::directory::{Directory, DirectoryDependencies};
 use server_metadata::service::workspace_automation::WorkspaceAutomation;
 use server_metadata::service::workspace_labels::WorkspaceLabels;
+use server_metadata::service::workspace_names::WorkspaceNames;
 use server_metadata::service::workspace_state::WorkspaceState;
 use server_metadata::storage::daemon_config::FileDaemonConfigStore;
 use server_metadata::storage::project_config::LocalProjectConfigStore;
@@ -169,42 +171,36 @@ fn compose_services(
         _instance: instance.clone(),
     }));
     let server_id = instance.server_id.to_string();
-    let worktrees = compose_worktrees(config, &project_registry, &workspace_registry, &server_id);
-    let workspace_automation = WorkspaceAutomation::new(
-        Box::new(workspace_registry.clone()),
-        Box::new(LocalWorkspaceAutomation::default()),
-    );
-    let workspace_state = WorkspaceState::new(
-        Box::new(AgentWorkspaceAttention::new(Box::new(
-            agent_runtime_registry.clone(),
-        ))),
-        Box::new(workspace_registry.clone()),
-    );
-    let workspace_recovery = WorkspaceRecovery::new(
-        Box::new(workspace_registry.clone()),
-        Box::new(project_registry.clone()),
-        Box::new(LocalManagedWorktrees::new(
-            config.data_dir.join("worktrees"),
-        )),
-    );
-    let daemon = compose_daemon(config, address, &server_id)?;
-    let creations = server_metadata::service::creation::Creations::open(
-        config.data_dir.join("creations/receipts.json"),
-    )
-    .map_err(|_| anyhow::anyhow!("initialize creation receipts"))?;
-    let directory = compose_directory(
+    let MetadataServices {
+        config: config_store,
+        generator: metadata_generator,
+        names: workspace_names,
+    } = compose_metadata(&config.data_dir, &workspace_registry);
+    let worktrees = compose_worktrees(config, &project_registry, &workspace_registry, &server_id)
+        .with_workspace_names(workspace_names.clone());
+    let WorkspaceServices {
+        automation: workspace_automation,
+        state: workspace_state,
+        recovery: workspace_recovery,
+    } = compose_workspace_services(
         config,
-        &project_registry,
         &workspace_registry,
-        server_id,
-        creations,
+        &project_registry,
+        &agent_runtime_registry,
     );
+    let daemon = compose_daemon(config_store, address, &server_id)?;
+    let directory = compose_directory(config, &project_registry, &workspace_registry, server_id)?
+        .with_workspace_names(workspace_names.clone());
     let agent_execution = compose_provider(
         agent_runtime_registry,
         (&workspace_registry, &project_registry),
         instance,
         &config.data_dir,
-        directory.clone(),
+        (
+            directory.clone(),
+            metadata_generator.clone(),
+            workspace_names.clone(),
+        ),
     )?;
     let schedules = schedule::compose(
         &config.data_dir,
@@ -215,11 +211,14 @@ fn compose_services(
             &project_registry,
             &workspace_registry,
             &instance.server_id.to_string(),
-        ),
+        )
+        .with_workspace_names(workspace_names.clone()),
     )?;
     let github_projects =
         GithubProjects::new(directory.clone(), Box::new(LocalGithubProjects::new()));
     Ok(Services {
+        metadata_generator: Some(metadata_generator),
+        workspace_names: Some(workspace_names),
         schedules: Some(schedules),
         browser: Some(server_browser::broker::Broker::default()),
         skills: Some(compose_skills(&config.data_dir)?),
@@ -249,14 +248,83 @@ fn compose_services(
     })
 }
 
+struct WorkspaceServices {
+    automation: WorkspaceAutomation,
+    state: WorkspaceState,
+    recovery: WorkspaceRecovery,
+}
+
+fn compose_workspace_services(
+    config: &Config,
+    workspace_registry: &FileBackedWorkspaceRegistry,
+    project_registry: &FileBackedProjectRegistry,
+    agent_runtime_registry: &FileBackedAgentRuntimeRegistry,
+) -> WorkspaceServices {
+    let workspace_automation = WorkspaceAutomation::new(
+        Box::new(workspace_registry.clone()),
+        Box::new(LocalWorkspaceAutomation::default()),
+    );
+    let workspace_state = WorkspaceState::new(
+        Box::new(AgentWorkspaceAttention::new(Box::new(
+            agent_runtime_registry.clone(),
+        ))),
+        Box::new(workspace_registry.clone()),
+    );
+    let workspace_recovery = WorkspaceRecovery::new(
+        Box::new(workspace_registry.clone()),
+        Box::new(project_registry.clone()),
+        Box::new(LocalManagedWorktrees::new(
+            config.data_dir.join("worktrees"),
+        )),
+    );
+    WorkspaceServices {
+        automation: workspace_automation,
+        state: workspace_state,
+        recovery: workspace_recovery,
+    }
+}
+
+struct MetadataServices {
+    config: FileDaemonConfigStore,
+    generator: Arc<dyn MetadataGenerator>,
+    names: WorkspaceNames,
+}
+
+fn compose_metadata(
+    data_dir: &std::path::Path,
+    registry: &FileBackedWorkspaceRegistry,
+) -> MetadataServices {
+    let config_store = FileDaemonConfigStore::with_defaults(data_dir.join("config.json"));
+    let (codex, claude) = native_clients(data_dir);
+    let metadata_generator: Arc<dyn MetadataGenerator> = Arc::new(
+        server_provider::service::metadata_generation::Generation::new(
+            Arc::new(config_store.clone()),
+            vec![Arc::new(codex), Arc::new(claude)],
+        ),
+    );
+    let workspace_names = WorkspaceNames::new(
+        Arc::new(registry.clone()),
+        metadata_generator.clone(),
+        Arc::new(LocalCheckout::new(data_dir.join("worktrees"))),
+    );
+    MetadataServices {
+        config: config_store,
+        generator: metadata_generator,
+        names: workspace_names,
+    }
+}
+
 fn compose_directory(
     config: &Config,
     project_registry: &FileBackedProjectRegistry,
     workspace_registry: &FileBackedWorkspaceRegistry,
     server_id: String,
-    creations: server_metadata::service::creation::Creations,
-) -> Directory {
-    Directory::new(DirectoryDependencies {
+) -> anyhow::Result<Directory> {
+    let creations = server_metadata::service::creation::Creations::open(
+        config.data_dir.join("creations/receipts.json"),
+    )
+    .map_err(|_| anyhow::anyhow!("initialize creation receipts"))?;
+    Ok(Directory::new(DirectoryDependencies {
         projects: Box::new(project_registry.clone()),
         workspaces: Box::new(workspace_registry.clone()),
         source: Box::new(LocalDirectorySource),
@@ -266,7 +334,7 @@ fn compose_directory(
         )),
         server_id,
     })
-    .with_creations(creations)
+    .with_creations(creations))
 }
 
 fn compose_worktrees(
@@ -285,7 +353,11 @@ fn compose_worktrees(
     )
 }
 
-fn compose_daemon(config: &Config, address: SocketAddr, server_id: &str) -> anyhow::Result<Daemon> {
+fn compose_daemon(
+    config_store: FileDaemonConfigStore,
+    address: SocketAddr,
+    server_id: &str,
+) -> anyhow::Result<Daemon> {
     let daemon = Daemon::new(
         DaemonRuntime {
             server_id: server_id.to_owned(),
@@ -298,9 +370,7 @@ fn compose_daemon(config: &Config, address: SocketAddr, server_id: &str) -> anyh
             started_at: Some(Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)),
             listen: address.to_string(),
         },
-        Box::new(FileDaemonConfigStore::with_defaults(
-            config.data_dir.join("config.json"),
-        )),
+        Box::new(config_store),
     );
     daemon.get_config().context("initialize daemon config")?;
     Ok(daemon)
@@ -311,8 +381,9 @@ fn compose_provider(
     registries: (&FileBackedWorkspaceRegistry, &FileBackedProjectRegistry),
     instance: &Arc<InstanceLease>,
     data_dir: &std::path::Path,
-    directory: Directory,
+    metadata: (Directory, Arc<dyn MetadataGenerator>, WorkspaceNames),
 ) -> anyhow::Result<AgentExecution> {
+    let (directory, generator, names) = metadata;
     let (workspace_registry, project_registry) = registries;
     let timeline = server_provider::storage::timeline::Timeline::open(
         &data_dir.join("agents/timeline.sqlite3"),
@@ -320,19 +391,12 @@ fn compose_provider(
     .map_err(|_| anyhow::anyhow!("initialize Agent timeline"))?;
     let mut manager = AgentManager::new(Box::new(agent_runtime_registry.clone()))
         .with_timeline(timeline)
-        .with_creations(directory.creations());
-    manager.register_client(Box::new(
-        CodexClient::new(
-            std::env::var_os("AIT_SERVER_CODEX_BIN").map_or_else(|| "codex".into(), Into::into),
-        )
-        .with_image_directory(data_dir.join("agents/provider-images")),
-    ))?;
-    manager.register_client(Box::new(
-        ClaudeClient::new(
-            std::env::var_os("AIT_SERVER_CLAUDE_BIN").map_or_else(|| "claude".into(), Into::into),
-        )
-        .with_image_directory(data_dir.join("agents/provider-images")),
-    ))?;
+        .with_creations(directory.creations())
+        .with_metadata_generation(generator)
+        .with_workspace_names(names);
+    let (codex, claude) = native_clients(data_dir);
+    manager.register_client(Box::new(codex))?;
+    manager.register_client(Box::new(claude))?;
     AgentExecution::spawn(ExecutionDependencies {
         manager,
         directory: AgentRuntimeDirectory::new(
@@ -347,6 +411,19 @@ fn compose_provider(
         projects: Box::new(project_registry.clone()),
     })
     .context("start Provider worker")
+}
+
+fn native_clients(data_dir: &std::path::Path) -> (CodexClient, ClaudeClient) {
+    (
+        CodexClient::new(
+            std::env::var_os("AIT_SERVER_CODEX_BIN").map_or_else(|| "codex".into(), Into::into),
+        )
+        .with_image_directory(data_dir.join("agents/provider-images")),
+        ClaudeClient::new(
+            std::env::var_os("AIT_SERVER_CLAUDE_BIN").map_or_else(|| "claude".into(), Into::into),
+        )
+        .with_image_directory(data_dir.join("agents/provider-images")),
+    )
 }
 
 #[cfg(test)]

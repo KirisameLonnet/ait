@@ -371,12 +371,22 @@ fn workspace_create(
         expects_initial_agent: request.first_agent_context.is_some(),
         timestamp: &timestamp,
     }) {
-        Ok(workspace) => encode(WorkspaceCreateResult {
-            workspace: Some(describe_workspace(directory, &workspace)?),
-            setup_terminal_id: None,
-            error: None,
-            error_code: None,
-        }),
+        Ok(workspace) => {
+            if let Some(context) = request.first_agent_context
+                && let Some(source) = crate::service::workspace_names::first_agent_source(
+                    context.prompt.as_deref(),
+                    &context.attachments,
+                )
+            {
+                directory.name_workspace(workspace.workspace_id.clone(), source);
+            }
+            encode(WorkspaceCreateResult {
+                workspace: Some(describe_workspace(directory, &workspace)?),
+                setup_terminal_id: None,
+                error: None,
+                error_code: None,
+            })
+        }
         Err(DirectoryError::Registry) => Err(ErrorCode::RegistryIo),
         Err(error) => encode(WorkspaceCreateResult {
             workspace: None,

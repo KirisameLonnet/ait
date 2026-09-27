@@ -75,6 +75,9 @@ mod native;
 #[path = "session.rs"]
 mod session;
 
+#[path = "metadata_generation.rs"]
+mod metadata_generation;
+
 #[path = "metadata.rs"]
 mod metadata;
 

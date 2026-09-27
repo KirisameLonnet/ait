@@ -135,6 +135,7 @@ pub struct WorkspaceCreation<'a> {
 #[derive(Debug, Clone)]
 pub struct Directory {
     creations: super::creation::Creations,
+    names: Option<super::workspace_names::WorkspaceNames>,
     projects: Arc<dyn ProjectRegistry>,
     workspaces: Arc<dyn WorkspaceRegistry>,
     source: Arc<dyn DirectorySource>,
@@ -166,12 +167,27 @@ impl Directory {
     pub fn new(dependencies: DirectoryDependencies) -> Self {
         Self {
             creations: super::creation::Creations::default(),
+            names: None,
             projects: dependencies.projects.into(),
             workspaces: dependencies.workspaces.into(),
             source: dependencies.source.into(),
             config_store: dependencies.config_store.into(),
             icon_store: dependencies.icon_store.into(),
             server_id: dependencies.server_id,
+        }
+    }
+
+    /// Install the shared first-prompt naming coordinator.
+    #[must_use]
+    pub fn with_workspace_names(mut self, names: super::workspace_names::WorkspaceNames) -> Self {
+        self.names = Some(names);
+        self
+    }
+
+    /// Queue first-prompt metadata after successfully creating a directory workspace.
+    pub fn name_workspace(&self, id: String, context: String) {
+        if let Some(names) = &self.names {
+            names.schedule(id, context, None);
         }
     }
 
@@ -257,13 +273,18 @@ impl Directory {
             Some(project_id) => self.require_active_project(project_id, &checkout, timestamp)?,
             None => self.project_for_checkout(&checkout, timestamp)?,
         };
-        let workspace = workspace_record(
+        let mut workspace = workspace_record(
             workspace_id.unwrap_or(generate_workspace_id()?),
             &project.project_id,
             &checkout,
             normalize_optional_text(title),
             timestamp,
         );
+        if workspace.title.is_none() {
+            workspace.auto_name = Some(crate::model::registry::PendingWorkspaceName {
+                placeholder_branch: None,
+            });
+        }
         self.workspaces
             .upsert(
                 &workspace,
@@ -564,6 +585,7 @@ impl Directory {
             .update(workspace_id, &|workspace| {
                 let mut workspace = workspace.clone();
                 workspace.title = title.map(str::to_owned);
+                workspace.auto_name = None;
                 updated_at.clone_into(&mut workspace.updated_at);
                 workspace
             })
@@ -839,6 +861,7 @@ fn workspace_record(
         auto_archived_change_request_url: None,
         pinned_at: None,
         labels: None,
+        auto_name: None,
         untrusted_source: None,
     }
 }

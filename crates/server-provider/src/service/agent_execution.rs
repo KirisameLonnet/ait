@@ -254,6 +254,7 @@ async fn serve(mut state: ExecutionState, mut commands: mpsc::Receiver<Command>)
                 let _ = state.manager.poll().await;
                 let _ = state.manager.reconcile().await;
                 let _ = state.manager.dispatch_pending_inputs().await;
+                let _ = state.manager.poll_generated_titles().await;
             }
         }
     }

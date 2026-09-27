@@ -2,6 +2,7 @@
 
 mod controls;
 mod delivery;
+mod generated_titles;
 pub(crate) mod native_sessions;
 mod streaming;
 mod titles;
@@ -94,6 +95,8 @@ pub struct AgentManager {
     catalog: super::provider_catalog::Catalog,
     creations: server_metadata::service::creation::Creations,
     loaded_timelines: std::collections::BTreeSet<String>,
+    generated_titles: generated_titles::Titles,
+    workspace_names: Option<server_metadata::service::workspace_names::WorkspaceNames>,
 }
 
 impl AgentManager {
@@ -109,6 +112,8 @@ impl AgentManager {
             catalog: super::provider_catalog::Catalog::default(),
             creations: server_metadata::service::creation::Creations::default(),
             loaded_timelines: std::collections::BTreeSet::new(),
+            generated_titles: generated_titles::Titles::default(),
+            workspace_names: None,
         }
     }
 
@@ -132,6 +137,26 @@ impl AgentManager {
     #[must_use]
     pub fn with_timeline(mut self, timeline: crate::storage::timeline::Timeline) -> Self {
         self.timeline = Some(timeline);
+        self
+    }
+
+    /// Install shared auxiliary generation; foreground sessions retain their own lifecycle.
+    #[must_use]
+    pub fn with_metadata_generation(
+        mut self,
+        generator: std::sync::Arc<dyn server_metadata::ports::generation::MetadataGenerator>,
+    ) -> Self {
+        self.generated_titles.generator = Some(generator);
+        self
+    }
+
+    /// Share workspace naming for workspaces created before their first Agent prompt arrives.
+    #[must_use]
+    pub fn with_workspace_names(
+        mut self,
+        names: server_metadata::service::workspace_names::WorkspaceNames,
+    ) -> Self {
+        self.workspace_names = Some(names);
         self
     }
 
@@ -358,6 +383,7 @@ impl AgentManager {
             last_activity_at: None,
             last_user_message_at: None,
             title: registration.title,
+            title_origin: None,
             labels: registration.labels,
             last_status: AgentRuntimeStatus::Idle,
             last_mode_id: spec.config.mode_id.clone(),
@@ -550,6 +576,10 @@ impl AgentManager {
                 next.attention_timestamp = None;
                 if titles::missing(current) {
                     next.title = titles::from_prompt(&prompt.text);
+                    next.title_origin = next
+                        .title
+                        .as_ref()
+                        .map(|_| server_domain::agent_runtime::TitleOrigin::Prompt);
                 }
                 next
             })
@@ -560,6 +590,31 @@ impl AgentManager {
             .get_mut(agent_id)
             .ok_or(AgentManagerError::Session)?;
         agent.last_message = None;
+        if let Some(names) = &self.workspace_names
+            && let Some(workspace) = record.workspace_id.clone()
+            && !record.internal
+        {
+            let context = self
+                .timeline
+                .as_ref()
+                .and_then(|timeline| timeline.first_user_text(agent_id).ok().flatten())
+                .unwrap_or_else(|| prompt.text.clone());
+            names.schedule(
+                workspace,
+                context,
+                Some(server_metadata::ports::generation::MetadataSelection {
+                    provider: record.provider.clone(),
+                    model: record
+                        .config
+                        .as_ref()
+                        .and_then(|config| config.model.clone()),
+                    thinking_option_id: record
+                        .config
+                        .as_ref()
+                        .and_then(|config| config.thinking_option_id.clone()),
+                }),
+            );
+        }
         let config = record.config.unwrap_or_default();
         if let Ok(turn) = agent.session.start_input(prompt, &config).await {
             agent.latest_turn = Some(turn.clone());
@@ -741,6 +796,7 @@ impl AgentManager {
     /// # Errors
     /// Returns the first provider or registry failure after attempting every close.
     pub async fn close_all(&mut self) -> Result<(), AgentManagerError> {
+        self.generated_titles.close().await;
         let ids = self.live.keys().cloned().collect::<Vec<_>>();
         let mut first_error = None;
         for id in ids {

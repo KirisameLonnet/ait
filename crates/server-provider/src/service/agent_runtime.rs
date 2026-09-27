@@ -265,6 +265,7 @@ impl AgentRuntimeDirectory {
                 let mut next = current.clone();
                 if let Some(title) = title {
                     next.title = Some(title.to_owned());
+                    next.title_origin = None;
                 }
                 if let Some(labels) = labels {
                     next.labels.extend(labels.clone());

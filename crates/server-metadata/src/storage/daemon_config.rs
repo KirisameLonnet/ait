@@ -4,7 +4,7 @@ use std::collections::{BTreeSet, HashSet};
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use crate::ports::daemon::{DaemonConfigReload, DaemonConfigStore, DaemonConfigStoreError};
 use serde_json::{Map, Value};
@@ -26,11 +26,11 @@ const PATCH_FIELDS: &[&str] = &[
 ];
 
 /// File-backed daemon configuration stored at the Paseo-compatible `config.json` path.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FileDaemonConfigStore {
     path: PathBuf,
     default: Value,
-    state: Mutex<Option<Value>>,
+    state: Arc<Mutex<Option<Value>>>,
 }
 
 impl FileDaemonConfigStore {
@@ -63,7 +63,7 @@ impl FileDaemonConfigStore {
         Self {
             path,
             default,
-            state: Mutex::new(None),
+            state: Arc::new(Mutex::new(None)),
         }
     }
 

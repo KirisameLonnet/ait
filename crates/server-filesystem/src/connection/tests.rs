@@ -28,6 +28,7 @@ impl Harness {
     fn new() -> Self {
         let root = Arc::new(tempfile::tempdir().unwrap());
         let state = Arc::new(State {
+            metadata_generator: None,
             runtime: Arc::new(Runtime::new(ServerInfo {
                 server_id: "test-server".to_owned(),
                 instance_id: "test-instance".to_owned(),

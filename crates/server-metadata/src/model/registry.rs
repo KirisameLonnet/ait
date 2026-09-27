@@ -98,6 +98,9 @@ pub struct PersistedWorkspaceRecord {
     /// Explicit workspace title override.
     #[serde(default)]
     pub title: Option<String>,
+    /// Pending automatic naming; absent for explicit, generated, or legacy titles.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auto_name: Option<PendingWorkspaceName>,
     /// Git branch identity, independent of the title.
     #[serde(default)]
     pub branch: Option<String>,
@@ -140,6 +143,14 @@ pub struct PersistedWorkspaceRecord {
         skip_serializing_if = "Option::is_none"
     )]
     pub untrusted_source: Option<UntrustedWorkspaceSource>,
+}
+
+/// Durable eligibility for first-prompt workspace naming, cleared by a manual title edit.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PendingWorkspaceName {
+    /// System-created placeholder branch eligible for renaming; directory titles use none.
+    pub placeholder_branch: Option<String>,
 }
 
 impl PersistedWorkspaceRecord {

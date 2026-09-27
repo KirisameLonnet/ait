@@ -5,6 +5,7 @@ mod commands;
 pub(crate) mod controls;
 mod discovery;
 mod inspection;
+mod metadata;
 mod native_sessions;
 mod permissions;
 mod plans;
@@ -171,6 +172,15 @@ impl CodexClient {
 }
 
 impl AgentClient for CodexClient {
+    fn generate_metadata<'a>(
+        &'a self,
+        spec: &'a AgentSessionSpec,
+        prompt: &'a str,
+        schema: &'a Value,
+    ) -> AgentSessionFuture<'a, String> {
+        Box::pin(self.metadata(spec, prompt, schema))
+    }
+
     fn handles_out_of_band(&self, text: &str) -> bool {
         commands::out_of_band(text)
     }

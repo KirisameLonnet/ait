@@ -80,6 +80,7 @@ struct Shared {
     voice: Arc<server_voice::dispatch::State>,
     schedule: server_schedule::dispatch::State,
     browser: server_browser::dispatch::State,
+    workspace_names: Option<server_metadata::service::workspace_names::WorkspaceNames>,
 }
 
 impl std::ops::Deref for Shared {
@@ -93,6 +94,10 @@ impl std::ops::Deref for Shared {
 /// Optional independently composed business services; only installed methods are advertised.
 #[derive(Debug, Default)]
 pub struct Services {
+    /// Bounded model-backed wording generation shared by title and Git use cases.
+    pub metadata_generator: Option<Arc<dyn server_metadata::ports::generation::MetadataGenerator>>,
+    /// First-prompt workspace naming with independently drained background work.
+    pub workspace_names: Option<server_metadata::service::workspace_names::WorkspaceNames>,
     /// Persistent timed Agent executions.
     pub schedules: Option<server_schedule::service::Schedules>,
     /// Connection-owned browser automation broker.
@@ -141,6 +146,12 @@ impl Shared {
     fn start_draining(&self) {
         if let Some(schedules) = &self.schedule.schedules {
             schedules.stop();
+        }
+        if let Some(generator) = &self.filesystem.metadata_generator {
+            generator.shutdown();
+        }
+        if let Some(names) = &self.workspace_names {
+            names.shutdown();
         }
         self.metadata.start_draining();
     }
@@ -209,6 +220,7 @@ impl Api {
             has_agent_execution: services.agent_execution.is_some(),
         });
         let filesystem = Arc::new(server_filesystem::dispatch::State {
+            metadata_generator: services.metadata_generator,
             runtime: runtime.clone(),
             checkout: services.checkout.map(shared_service),
             forge: services.forge.map(shared_service),
@@ -242,6 +254,7 @@ impl Api {
                     runtime: runtime.clone(),
                     speech: services.speech,
                 }),
+                workspace_names: services.workspace_names,
                 runtime,
                 metadata,
                 filesystem,
@@ -322,6 +335,9 @@ impl Api {
     /// The process host must bound this wait with its shutdown deadline.
     pub async fn wait_closed(&self) {
         self.shared.tasks.wait().await;
+        if let Some(names) = &self.shared.workspace_names {
+            names.wait_closed().await;
+        }
         if let Some(schedules) = &self.shared.schedule.schedules
             && schedules.shutdown().await.is_err()
         {

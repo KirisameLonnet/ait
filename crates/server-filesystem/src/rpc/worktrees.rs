@@ -90,6 +90,14 @@ fn create(worktrees: &Worktrees, request: WorktreeCreateRequest) -> Result<Dispa
     };
     match worktrees.create(&input, &timestamp()) {
         Ok(created) => {
+            if let Some(context) = context
+                && let Some(source) = server_metadata::service::workspace_names::first_agent_source(
+                    context.prompt.as_deref(),
+                    &context.attachments,
+                )
+            {
+                worktrees.name_workspace(created.workspace.workspace_id.clone(), source);
+            }
             let descriptor = server_metadata::rpc::directory::workspace_descriptor(
                 &created.workspace,
                 Some(&created.project),

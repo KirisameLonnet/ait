@@ -15,6 +15,7 @@ mode = (root / "behavior").read_text() if (root / "behavior").exists() else "nor
 output_lock = threading.Lock()
 pending = None
 thread_id = None
+ephemeral = False
 turn_text = ""
 history_lock = threading.Lock()
 stream_items = []
@@ -42,6 +43,8 @@ def thread_metadata(identifier):
     return defaults
 
 def save_turn(turn_id, text, status):
+    if ephemeral:
+        return
     with history_lock:
         turns = [turn for turn in load_history() if turn["id"] != turn_id]
         items = [{"type": "userMessage", "id": turn_id + "-user", "content": [{"type": "text", "text": turn_text}]}]
@@ -109,6 +112,8 @@ for line in sys.stdin:
             continue
         metadata = thread_metadata(thread_id)
         if method == "thread/start":
+            ephemeral = params.get("ephemeral", False)
+        if method == "thread/start" and not ephemeral:
             (root / ("native-session-" + thread_id + ".json")).write_text(json.dumps(metadata))
         result = {"thread": {**metadata, "turns": load_history() if params.get("includeTurns") else []}, "model": "offline-model"}
         if mode == "missing-thread":
@@ -187,6 +192,13 @@ for line in sys.stdin:
         turn_text = "native goal continuation"
         emit({"method":"turn/started","params":{"threadId":thread_id,"turn":{"id":pending}}})
         complete(pending, "Goal completed")
+    if method == "turn/start" and ephemeral and (root / "metadata-response.json").exists():
+        response = (root / "metadata-response.json").read_text()
+        emit({"method":"item/completed","params":{"threadId":thread_id,"turnId":pending,
+            "item":{"type":"agentMessage","id":"metadata-output","text":response}}})
+        emit({"method":"turn/completed","params":{"threadId":thread_id,"turn":{"id":pending,"status":"completed"}}})
+        pending = None
+        continue
     if method == "turn/start":
         text = next((item["text"] for item in params["input"] if item["type"] == "text"), "skill-only")
         turn_text = text

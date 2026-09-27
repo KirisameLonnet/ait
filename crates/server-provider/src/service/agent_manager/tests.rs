@@ -7,6 +7,7 @@ use server_domain::agent_runtime::{AgentPersistenceHandle, StoredAgentConfig};
 
 use super::*;
 
+mod generated_titles;
 mod paseo;
 mod titles;
 mod usage;
@@ -292,6 +293,7 @@ fn stored_record() -> PersistedAgentRuntimeRecord {
         last_activity_at: Some("2026-09-20T10:02:00.000Z".to_owned()),
         last_user_message_at: None,
         title: Some("Existing".to_owned()),
+        title_origin: None,
         labels: BTreeMap::new(),
         last_status: AgentRuntimeStatus::Closed,
         last_mode_id: None,
