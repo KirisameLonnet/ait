@@ -296,6 +296,7 @@ fn agent(id: &str, workspace_id: &str, updated_at: &str) -> PersistedAgentRuntim
         last_activity_at: None,
         last_user_message_at: None,
         title: None,
+        title_origin: None,
         labels: BTreeMap::new(),
         last_status: AgentRuntimeStatus::Closed,
         last_mode_id: None,
@@ -340,6 +341,7 @@ fn workspace(id: &str, active: bool) -> PersistedWorkspaceRecord {
         auto_archived_change_request_url: None,
         pinned_at: None,
         labels: None,
+        auto_name: None,
         untrusted_source: None,
     }
 }

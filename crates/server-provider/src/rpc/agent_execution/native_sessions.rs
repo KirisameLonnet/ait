@@ -181,6 +181,7 @@ fn new_record(
         last_activity_at: None,
         last_user_message_at: None,
         title: None,
+        title_origin: None,
         labels: BTreeMap::new(),
         last_status: AgentRuntimeStatus::Idle,
         last_mode_id: Some("read-only".to_owned()),

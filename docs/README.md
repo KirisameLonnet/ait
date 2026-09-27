@@ -1,10 +1,12 @@
 # 概念与架构文档
 
+- [ADR-058：Server metadata generation](decisions/adr-058-server-metadata-generation.md)：会话/工作区命名、分支、提交信息与 PR 文案的后台生成、Provider 回退和手工改名保护；[实施报告](reports/server-metadata-generation.md)。
+
 - [ADR-057：移除旧版桌面实现](decisions/adr-057-remove-legacy-desktop.md)：删除旧桌面源码、测试与构建配置，桌面入口统一为 `apps/paseo` 和 `apps/app`；旧 Rust daemon/worker/CLI 保留。
 
 - [main CI 进程与文件订阅修复](reports/main-ci-process-subscriptions.md)：同步轮询许可竞争回归、Claude 固定测试替身，以及 rebase 后的完整验证。
 
-- [Server 会话空标题修复](reports/server-session-titles.md)：新会话首条消息命名、原生导入/刷新标题回退、旧记录补齐，以及自动 AI metadata 尚未接入的限制。
+- [Server 会话空标题修复](reports/server-session-titles.md)：新会话首条消息命名、原生导入/刷新标题回退、旧记录补齐；后续 AI 生成由 ADR-058 补齐。
 
 - [ADR-056：Ait 与 Paseo 共享资源隔离](decisions/adr-056-paseo-coexistence.md)：技能所有权、自动 stash、启动环境变量、Rust SSH 和移动端应用 ID；[验证报告](reports/paseo-coexistence.md)。
 

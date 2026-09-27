@@ -504,6 +504,7 @@ fn agent(id: &str, workspace_id: &str, title: &str, internal: bool) -> Persisted
         last_activity_at: None,
         last_user_message_at: None,
         title: Some(title.to_owned()),
+        title_origin: None,
         labels: BTreeMap::from([("team".to_owned(), "server".to_owned())]),
         last_status: AgentRuntimeStatus::Idle,
         last_mode_id: None,
@@ -555,6 +556,7 @@ fn workspace(id: &str, project_id: &str) -> PersistedWorkspaceRecord {
         auto_archived_change_request_url: None,
         pinned_at: None,
         labels: None,
+        auto_name: None,
         untrusted_source: None,
     }
 }

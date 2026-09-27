@@ -3,6 +3,7 @@ use std::process::Command;
 
 use tempfile::TempDir;
 
+mod naming;
 mod paseo;
 
 use super::{LocalCheckout, is_below};

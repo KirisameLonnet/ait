@@ -161,6 +161,7 @@ pub struct Worktrees {
     workspaces: Box<dyn WorkspaceRegistry>,
     managed: Box<dyn ManagedWorktrees>,
     server_id: String,
+    names: Option<server_metadata::service::workspace_names::WorkspaceNames>,
 }
 
 impl Worktrees {
@@ -177,6 +178,24 @@ impl Worktrees {
             workspaces,
             managed,
             server_id,
+            names: None,
+        }
+    }
+
+    /// Install first-prompt workspace naming for successful creations.
+    #[must_use]
+    pub fn with_workspace_names(
+        mut self,
+        names: server_metadata::service::workspace_names::WorkspaceNames,
+    ) -> Self {
+        self.names = Some(names);
+        self
+    }
+
+    /// Queue naming after creation, preserving any explicit branch selection.
+    pub fn name_workspace(&self, id: String, context: String) {
+        if let Some(names) = &self.names {
+            names.schedule(id, context, None);
         }
     }
 
@@ -352,6 +371,14 @@ impl Worktrees {
             auto_archived_change_request_url: None,
             pinned_at: None,
             labels: None,
+            auto_name: Some(server_metadata::model::registry::PendingWorkspaceName {
+                placeholder_branch: (input.action == CreateAction::BranchOff
+                    && input
+                        .worktree_slug
+                        .as_deref()
+                        .is_none_or(|slug| slug.trim().is_empty()))
+                .then(|| created.branch_name.clone()),
+            }),
             untrusted_source: None,
         };
         self.workspaces

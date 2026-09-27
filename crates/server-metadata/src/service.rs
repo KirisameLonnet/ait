@@ -11,3 +11,6 @@ pub mod creation;
 
 /// Leased push token management.
 pub mod push;
+
+/// Background workspace title and placeholder branch generation.
+pub mod workspace_names;

@@ -100,6 +100,7 @@ impl AgentManager {
                 let mut next = current.clone();
                 if missing(current) {
                     next.title = Some(title.clone());
+                    next.title_origin = Some(server_domain::agent_runtime::TitleOrigin::Prompt);
                 }
                 next
             })

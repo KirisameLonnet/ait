@@ -4,6 +4,7 @@ mod config;
 mod history;
 mod inputs;
 mod inspection;
+mod metadata;
 mod permissions;
 mod rewind;
 mod session;
@@ -101,6 +102,15 @@ impl ClaudeClient {
 }
 
 impl AgentClient for ClaudeClient {
+    fn generate_metadata<'a>(
+        &'a self,
+        spec: &'a AgentSessionSpec,
+        prompt: &'a str,
+        schema: &'a Value,
+    ) -> AgentSessionFuture<'a, String> {
+        Box::pin(self.metadata(spec, prompt, schema))
+    }
+
     fn provider(&self) -> &'static str {
         "claude"
     }

@@ -16,7 +16,7 @@ fn spec(cwd: &std::path::Path) -> AgentSessionSpec {
 }
 
 #[cfg(unix)]
-fn fixture() -> (tempfile::TempDir, ClaudeClient, AgentSessionSpec) {
+pub(super) fn fixture() -> (tempfile::TempDir, ClaudeClient, AgentSessionSpec) {
     let root = tempfile::tempdir().unwrap();
     // Execute an immutable fixture instead of writing an executable while other tests spawn.
     // All mutable native state remains scoped to this test's cwd and configuration directory.

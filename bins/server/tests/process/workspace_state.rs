@@ -174,6 +174,7 @@ fn workspace(
         auto_archived_change_request_url: None,
         pinned_at: None,
         labels: None,
+        auto_name: None,
         untrusted_source: None,
     }
 }
@@ -194,6 +195,7 @@ fn agent(
         last_activity_at: None,
         last_user_message_at: None,
         title: Some(id.to_owned()),
+        title_origin: None,
         labels: if id == "root" {
             BTreeMap::new()
         } else {

@@ -197,6 +197,7 @@ fn service() -> (WorkspaceAutomation, Workspaces, Runtime) {
 
 fn workspace(id: &str, blocked: bool, archived: bool) -> PersistedWorkspaceRecord {
     PersistedWorkspaceRecord {
+        auto_name: None,
         workspace_id: id.to_owned(),
         project_id: "prj".to_owned(),
         cwd: "/repo".to_owned(),

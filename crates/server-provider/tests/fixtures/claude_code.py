@@ -76,6 +76,10 @@ for line in sys.stdin:
         if isinstance(prompt, list):
             prompt = " ".join(block.get("text", "[Image attachment]") for block in prompt)
         emit({"type":"system", "subtype":"init", "session_id":session, "model":model})
+        if "--tools=" in args and (cwd / "metadata-response.json").exists():
+            emit({"type":"result","subtype":"success","is_error":False,"session_id":session,
+                "structured_output":json.loads((cwd / "metadata-response.json").read_text())})
+            continue
         if prompt == "rotate-session":
             session = str(uuid.uuid4())
             history = config / "projects" / project / (session + ".jsonl")

@@ -34,6 +34,24 @@ impl Transport {
         binding: Option<(&str, bool)>,
         output_schema: Option<&Value>,
     ) -> Result<Self, AgentSessionError> {
+        Self::spawn_with_metadata(client, spec, binding, output_schema, false)
+    }
+
+    pub(super) fn spawn_metadata(
+        client: &ClaudeClient,
+        spec: &AgentSessionSpec,
+        schema: &Value,
+    ) -> Result<Self, AgentSessionError> {
+        Self::spawn_with_metadata(client, spec, None, Some(schema), true)
+    }
+
+    fn spawn_with_metadata(
+        client: &ClaudeClient,
+        spec: &AgentSessionSpec,
+        binding: Option<(&str, bool)>,
+        output_schema: Option<&Value>,
+        metadata: bool,
+    ) -> Result<Self, AgentSessionError> {
         #[cfg(windows)]
         if client
             .program
@@ -46,6 +64,14 @@ impl Transport {
             return Err(AgentSessionError::Unavailable);
         }
         let mut command = launch_command(client, spec, binding)?;
+        if metadata {
+            command.args([
+                "--tools=",
+                "--strict-mcp-config",
+                "--mcp-config={\"mcpServers\":{}}",
+                "--settings={\"disableAllHooks\":true}",
+            ]);
+        }
         if let Some(schema) = output_schema {
             command.arg(format!("--json-schema={schema}"));
         }

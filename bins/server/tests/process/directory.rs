@@ -392,6 +392,7 @@ fn workspace() -> PersistedWorkspaceRecord {
         auto_archived_change_request_url: None,
         pinned_at: None,
         labels: None,
+        auto_name: None,
         untrusted_source: None,
     }
 }

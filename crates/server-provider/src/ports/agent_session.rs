@@ -242,6 +242,19 @@ pub trait AgentSession: Debug + Send {
 
 /// Factory and availability boundary for one independent provider adapter.
 pub trait AgentClient: Debug + Send + Sync {
+    /// Run an isolated, non-persisted structured request without registering a foreground Agent.
+    /// `spec` selects cwd/model/reasoning; `prompt` is source-only wording and `schema` its output.
+    /// # Errors
+    /// Returns unavailable for unsupported providers, or safe protocol/timeout failures.
+    fn generate_metadata<'a>(
+        &'a self,
+        _spec: &'a AgentSessionSpec,
+        _prompt: &'a str,
+        _schema: &'a serde_json::Value,
+    ) -> AgentSessionFuture<'a, String> {
+        Box::pin(async { Err(AgentSessionError::Unavailable) })
+    }
+
     /// Whether this text names a provider command that bypasses foreground input scheduling.
     fn handles_out_of_band(&self, _text: &str) -> bool {
         false

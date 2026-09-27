@@ -16,6 +16,7 @@ fn record(id: &str) -> PersistedAgentRuntimeRecord {
         last_activity_at: None,
         last_user_message_at: None,
         title: None,
+        title_origin: None,
         labels: BTreeMap::new(),
         last_status: AgentRuntimeStatus::Closed,
         last_mode_id: None,

@@ -1,6 +1,7 @@
 //! Metadata ports owned by the independent server.
 
 pub mod daemon;
+pub mod generation;
 pub mod provisioning;
 pub mod registry;
 pub mod workspace_automation;

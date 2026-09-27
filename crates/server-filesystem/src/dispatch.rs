@@ -1,5 +1,7 @@
 //! Concrete service state and crate-owned request dispatch.
 
+mod metadata;
+
 use std::sync::{Arc, Mutex};
 
 use server_model::outbound::QueueError;
@@ -10,6 +12,8 @@ use crate::capabilities::Group;
 /// Services installed for this capability crate, sharing server-wide runtime resources.
 #[derive(Debug)]
 pub struct State {
+    /// Optional model-backed wording service; unavailable generation uses deterministic fallbacks.
+    pub metadata_generator: Option<Arc<dyn server_metadata::ports::generation::MetadataGenerator>>,
     /// Installed skills service.
     pub skills: Option<Arc<Mutex<crate::service::skills::Skills>>>,
     /// Shared Tokio admission, cancellation and task tracking.
@@ -53,6 +57,12 @@ pub async fn dispatch(
     state: &State,
     connection: &mut Connection,
 ) -> Result<(), QueueError> {
+    if matches!(group, Group::Checkout | Group::Forge)
+        && let Err(error) =
+            metadata::fill(state, &context.request.method, &mut context.request.params).await
+    {
+        return context.respond(Err(error));
+    }
     match group {
         Group::Skills => {
             context
