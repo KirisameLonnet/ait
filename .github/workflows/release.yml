@@ -10,6 +10,10 @@ on:
         description: Existing semantic version tag to release (for example v0.0.7)
         required: true
         type: string
+      source_commit:
+        description: Optional full commit SHA for an explicitly requested same-version rebuild
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -42,11 +46,21 @@ jobs:
       CI: "1"
       EXPO_NO_TELEMETRY: "1"
       AIT_DESKTOP_SMOKE: "1"
+      # Old immutable tags still use the former name in their packaging hooks.
+      PASEO_DESKTOP_SMOKE: "1"
     steps:
+      - name: Validate rebuild source
+        env:
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+        run: |
+          if [ -n "$SOURCE_COMMIT" ]; then
+            [[ "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          fi
+
       - name: Check out release source
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ inputs.source_commit || inputs.tag || github.ref }}
 
       - name: Check out release tooling
         uses: actions/checkout@v4
@@ -140,7 +154,7 @@ jobs:
       - name: Check out release source
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ inputs.source_commit || inputs.tag || github.ref }}
       - name: Check out release tooling
         uses: actions/checkout@v4
         with:
@@ -154,6 +168,21 @@ jobs:
           pattern: ait-*
           path: release-assets
           merge-multiple: true
+
+      - name: Record release build source
+        run: |
+          node <<'NODE'
+          const { execFileSync } = require('node:child_process');
+          const { writeFileSync } = require('node:fs');
+          const info = {
+            version: process.env.RELEASE_TAG.replace(/^v/, ''),
+            releaseTag: process.env.RELEASE_TAG,
+            sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+            workflowCommit: process.env.GITHUB_WORKFLOW_SHA,
+            workflowRunUrl: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+          };
+          writeFileSync('release-assets/BUILD-INFO.json', JSON.stringify(info, null, 2) + '\n');
+          NODE
 
       - name: Verify assets and write checksums
         run: node .tmp/release-tools/scripts/release-assets.mjs verify "${RELEASE_TAG#v}" release-assets
