@@ -1,5 +1,3 @@
-import { describe, expect, it, vi } from "vitest";
-import type { AgentAttachment, ForgeSearchItem } from "@getpaseo/protocol/messages";
 import type {
   AttachmentMetadata,
   ComposerAttachment,
@@ -7,18 +5,19 @@ import type {
   WorkspaceComposerAttachment,
 } from "@/attachments/types";
 import {
-  appendSubmittedUserMessage,
-  removeSubmittedUserMessage,
-  type StreamItem,
-} from "@/types/stream";
-import {
   acceptMessageSubmission,
   beginMessageSubmission,
   rejectMessageSubmission,
   type MessageSubmissionRecord,
 } from "@/composer/submission/model";
 import {
-  uploadFileAttachments,
+  appendSubmittedUserMessage,
+  removeSubmittedUserMessage,
+  type StreamItem,
+} from "@/types/stream";
+import type { AgentAttachment, ForgeSearchItem } from "@getpaseo/protocol/messages";
+import { describe, expect, it, vi } from "vitest";
+import {
   cancelComposerAgent,
   dispatchComposerAgentMessage,
   editQueuedComposerMessage,
@@ -31,10 +30,11 @@ import {
   sendQueuedComposerMessageNow,
   toggleForgeAttachment,
   toggleForgeAttachmentFromPicker,
-  type MessageSubmissionWriter,
+  uploadFileAttachments,
   type AttachmentPersister,
   type ComposerCancelClient,
   type ComposerSendClient,
+  type MessageSubmissionWriter,
   type QueueWriter,
   type QueuedComposerMessage,
 } from "./actions";
@@ -930,35 +930,6 @@ describe("openComposerAttachment", () => {
       },
     });
     expect(externalUrlCalls).toEqual([issueItem.url]);
-  });
-
-  it("opens plugin resource URLs through the external url opener", () => {
-    const externalUrlCalls: string[] = [];
-    openComposerAttachment({
-      attachment: {
-        kind: "plugin_resource",
-        pluginId: "linear",
-        sourceId: "issues",
-        sourceTitle: "Linear issue",
-        sourceIcon: "CircleDot",
-        item: {
-          id: "issue-uuid",
-          identifier: "ENG-123",
-          title: "Plugin attachments",
-          url: "https://linear.app/acme/issue/ENG-123/plugin-attachments",
-          text: "Linear issue ENG-123: Plugin attachments",
-          resourceType: "issue",
-        },
-      },
-      setLightboxMetadata: () => {
-        throw new Error("unexpected lightbox call");
-      },
-      openWorkspaceAttachment: () => false,
-      openExternalUrl: (url) => {
-        externalUrlCalls.push(url);
-      },
-    });
-    expect(externalUrlCalls).toEqual(["https://linear.app/acme/issue/ENG-123/plugin-attachments"]);
   });
 });
 

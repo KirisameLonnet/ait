@@ -1,6 +1,5 @@
-import type { createCreationScenario } from "../support/helpers/creation";
-import { expect } from "../support/fixtures";
 import { test } from "../support/creation-fixtures";
+import { expect } from "../support/fixtures";
 
 for (const isolation of ["local", "worktree"] as const) {
   test(`repeated Create clicks before a render create only one ${isolation} workspace`, async ({
@@ -89,42 +88,3 @@ test("separate drafts can intentionally create two agents in the same workspace"
   delayedCreation.release();
   await creation.expectAgentCount(2);
 });
-
-test("new workspace navigation and optimistic prompt precede agent initialization", async ({
-  creation,
-  startup,
-  delayedCreation,
-}) => {
-  await creation.openWorkspaceForm("worktree");
-  await creation.submitPrompt("Show this prompt while the agent is starting.", "Create");
-  await creation.expectAgentStillStarting();
-  delayedCreation.expectSingleWorkspaceIntent();
-  delayedCreation.release();
-  await startup.release();
-  await creation.expectOneCreatedWorkspace();
-  await creation.expectAgentCount(1);
-});
-
-for (const scenario of [
-  { suffix: "", prepare: async () => {} },
-  {
-    suffix: " after remount",
-    prepare: async (creation: Awaited<ReturnType<typeof createCreationScenario>>) =>
-      creation.evictAndReturnToDraft(),
-  },
-]) {
-  test(`retrying failed agent initialization preserves its workspace${scenario.suffix}`, async ({
-    creation,
-    startup,
-  }) => {
-    await creation.openWorkspaceForm("local");
-    await creation.submitPrompt("Retry this workspace and agent together.", "Create");
-    await creation.expectAgentStillStarting();
-    await startup.fail();
-    await creation.expectStartupFailure();
-    await creation.expectOneCreatedWorkspace();
-    await scenario.prepare(creation);
-    await creation.submitPrompt("Retry this workspace and agent together.");
-    await creation.expectAgentCount(1);
-  });
-}

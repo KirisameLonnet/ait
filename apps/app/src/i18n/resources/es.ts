@@ -2686,13 +2686,13 @@ export const es: TranslationResources = {
         savedToast: "Proyecto actualizado",
       },
       readFailures: {
-        invalidTitle: "paseo.json no se pudo analizar",
+        invalidTitle: "ait.json no se pudo analizar",
         invalidDescription: "Fije el archivo en el disco y luego vuelva a cargarlo.",
         missingTitle: "Este anfitrión no tiene este proyecto",
         missingSingleHost: "El anfitrión seleccionado no tiene registro de este proyecto.",
-        transportTitle: "No se pudo cargar paseo.json",
+        transportTitle: "No se pudo cargar ait.json",
         transportFallback: "El anfitrión no respondió.",
-        failedTitle: "No se pudo cargar paseo.json",
+        failedTitle: "No se pudo cargar ait.json",
         failedDescription: "Vuelva a cargar para intentarlo de nuevo.",
       },
       worktree: {
@@ -2703,7 +2703,7 @@ export const es: TranslationResources = {
           "Consulte los documentos para obtener más detalles y las variables de entorno disponibles para estos comandos.",
         setup: "Configuración",
         setupAccessibility: "Comandos de configuración del árbol de trabajo",
-        uncommittedTitle: "Confirma los cambios de paseo.json",
+        uncommittedTitle: "Confirma los cambios de ait.json",
         uncommittedDescription:
           "Los árboles de trabajo nuevos usan el script de configuración de la rama base que selecciones.",
         teardown: "Demoler",
@@ -2748,8 +2748,8 @@ export const es: TranslationResources = {
       },
       writeFailures: {
         staleTitle: "Configuración cambiada en el disco",
-        staleDescription: "Vuelva a cargar para obtener el último paseo.json antes de guardar.",
-        failedTitle: "No se pudo guardar paseo.json",
+        staleDescription: "Vuelva a cargar para obtener el último ait.json antes de guardar.",
+        failedTitle: "No se pudo guardar ait.json",
         failedDescription: "Inténtelo de nuevo o vuelva a cargar la última versión desde el disco.",
       },
       actions: {

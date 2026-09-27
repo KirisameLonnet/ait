@@ -1,9 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
-import { DaemonStartService, upsertDesktopDaemonConnection } from "./daemon-start-service";
-import type { HostRuntimeStore } from "./host-runtime";
 import type { DesktopDaemonStatus } from "@/desktop/daemon/desktop-daemon";
 import { defaultHostAppearance } from "@/hosts/appearance";
 import type { HostProfile } from "@/types/host-connection";
+import { describe, expect, it, vi } from "vitest";
+import { DaemonStartService, upsertDesktopDaemonConnection } from "./daemon-start-service";
+import type { HostRuntimeStore } from "./host-runtime";
 
 interface RecordedUpsert {
   listenAddress: string;
@@ -52,9 +52,9 @@ function makeRelayOnlyHost(serverId: string): HostProfile {
     connections: [
       {
         id: "relay:relay.example.com",
-        type: "relay",
-        relayEndpoint: "relay.example.com",
-        daemonPublicKeyB64: "public-key",
+        type: "directTcp",
+        endpoint: "relay.example.com",
+        password: "public-key",
       },
     ],
     preferredConnectionId: "relay:relay.example.com",

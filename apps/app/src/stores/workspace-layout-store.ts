@@ -1,16 +1,7 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState } from "react";
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import type { z } from "zod";
-import { WorkspaceLayoutPersistedStateSchema } from "./workspace-layout-storage";
-import type { JsonValue } from "@getpaseo/protocol/agent-types";
-import type { WorkspaceTab, WorkspaceTabTarget } from "@/workspace-tabs/model";
+import { panelTargetSupportsHostForWorkspaceKey } from "@/panels/target-host";
+import { createValidatedPersistStorage } from "@/storage/validated-persist-storage";
 import {
-  defaultWorkspaceLayoutIds,
-  type WorkspaceLayoutIdSource,
-} from "@/stores/workspace-layout-ids";
-import {
+  AMBIENT_PLACEMENT,
   canDismissPaneInLayout,
   clampNormalizedSizes,
   closePaneInLayout,
@@ -18,15 +9,14 @@ import {
   collectAllPanes,
   collectAllTabs,
   convertDraftToAgentInLayout,
-  createTabInLayout,
   createDefaultLayout,
-  DEFAULT_PANE_ID,
-  AMBIENT_PLACEMENT,
+  createTabInLayout,
   createWorkspaceLayoutWithExplorerSidebar,
-  FOCUSED_PANE_PLACEMENT,
+  DEFAULT_PANE_ID,
   EXPLORER_SIDEBAR_PANE_ID,
   findPaneById,
   findPaneContainingTab,
+  FOCUSED_PANE_PLACEMENT,
   focusPaneInLayout,
   focusTabInLayout,
   getFocusedBrowserId,
@@ -35,33 +25,43 @@ import {
   moveTabToPaneInLayout,
   normalizeLayout,
   openTabInLayoutBackground,
-  replaceTabTargetInLayout,
-  revealTargetInLayout,
-  restoreWorkspaceLayout,
   reconcileWorkspaceTabs,
   removePaneFromTree,
   removeTabFromTree,
   reorderFocusedPaneTabsInLayout,
   reorderPaneTabsInLayout,
+  replaceTabTargetInLayout,
+  restoreWorkspaceLayout,
+  revealTargetInLayout,
+  selectTabInPaneInLayout,
   setPaneHiddenInLayout,
   setTabStateInLayout,
-  selectTabInPaneInLayout,
   splitPaneEmptyInLayout,
-  splitWorkspaceRootRightInLayout,
   splitPaneInLayout,
+  splitWorkspaceRootRightInLayout,
   stripEphemeralTabsFromLayout,
   type SplitGroup,
   type SplitNode,
   type SplitPane,
-  type WorkspaceTabPlacement,
+  type WorkspaceLayout,
   type WorkspaceTabInsertionPosition,
+  type WorkspaceTabPlacement,
   type WorkspaceTabReconcileState,
   type WorkspaceTabSnapshot,
-  type WorkspaceLayout,
 } from "@/stores/workspace-layout-actions";
+import {
+  defaultWorkspaceLayoutIds,
+  type WorkspaceLayoutIdSource,
+} from "@/stores/workspace-layout-ids";
 import { normalizeWorkspaceTabTarget } from "@/workspace-tabs/identity";
-import { createValidatedPersistStorage } from "@/storage/validated-persist-storage";
-import { panelTargetSupportsHostForWorkspaceKey } from "@/plugins/workspace-panels/locations";
+import type { WorkspaceTab, WorkspaceTabTarget } from "@/workspace-tabs/model";
+import type { JsonValue } from "@getpaseo/protocol/agent-types";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useState } from "react";
+import type { z } from "zod";
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { WorkspaceLayoutPersistedStateSchema } from "./workspace-layout-storage";
 
 export {
   AMBIENT_PLACEMENT,
@@ -69,11 +69,11 @@ export {
   collectAllPanes,
   collectAllTabs,
   createDefaultLayout,
-  DEFAULT_PANE_ID,
   createWorkspaceLayoutWithExplorerSidebar,
-  FOCUSED_PANE_PLACEMENT,
+  DEFAULT_PANE_ID,
   findPaneById,
   findPaneContainingTab,
+  FOCUSED_PANE_PLACEMENT,
   getFocusedBrowserId,
   getTreeDepth,
   insertSplit,

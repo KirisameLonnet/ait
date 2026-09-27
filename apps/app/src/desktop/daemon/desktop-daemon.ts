@@ -1,7 +1,7 @@
+import { invokeDesktopCommand } from "@/desktop/electron/invoke";
+import { getDesktopHost, isElectronRuntime } from "@/desktop/host";
 import { i18n } from "@/i18n/i18next";
 import { confirmDialog } from "@/utils/confirm-dialog";
-import { getDesktopHost, isElectronRuntime } from "@/desktop/host";
-import { invokeDesktopCommand } from "@/desktop/electron/invoke";
 import type { AgentSkillSelection } from "@getpaseo/protocol/messages";
 
 export type DesktopDaemonState = "starting" | "running" | "stopped" | "errored";
@@ -315,29 +315,6 @@ export async function sendLocalTransportMessage(input: {
 
 export async function closeLocalTransportSession(sessionId: string): Promise<void> {
   await invokeDesktopCommand("close_local_daemon_transport", { sessionId });
-}
-
-// ---------------------------------------------------------------------------
-// Integrations
-// ---------------------------------------------------------------------------
-
-export interface InstallStatus {
-  installed: boolean;
-}
-
-function parseInstallStatus(raw: unknown): InstallStatus {
-  if (!isRecord(raw)) {
-    throw new Error("Unexpected install status response.");
-  }
-  return { installed: raw.installed === true };
-}
-
-export async function getCliInstallStatus(): Promise<InstallStatus> {
-  return parseInstallStatus(await invokeDesktopCommand("get_cli_install_status"));
-}
-
-export async function installCli(): Promise<InstallStatus> {
-  return parseInstallStatus(await invokeDesktopCommand("install_cli"));
 }
 
 // COMPAT(desktopSkillSelectionMigration): added in v0.4.0; remove after 2027-02-16.

@@ -1,34 +1,13 @@
+import { DaemonClient } from "@getpaseo/client/internal/daemon-client";
+import { createWebSocketTransportFactory } from "@getpaseo/client/internal/daemon-client-websocket-transport";
+import * as protocolSchemas from "@getpaseo/protocol/messages";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { createRustServerTransportFactory } from "../../../src/runtime/rust-server/transport";
+import { requireAitServer } from "./ait-server";
 import { getE2EDaemonPort } from "./daemon-port";
-import { createNodeWebSocketFactory, type NodeWebSocketFactory } from "./node-ws-factory";
-
-export async function loadDaemonClientConstructor<ClientConfig, ClientInstance>(): Promise<
-  new (config: ClientConfig) => ClientInstance
-> {
-  const repoRoot = path.resolve(__dirname, "../../../../../");
-  const moduleUrl = pathToFileURL(
-    path.join(repoRoot, "packages/client/dist/daemon-client.js"),
-  ).href;
-  const mod = (await import(moduleUrl)) as {
-    DaemonClient: new (config: ClientConfig) => ClientInstance;
-  };
-  return mod.DaemonClient;
-}
-
-interface E2EDaemonClientConfig {
-  url: string;
-  clientId: string;
-  clientType: "cli";
-  appVersion?: string;
-  webSocketFactory?: NodeWebSocketFactory;
-}
-
-function resolveDaemonWsUrl(port?: number): string {
-  return `ws://127.0.0.1:${port ?? getE2EDaemonPort()}/ws`;
-}
+import { createNodeWebSocketFactory } from "./node-ws-factory";
 
 export interface ConnectDaemonClientOptions {
   clientIdPrefix: string;
@@ -41,19 +20,27 @@ export interface ConnectDaemonClientOptions {
  * The port-6767 guard keeps tests off the developer daemon. Each helper passes
  * its own typed client interface as the generic.
  */
-export async function connectDaemonClient<ClientInstance extends { connect(): Promise<void> }>(
-  options: ConnectDaemonClientOptions,
-): Promise<ClientInstance> {
-  const DaemonClient = await loadDaemonClientConstructor<E2EDaemonClientConfig, ClientInstance>();
+export async function connectDaemonClient<
+  ClientInstance extends { connect(): Promise<void>; close(): Promise<void> },
+>(options: ConnectDaemonClientOptions): Promise<ClientInstance> {
+  const connection = requireAitServer(options.port ?? Number(getE2EDaemonPort()));
   const client = new DaemonClient({
-    url: resolveDaemonWsUrl(options.port),
+    url: `ws://127.0.0.1:${connection.port}/v1/ws`,
+    password: connection.token,
     clientId: `${options.clientIdPrefix}-${randomUUID()}`,
     clientType: "cli",
     appVersion: options.appVersion ?? loadAppVersion(),
-    webSocketFactory: createNodeWebSocketFactory(),
+    transportFactory: createRustServerTransportFactory(
+      createWebSocketTransportFactory(createNodeWebSocketFactory()),
+    ),
   });
-  await client.connect();
-  return client;
+  try {
+    await client.connect();
+    return client as unknown as ClientInstance;
+  } catch (error) {
+    await client.close().catch(() => undefined);
+    throw error;
+  }
 }
 
 function loadAppVersion(): string {
@@ -65,9 +52,6 @@ function loadAppVersion(): string {
   return packageJson.version;
 }
 
-export async function loadProtocolSchemas(): Promise<typeof import("@getpaseo/protocol/messages")> {
-  const moduleUrl = pathToFileURL(
-    path.resolve(__dirname, "../../../../../packages/protocol/dist/messages.js"),
-  ).href;
-  return import(moduleUrl);
+export async function loadProtocolSchemas(): Promise<typeof protocolSchemas> {
+  return protocolSchemas;
 }

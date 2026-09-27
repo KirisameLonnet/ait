@@ -64,7 +64,7 @@ fn creates_from_nested_cwd_maps_directory_and_seeds_untracked_config() {
             "nested",
         ],
     );
-    std::fs::write(nested.join("paseo.json"), "{\"scripts\":{}}\n").expect("untracked config");
+    std::fs::write(nested.join("ait.json"), "{\"scripts\":{}}\n").expect("untracked config");
 
     let adapter = fixture.adapter();
     let created = adapter
@@ -86,7 +86,7 @@ fn creates_from_nested_cwd_maps_directory_and_seeds_untracked_config() {
         Path::new("packages/app")
     );
     assert_eq!(
-        std::fs::read_to_string(Path::new(&created.workspace_cwd).join("paseo.json"))
+        std::fs::read_to_string(Path::new(&created.workspace_cwd).join("ait.json"))
             .expect("seeded config"),
         "{\"scripts\":{}}\n"
     );
@@ -366,4 +366,50 @@ fn branch(root: &Path) -> String {
 
 fn path(path: &Path) -> String {
     path.to_str().expect("UTF-8 path").to_owned()
+}
+
+#[test]
+fn seeds_legacy_config_under_ait_name_and_prefers_existing_ait_config() {
+    let source = tempfile::tempdir().unwrap();
+    let target = tempfile::tempdir().unwrap();
+    std::fs::write(
+        source.path().join(LEGACY_PROJECT_CONFIG_FILE_NAME),
+        "legacy",
+    )
+    .unwrap();
+    seed_config(source.path(), target.path()).unwrap();
+    assert_eq!(
+        std::fs::read_to_string(target.path().join(PROJECT_CONFIG_FILE_NAME)).unwrap(),
+        "legacy"
+    );
+    assert!(!target.path().join(LEGACY_PROJECT_CONFIG_FILE_NAME).exists());
+    std::fs::write(source.path().join(PROJECT_CONFIG_FILE_NAME), "ait").unwrap();
+    let next = tempfile::tempdir().unwrap();
+    seed_config(source.path(), next.path()).unwrap();
+    assert_eq!(
+        std::fs::read_to_string(next.path().join(PROJECT_CONFIG_FILE_NAME)).unwrap(),
+        "ait"
+    );
+}
+
+#[test]
+fn legacy_config_checked_out_at_target_is_not_shadowed_by_uncommitted_source() {
+    let source = tempfile::tempdir().unwrap();
+    let target = tempfile::tempdir().unwrap();
+    std::fs::write(
+        source.path().join(LEGACY_PROJECT_CONFIG_FILE_NAME),
+        "local edit",
+    )
+    .unwrap();
+    std::fs::write(
+        target.path().join(LEGACY_PROJECT_CONFIG_FILE_NAME),
+        "committed",
+    )
+    .unwrap();
+    seed_config(source.path(), target.path()).unwrap();
+    assert!(!target.path().join(PROJECT_CONFIG_FILE_NAME).exists());
+    assert_eq!(
+        std::fs::read_to_string(target.path().join(LEGACY_PROJECT_CONFIG_FILE_NAME)).unwrap(),
+        "committed"
+    );
 }

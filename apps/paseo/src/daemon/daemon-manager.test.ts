@@ -21,8 +21,6 @@ const mocks = vi.hoisted(() => ({
       keepRunningAfterQuit: true,
     },
   },
-  runExternalCliJsonCommand: vi.fn(),
-  runExternalCliTextCommand: vi.fn(),
   createNodeEntrypointInvocation: vi.fn(() => ({
     command: "node",
     args: [],
@@ -89,21 +87,14 @@ vi.mock("./runtime-paths.js", () => ({
   })),
 }));
 
-vi.mock("./cli/external.js", () => ({
-  runExternalCliJsonCommand: mocks.runExternalCliJsonCommand,
-  runExternalCliTextCommand: mocks.runExternalCliTextCommand,
-}));
-
 describe("daemon-manager commands", () => {
   let fixtureRoot: string;
 
   beforeEach(() => {
-    fixtureRoot = mkdtempSync(path.join(tmpdir(), "paseo daemon manager "));
+    fixtureRoot = mkdtempSync(path.join(tmpdir(), "ait daemon manager "));
     mocks.paseoHome = path.join(fixtureRoot, "home");
     mocks.appLogPath = path.join(fixtureRoot, "main.log");
     mocks.settings = DEFAULT_DESKTOP_SETTINGS;
-    mocks.runExternalCliJsonCommand.mockReset();
-    mocks.runExternalCliTextCommand.mockReset();
     mocks.createNodeEntrypointInvocation.mockReset();
     mocks.createNodeEntrypointInvocation.mockReturnValue({
       command: "node",

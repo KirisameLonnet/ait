@@ -1,15 +1,18 @@
-import { spawn, execFileSync, type ChildProcess, type SpawnOptions } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { spawn, type ChildProcess } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import { createWriteStream } from "node:fs";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import net from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { withDisabledE2ESpeechEnv } from "./speech-env";
-import { killProcessTree, spawnTsx } from "./spawn-node";
+import { registerAitServer, reservedServerPorts, unregisterAitServer } from "./ait-server";
+import { killProcessTree } from "./spawn-node";
 
 export interface IsolatedHostDaemon {
   serverId: string;
   port: number;
-  paseoHome: string;
+  token: string;
+  dataDir: string;
   getPid(): number | undefined;
   restart(): Promise<void>;
   close(): Promise<void>;
@@ -17,13 +20,8 @@ export interface IsolatedHostDaemon {
 
 export interface IsolatedHostDaemonOptions {
   environment?: NodeJS.ProcessEnv;
-  mutableRelay?: {
-    enabled: boolean;
-    endpoint?: string;
-  };
-  paseoHome?: string;
+  dataDir?: string;
   preserveHome?: boolean;
-  publishedVersion?: string;
 }
 
 async function getAvailablePort(): Promise<number> {
@@ -33,7 +31,7 @@ async function getAvailablePort(): Promise<number> {
     server.listen(0, "127.0.0.1", () => {
       const address = server.address();
       if (!address || typeof address === "string") {
-        server.close(() => reject(new Error("Failed to acquire an isolated daemon port")));
+        server.close(() => reject(new Error("Failed to acquire an isolated server port")));
         return;
       }
       server.close(() => resolve(address.port));
@@ -41,185 +39,121 @@ async function getAvailablePort(): Promise<number> {
   });
 }
 
-async function waitForServer(port: number, child: ChildProcess): Promise<void> {
-  const deadline = Date.now() + 90_000;
-  let lastError: unknown = null;
-
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null || child.signalCode !== null) {
-      throw new Error(
-        `Isolated host daemon exited before listening (code ${String(child.exitCode)}, signal ${String(child.signalCode)})`,
-      );
-    }
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const socket = net.connect(port, "127.0.0.1", () => {
-          socket.end();
-          resolve();
-        });
-        socket.setTimeout(1_000, () => {
-          socket.destroy();
-          reject(new Error(`Connection timed out to isolated daemon port ${port}`));
-        });
-        socket.on("error", reject);
-      });
-      return;
-    } catch (error) {
-      lastError = error;
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-  }
-
-  throw new Error(
-    `Isolated host daemon did not listen on ${port}: ${
-      lastError instanceof Error ? lastError.message : String(lastError)
-    }`,
-  );
-}
-
 export async function startIsolatedHostDaemon(
-  serverId: string,
+  label: string,
   options: IsolatedHostDaemonOptions = {},
 ): Promise<IsolatedHostDaemon> {
-  const primaryPort = Number(process.env.E2E_DAEMON_PORT ?? 0);
-  let port = await getAvailablePort();
-  while (port === 6767 || port === 6768 || port === primaryPort) port = await getAvailablePort();
-
+  const binary = process.env.E2E_AIT_SERVER_BIN;
+  if (!binary) throw new Error("E2E_AIT_SERVER_BIN is required; run Playwright global setup first");
   const metroPort = process.env.E2E_METRO_PORT;
-  if (!metroPort) throw new Error("E2E_METRO_PORT is required to start an isolated host daemon");
-
-  const paseoHome =
-    options.paseoHome ?? (await mkdtemp(path.join(tmpdir(), "paseo-e2e-secondary-host-")));
-  let publishedPackageRoot: string | null = null;
-  if (options.publishedVersion) {
-    publishedPackageRoot = await mkdtemp(path.join(tmpdir(), "paseo-e2e-published-server-"));
-    await writeFile(
-      path.join(publishedPackageRoot, "package.json"),
-      `${JSON.stringify({ private: true })}\n`,
-    );
-    try {
-      const npmCli = process.env.npm_execpath;
-      if (!npmCli || path.basename(npmCli).toLowerCase() !== "npm-cli.js") {
-        throw new Error(
-          "Published-version E2E requires npm_execpath from npm. Start it through `npm run test:e2e`.",
-        );
-      }
-      execFileSync(
-        process.execPath,
-        [
-          npmCli,
-          "install",
-          "--no-audit",
-          "--no-fund",
-          "--no-package-lock",
-          `@getpaseo/server@${options.publishedVersion}`,
-        ],
-        { cwd: publishedPackageRoot, stdio: "ignore" },
-      );
-    } catch (error) {
-      if (!options.preserveHome) {
-        await rm(paseoHome, { recursive: true, force: true });
-      }
-      await rm(publishedPackageRoot, { recursive: true, force: true });
-      throw error;
-    }
-  }
-  if (options.mutableRelay) {
-    const endpoint =
-      options.mutableRelay.endpoint ??
-      (process.env.E2E_RELAY_PORT ? `127.0.0.1:${process.env.E2E_RELAY_PORT}` : "127.0.0.1:9");
-    await writeFile(
-      path.join(paseoHome, "config.json"),
-      `${JSON.stringify({
-        version: 1,
-        daemon: {
-          relay: {
-            enabled: options.mutableRelay.enabled,
-            endpoint,
-            publicEndpoint: endpoint,
-            useTls: false,
-            publicUseTls: false,
-          },
+  if (!metroPort) throw new Error("E2E_METRO_PORT is required to start an isolated Ait server");
+  let port = await getAvailablePort();
+  while (reservedServerPorts.has(port)) port = await getAvailablePort();
+  const token = randomBytes(32).toString("hex");
+  const dataDir = options.dataDir ?? (await mkdtemp(path.join(tmpdir(), "ait-e2e-server-")));
+  await mkdir(dataDir, { recursive: true });
+  const spawnServer = async (): Promise<{ child: ChildProcess; serverId: string }> => {
+    const log = createWriteStream(path.join(dataDir, "server.log"), { flags: "a" });
+    const child = spawn(
+      binary,
+      [
+        "--data-dir",
+        dataDir,
+        "--listen",
+        `127.0.0.1:${port}`,
+        "--web-origin",
+        `http://localhost:${metroPort}`,
+        "--web-origin",
+        `http://127.0.0.1:${metroPort}`,
+      ],
+      {
+        cwd: dataDir,
+        env: {
+          ...process.env,
+          // Never invoke an installed, authenticated model CLI by default.
+          AIT_SERVER_CODEX_BIN: path.join(dataDir, "unconfigured-codex"),
+          AIT_SERVER_CLAUDE_BIN: path.join(dataDir, "unconfigured-claude"),
+          ...options.environment,
+          AIT_SERVER_TOKEN: token,
+          AIT_SERVER_SKILLS_HOME: path.join(dataDir, "agent-home"),
+          AIT_SERVER_SKILLS_BUNDLE: path.join(dataDir, "skills-bundle"),
         },
-      })}\n`,
+        stdio: ["ignore", "pipe", "pipe"],
+      },
     );
-  }
-  const serverDir = publishedPackageRoot
-    ? path.join(publishedPackageRoot, "node_modules", "@getpaseo", "server")
-    : path.resolve(__dirname, "../../../../server");
-  const spawnDaemon = async (): Promise<ChildProcess> => {
-    const spawnOptions: SpawnOptions = {
-      cwd: serverDir,
-      env: withDisabledE2ESpeechEnv({
-        ...process.env,
-        ...options.environment,
-        PASEO_HOME: paseoHome,
-        PASEO_SERVER_ID: serverId,
-        PASEO_LISTEN: `127.0.0.1:${port}`,
-        PASEO_CORS_ORIGINS: `http://localhost:${metroPort}`,
-        PASEO_RELAY_ENABLED: options.mutableRelay ? undefined : "0",
-        PASEO_NODE_ENV: "development",
-        NODE_ENV: "development",
-      }),
-      stdio: ["ignore", "ignore", "pipe"],
-      detached: false,
-    };
-    const child = publishedPackageRoot
-      ? spawn(process.execPath, ["dist/scripts/supervisor-entrypoint.js"], spawnOptions)
-      : spawnTsx("scripts/supervisor-entrypoint.ts", ["--dev"], spawnOptions);
-
+    child.stdout?.pipe(log, { end: false });
+    child.stderr?.pipe(log, { end: false });
+    child.once("close", () => log.end());
     let stderr = "";
-    child.stderr?.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString("utf8");
-      stderr = stderr.split("\n").slice(-40).join("\n");
+    let spawnError: Error | undefined;
+    child.once("error", (error) => {
+      spawnError = error;
     });
-
+    child.stderr?.on("data", (chunk: Buffer) => {
+      stderr = (stderr + chunk.toString("utf8")).slice(-8_000);
+    });
+    const deadline = Date.now() + 30_000;
     try {
-      await waitForServer(port, child);
-      return child;
+      while (Date.now() < deadline) {
+        if (spawnError) throw spawnError;
+        if (child.exitCode !== null || child.signalCode !== null) {
+          throw new Error(`Ait server ${label} exited before becoming ready`);
+        }
+        try {
+          const response = await fetch(`http://127.0.0.1:${port}/v1/server/info`, {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: AbortSignal.timeout(1_000),
+          });
+          if (!response.ok) throw new Error(`Server info returned HTTP ${response.status}`);
+          const info = (await response.json()) as {
+            server_id?: string;
+            protocol?: { major: number };
+            lifecycle?: string;
+          };
+          if (info.server_id && info.protocol?.major === 1 && info.lifecycle === "ready") {
+            return { child, serverId: info.server_id };
+          }
+        } catch {
+          // Retry while the owned child starts; a TCP accept alone is not readiness.
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      throw new Error(`Ait server ${label} did not become ready within 30s`);
     } catch (error) {
-      await killProcessTree(child);
-      throw new Error(
-        `${error instanceof Error ? error.message : String(error)}\nDaemon stderr:\n${stderr}`,
-        { cause: error },
-      );
+      if (child.pid) await killProcessTree(child);
+      throw new Error(`${error instanceof Error ? error.message : String(error)}\n${stderr}`, {
+        cause: error,
+      });
     }
   };
-
-  let child: ChildProcess;
+  let running: Awaited<ReturnType<typeof spawnServer>>;
   try {
-    child = await spawnDaemon();
+    running = await spawnServer();
   } catch (error) {
-    if (!options.preserveHome) {
-      await rm(paseoHome, { recursive: true, force: true });
-    }
-    if (publishedPackageRoot) {
-      await rm(publishedPackageRoot, { recursive: true, force: true });
-    }
+    if (!options.preserveHome) await rm(dataDir, { recursive: true, force: true });
     throw error;
   }
+  const serverId = running.serverId;
+  registerAitServer({ port, token, serverId });
   let closed = false;
-
   return {
     serverId,
     port,
-    paseoHome,
-    getPid: () => child.pid,
+    token,
+    dataDir,
+    getPid: () => running.child.pid,
     restart: async () => {
-      if (closed) throw new Error(`Cannot restart closed isolated daemon ${serverId}`);
-      await killProcessTree(child);
-      child = await spawnDaemon();
+      if (closed) throw new Error(`Cannot restart closed Ait server ${label}`);
+      await killProcessTree(running.child);
+      running = await spawnServer();
+      if (running.serverId !== serverId) throw new Error("Ait server identity changed on restart");
     },
     close: async () => {
       if (closed) return;
       closed = true;
-      await killProcessTree(child);
-      if (!options.preserveHome) {
-        await rm(paseoHome, { recursive: true, force: true });
-      }
-      if (publishedPackageRoot) {
-        await rm(publishedPackageRoot, { recursive: true, force: true });
-      }
+      unregisterAitServer(port);
+      await killProcessTree(running.child);
+      if (!options.preserveHome) await rm(dataDir, { recursive: true, force: true });
     },
   };
 }

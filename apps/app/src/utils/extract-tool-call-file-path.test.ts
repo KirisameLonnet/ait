@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { extractToolCallFilePath } from "./extract-tool-call-file-path";
 
 describe("extractToolCallFilePath", () => {
@@ -14,7 +14,10 @@ describe("extractToolCallFilePath", () => {
 
   it.each([
     ["cat ~/file.md", "~/file.md"],
-    ["wc -l ~/.paseo/plans/projects-settings-page.md", "~/.paseo/plans/projects-settings-page.md"],
+    [
+      "wc -l ~/.ait-server/plans/projects-settings-page.md",
+      "~/.ait-server/plans/projects-settings-page.md",
+    ],
     ["head -n 20 src/index.ts", "src/index.ts"],
     ["tail -f /var/log/x.log", "/var/log/x.log"],
     ["less ./README.md", "./README.md"],

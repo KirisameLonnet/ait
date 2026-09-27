@@ -1,12 +1,12 @@
+import type { AttachmentMetadata } from "@/attachments/types";
 import type {
   AgentProvider,
   AgentTimelineItem,
   JsonValue,
   ToolCallDetail,
 } from "@getpaseo/protocol/agent-types";
-import { timelineItemIdentity } from "@getpaseo/protocol/timeline-identity";
 import type { AgentAttachment, AgentStreamEventPayload } from "@getpaseo/protocol/messages";
-import type { AttachmentMetadata } from "@/attachments/types";
+import { timelineItemIdentity } from "@getpaseo/protocol/timeline-identity";
 import { extractTaskEntriesFromToolCall } from "../utils/tool-call-parsers";
 
 /**
@@ -1032,7 +1032,6 @@ export function streamTimelineItemIdentity(item: StreamItem): string | null {
       turnId: item.turnId,
     });
   }
-  if (item.kind === "plugin") return `${item.pluginId}/${item.pluginItemId}`;
   return null;
 }
 

@@ -212,6 +212,15 @@ for line in sys.stdin:
             "item": {"type": "userMessage", "id": pending + "-user", "content": [{"type": "text", "text": text}]}}})
         if text == "exit":
             sys.exit(0)
+        if text == "large-generated-image":
+            image = {"type": "imageGeneration", "id": pending + "-image", "status": "completed",
+                     "result": "a" * (3 * 1024 * 1024), "savedPath": str(root / "generated.png")}
+            stream_items.append(image)
+            emit({"method": "codex/event/item_completed", "params": {"item": image}})
+            emit({"method": "item/completed", "params": {
+                "threadId": thread_id, "turnId": pending, "item": image}})
+            complete(pending, text)
+            continue
         if text == "propose-plan":
             plan = {"type":"plan","id":pending+"-plan","text":"1. Implement the fix\n2. Verify the result"}
             stream_items.append(plan)

@@ -1,15 +1,14 @@
-import { DaemonClient } from "@getpaseo/client/internal/daemon-client";
-import type { DaemonClientConfig } from "@getpaseo/client/internal/daemon-client";
-import type { HostConnection } from "@/types/host-connection";
-import { getOrCreateClientId } from "./client-id";
-import { resolveAppVersion } from "./app-version";
-import { buildRustClientConfig, buildRustSshClientConfig } from "@/runtime/rust-server/connection";
-import { buildRelayWebSocketUrl, shouldUseTlsForDefaultHostedRelay } from "./daemon-endpoints";
+import type { DesktopDaemonTransportTarget } from "@/desktop/daemon/desktop-daemon";
 import {
   buildDesktopDaemonTransportUrl,
   createDesktopDaemonTransportFactory,
 } from "@/desktop/daemon/desktop-daemon-transport";
-import type { DesktopDaemonTransportTarget } from "@/desktop/daemon/desktop-daemon";
+import { buildRustClientConfig, buildRustSshClientConfig } from "@/runtime/rust-server/connection";
+import type { HostConnection } from "@/types/host-connection";
+import type { DaemonClientConfig } from "@getpaseo/client/internal/daemon-client";
+import { DaemonClient } from "@getpaseo/client/internal/daemon-client";
+import { resolveAppVersion } from "./app-version";
+import { getOrCreateClientId } from "./client-id";
 
 export interface DaemonProbeClient {
   readonly lastError: string | null;
@@ -146,19 +145,7 @@ export async function buildClientConfig(
     };
   }
 
-  if (!serverId) {
-    throw new Error("serverId is required to probe a relay connection");
-  }
-
-  return {
-    ...base,
-    url: buildRelayWebSocketUrl({
-      endpoint: connection.relayEndpoint,
-      useTls: connection.useTls ?? shouldUseTlsForDefaultHostedRelay(connection.relayEndpoint),
-      serverId,
-    }),
-    e2ee: { enabled: true, daemonPublicKeyB64: connection.daemonPublicKeyB64 },
-  };
+  throw new Error("Unsupported host connection");
 }
 
 export function connectAndProbe(
@@ -239,7 +226,6 @@ interface ProbeOptions {
 
 function resolveTimeout(connection: HostConnection, options?: ProbeOptions): number {
   if (options?.timeoutMs) return options.timeoutMs;
-  if (connection.type === "relay") return 10_000;
   if (connection.type === "remoteSsh") return 15_000;
   return 6_000;
 }

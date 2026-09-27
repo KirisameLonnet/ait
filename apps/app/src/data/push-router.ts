@@ -1,22 +1,21 @@
+import { daemonConfigQueryKey } from "@/data/daemon-config";
+import { type ProviderSnapshotCache } from "@/data/provider-snapshot-cache";
+import {
+  fetchProvidersSnapshot,
+  normalizeProvidersSnapshotCwd,
+  providersSnapshotQueryKey,
+  providersSnapshotQueryRoot,
+} from "@/data/providers-snapshot";
+import { orderCheckoutDiffFiles } from "@/git/diff-order";
+import { shareCheckoutDiff } from "@/git/diff-sharing";
+import { agentCommandsQueryRoot } from "@/hooks/agent-commands-query";
 import type { OwnedSubscription } from "@getpaseo/client";
-import type { Query, QueryCacheNotifyEvent, QueryClient, QueryKey } from "@tanstack/react-query";
 import type {
   ListTerminalsResponse,
   MutableDaemonConfig,
   SessionOutboundMessage,
 } from "@getpaseo/protocol/messages";
-import { agentCommandsQueryRoot } from "@/hooks/agent-commands-query";
-import { shareCheckoutDiff } from "@/git/diff-sharing";
-import { orderCheckoutDiffFiles } from "@/git/diff-order";
-import { daemonConfigQueryKey } from "@/data/daemon-config";
-import { daemonPairingOfferQueryKey } from "@/data/daemon-pairing";
-import { type ProviderSnapshotCache } from "@/data/provider-snapshot-cache";
-import {
-  normalizeProvidersSnapshotCwd,
-  fetchProvidersSnapshot,
-  providersSnapshotQueryKey,
-  providersSnapshotQueryRoot,
-} from "@/data/providers-snapshot";
+import type { Query, QueryCacheNotifyEvent, QueryClient, QueryKey } from "@tanstack/react-query";
 
 type ProvidersSnapshotUpdateMessage = Extract<
   SessionOutboundMessage,
@@ -105,12 +104,6 @@ const RECONNECT_REPAIR_POLICIES: ReconnectRepairPolicy[] = [
     domain: "daemonConfig",
     invalidate: ({ queryClient, serverId }) => {
       void queryClient.invalidateQueries({ queryKey: daemonConfigQueryKey(serverId) });
-    },
-  },
-  {
-    domain: "daemonPairingOffer",
-    invalidate: ({ queryClient, serverId }) => {
-      void queryClient.invalidateQueries({ queryKey: daemonPairingOfferQueryKey(serverId) });
     },
   },
   {
@@ -420,9 +413,6 @@ function applyDaemonConfigStatus(input: {
     daemonConfigQueryKey(input.serverId),
     payload.config,
   );
-  void input.queryClient.invalidateQueries({
-    queryKey: daemonPairingOfferQueryKey(input.serverId),
-  });
 }
 
 function setCheckoutDiffPayload(input: {

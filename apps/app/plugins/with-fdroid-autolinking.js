@@ -4,7 +4,6 @@ const { withAppBuildGradle, withDangerousMod, withSettingsGradle } = require("ex
 const { FDROID_ABI_VERSION_CODE_SUFFIXES } = require("../native-release-version");
 
 const EXCLUDED_ANDROID_MODULES = [
-  "expo-camera",
   "expo-notifications",
   "expo-dev-client",
   "expo-dev-launcher",

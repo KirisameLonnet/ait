@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { describe, expect, test } from "vitest";
+import { z } from "zod";
 import {
   RecentProviderSessionDescriptorPayloadSchema,
   SessionInboundMessageSchema,
@@ -919,14 +919,14 @@ describe("workspace message schemas", () => {
         status: "completed",
         detail: {
           type: "worktree_setup",
-          worktreePath: "/repo/.paseo/worktrees/feature-a",
+          worktreePath: "/repo/.ait-server/worktrees/feature-a",
           branchName: "feature-a",
           log: "done",
           commands: [
             {
               index: 1,
               command: "npm install",
-              cwd: "/repo/.paseo/worktrees/feature-a",
+              cwd: "/repo/.ait-server/worktrees/feature-a",
               log: "done",
               status: "completed",
               exitCode: 0,
@@ -961,7 +961,7 @@ describe("workspace message schemas", () => {
           status: "completed",
           detail: {
             type: "worktree_setup",
-            worktreePath: "/repo/.paseo/worktrees/feature-a",
+            worktreePath: "/repo/.ait-server/worktrees/feature-a",
             branchName: "feature-a",
             log: "done",
             commands: [],

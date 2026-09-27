@@ -8,10 +8,8 @@ const projectRoot = __dirname;
 const reactRoot = path.dirname(require.resolve("react/package.json"));
 const reactDomRoot = path.dirname(require.resolve("react-dom/package.json"));
 const appSrcRoot = path.resolve(projectRoot, "src");
-const relaySrcRoot = path.resolve(projectRoot, "../../packages/relay/src");
 const isFdroidBuild = process.env.PASEO_FDROID_BUILD === "1";
 const fdroidModuleOverrides = {
-  "expo-camera": path.resolve(appSrcRoot, "fdroid/expo-camera.tsx"),
   "expo-notifications": path.resolve(appSrcRoot, "fdroid/expo-notifications.ts"),
 };
 const customWebPlatform = (process.env.AIT_WEB_PLATFORM ?? "")
@@ -88,15 +86,6 @@ function resolveWithCustomWebOverlay(context, moduleName, platform) {
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (isFdroidBuild && platform === "android" && fdroidModuleOverrides[moduleName]) {
     return resolveWithCustomWebOverlay(context, fdroidModuleOverrides[moduleName], platform);
-  }
-
-  const origin = context.originModulePath;
-  if (origin && origin.startsWith(relaySrcRoot) && moduleName.endsWith(".js")) {
-    const tsModuleName = moduleName.replace(/\.js$/, ".ts");
-    const candidatePath = path.resolve(path.dirname(origin), tsModuleName);
-    if (fs.existsSync(candidatePath)) {
-      return resolveWithCustomWebOverlay(context, tsModuleName, platform);
-    }
   }
 
   return resolveWithCustomWebOverlay(context, moduleName, platform);

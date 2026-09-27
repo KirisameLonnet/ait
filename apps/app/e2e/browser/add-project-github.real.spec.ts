@@ -30,7 +30,7 @@ test.describe("Add Project GitHub flow", () => {
     test.skip(!hasGithubAuth(), "Requires GitHub authentication (gh auth login)");
 
     let repository: GhRepoFixture | null = null;
-    const parentDirectory = await mkdtemp(path.join(tmpdir(), "paseo-e2e-github-clone-"));
+    const parentDirectory = await mkdtemp(path.join(tmpdir(), "ait-e2e-github-clone-"));
     let projectId: string | null = null;
 
     try {

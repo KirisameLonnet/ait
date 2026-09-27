@@ -7,6 +7,9 @@ use std::process::{Command, ExitStatus, Stdio};
 use std::time::{Duration, Instant, SystemTime};
 
 use chrono::{DateTime, Utc};
+use server_metadata::ports::provisioning::{
+    LEGACY_PROJECT_CONFIG_FILE_NAME, PROJECT_CONFIG_FILE_NAME,
+};
 use sha2::{Digest, Sha256};
 
 use crate::ports::workspace_recovery::{
@@ -571,8 +574,20 @@ fn branch_checked_out(repo_root: &Path, branch: &str) -> Result<bool, WorktreeEr
 }
 
 fn seed_config(source_cwd: &Path, target_cwd: &Path) -> Result<(), WorktreeError> {
-    let source = source_cwd.join("paseo.json");
-    let target = target_cwd.join("paseo.json");
+    let mut source = source_cwd.join(PROJECT_CONFIG_FILE_NAME);
+    let target = target_cwd.join(PROJECT_CONFIG_FILE_NAME);
+    if matches!(source.symlink_metadata(), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
+    {
+        // A checked-out legacy config remains authoritative until the project saves ait.json.
+        if target_cwd
+            .join(LEGACY_PROJECT_CONFIG_FILE_NAME)
+            .symlink_metadata()
+            .is_ok()
+        {
+            return Ok(());
+        }
+        source = source_cwd.join(LEGACY_PROJECT_CONFIG_FILE_NAME);
+    }
     let metadata = match source.symlink_metadata() {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
@@ -580,7 +595,7 @@ fn seed_config(source_cwd: &Path, target_cwd: &Path) -> Result<(), WorktreeError
     };
     if !metadata.is_file() || metadata.file_type().is_symlink() {
         return Err(WorktreeError::Io(
-            "paseo.json is not a regular file".to_owned(),
+            "ait.json is not a regular file".to_owned(),
         ));
     }
     let mut input = File::open(source).map_err(|error| WorktreeError::Io(error.to_string()))?;

@@ -1,4 +1,54 @@
+import { AgentProfilesSection } from "@/agent-profiles";
+import { AgentSkillsSection } from "@/agent-skills";
+import { AdaptiveModalSheet, type SheetHeader } from "@/components/adaptive-modal-sheet";
+import { getProviderIcon } from "@/components/provider-icons";
+import { SettingsTextAreaCard } from "@/components/settings-textarea";
+import { SettingsSection } from "@/components/settings/headings/settings-section";
+import { Alert as InlineAlert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { StatusBadge, type StatusBadgeVariant } from "@/components/ui/status-badge";
+import { Switch } from "@/components/ui/switch";
 import { getIsElectron } from "@/constants/platform";
+import { LocalDaemonSection } from "@/desktop/components/desktop-updates-section";
+import { PairDeviceModal } from "@/desktop/components/pair-device-modal";
+import { startDesktopDaemon, stopDesktopDaemon } from "@/desktop/daemon/desktop-daemon";
+import { useDaemonStatus } from "@/desktop/hooks/use-daemon-status";
+import { useDesktopSettings } from "@/desktop/settings/desktop-settings";
+import { isVersionMismatch } from "@/desktop/updates/desktop-updates";
+import { useDaemonConfig } from "@/hooks/use-daemon-config";
+import { useIsLocalDaemon } from "@/hooks/use-is-local-daemon";
+import { ProviderUsageSettingsSection } from "@/provider-usage/settings-section";
+import { useProviderUsage } from "@/provider-usage/use-provider-usage";
+import {
+  getHostRuntimeStore,
+  isHostRuntimeConnected,
+  useHostMutations,
+  useHostRuntimeClient,
+  useHostRuntimeIsConnected,
+  useHostRuntimeSnapshot,
+  useHosts,
+} from "@/runtime/host-runtime";
+import { HostAppearanceSection } from "@/screens/settings/host-appearance-section";
+import { ProvidersSection } from "@/screens/settings/providers-section";
+import {
+  ProfileDraft,
+  TerminalProfileEditModal,
+} from "@/screens/settings/terminal-profile-edit-modal";
+import { useSessionStore } from "@/stores/session-store";
+import { settingsStyles } from "@/styles/settings";
+import type { Theme } from "@/styles/theme";
+import { ICON_SIZE } from "@/styles/theme";
+import type { HostConnection, HostProfile } from "@/types/host-connection";
+import { resolveAppVersion } from "@/utils/app-version";
+import { confirmDialog } from "@/utils/confirm-dialog";
+import { formatConnectionStatus, getConnectionStatusTone } from "@/utils/daemons";
+import { formatLatency } from "@/utils/latency";
+import type { TerminalProfile } from "@getpaseo/protocol/messages";
+import {
+  DEFAULT_TERMINAL_PROFILES,
+  getTerminalProfileIcon,
+} from "@getpaseo/protocol/terminal-profiles";
+import type { TFunction } from "i18next";
 import {
   ArrowDown,
   ArrowUp,
@@ -12,60 +62,10 @@ import {
   SquareTerminal,
   Trash2,
 } from "lucide-react-native";
-import type { TFunction } from "i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Pressable, Text, View } from "react-native";
 import { StyleSheet, useUnistyles, withUnistyles } from "react-native-unistyles";
-import type { TerminalProfile } from "@getpaseo/protocol/messages";
-import {
-  getTerminalProfileIcon,
-  DEFAULT_TERMINAL_PROFILES,
-} from "@getpaseo/protocol/terminal-profiles";
-import { AgentProfilesSection } from "@/agent-profiles";
-import { AgentSkillsSection } from "@/agent-skills";
-import { AdaptiveModalSheet, type SheetHeader } from "@/components/adaptive-modal-sheet";
-import { SettingsTextAreaCard } from "@/components/settings-textarea";
-import { Alert as InlineAlert } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { StatusBadge, type StatusBadgeVariant } from "@/components/ui/status-badge";
-import { Switch } from "@/components/ui/switch";
-import {
-  ProfileDraft,
-  TerminalProfileEditModal,
-} from "@/screens/settings/terminal-profile-edit-modal";
-import { startDesktopDaemon, stopDesktopDaemon } from "@/desktop/daemon/desktop-daemon";
-import { LocalDaemonSection } from "@/desktop/components/desktop-updates-section";
-import { useDaemonStatus } from "@/desktop/hooks/use-daemon-status";
-import { useDesktopSettings } from "@/desktop/settings/desktop-settings";
-import { PairDeviceModal } from "@/desktop/components/pair-device-modal";
-import { useDaemonConfig } from "@/hooks/use-daemon-config";
-import { useIsLocalDaemon } from "@/hooks/use-is-local-daemon";
-import {
-  getHostRuntimeStore,
-  isHostRuntimeConnected,
-  useHostMutations,
-  useHostRuntimeClient,
-  useHostRuntimeIsConnected,
-  useHostRuntimeSnapshot,
-  useHosts,
-} from "@/runtime/host-runtime";
-import { ProvidersSection } from "@/screens/settings/providers-section";
-import { ProviderUsageSettingsSection } from "@/provider-usage/settings-section";
-import { useProviderUsage } from "@/provider-usage/use-provider-usage";
-import { HostAppearanceSection } from "@/screens/settings/host-appearance-section";
-import { SettingsSection } from "@/components/settings/headings/settings-section";
-import { useSessionStore } from "@/stores/session-store";
-import { settingsStyles } from "@/styles/settings";
-import type { HostConnection, HostProfile } from "@/types/host-connection";
-import { confirmDialog } from "@/utils/confirm-dialog";
-import { isVersionMismatch } from "@/desktop/updates/desktop-updates";
-import { resolveAppVersion } from "@/utils/app-version";
-import { formatConnectionStatus, getConnectionStatusTone } from "@/utils/daemons";
-import { formatLatency } from "@/utils/latency";
-import { ICON_SIZE } from "@/styles/theme";
-import type { Theme } from "@/styles/theme";
-import { getProviderIcon } from "@/components/provider-icons";
 import { BrowserToolsOptInCard } from "./browser-tools-card";
 import { restartDaemonFromSettings, updateDaemonFromSettings } from "./daemon-lifecycle";
 
@@ -108,9 +108,6 @@ const removeProfileIcon = <ThemedTrash2 size={ICON_SIZE.sm} uniProps={destructiv
 const addProfileIcon = <ThemedPlus size={ICON_SIZE.sm} uniProps={mutedColorMapping} />;
 
 function formatHostConnectionLabel(connection: HostConnection, t: TFunction): string {
-  if (connection.type === "relay") {
-    return `${t("settings.host.badges.relay")} (${connection.relayEndpoint})`;
-  }
   if (connection.type === "directSocket" || connection.type === "directPipe") {
     return `${t("settings.host.badges.local")} (${connection.path})`;
   }
@@ -126,12 +123,6 @@ function formatActiveConnectionBadge(
   t: TFunction,
 ): { icon: React.ReactNode; text: string } | null {
   if (!activeConnection) return null;
-  if (activeConnection.type === "relay") {
-    return {
-      icon: <Globe size={theme.iconSize.sm} color={theme.colors.foregroundMuted} />,
-      text: t("settings.host.badges.relay"),
-    };
-  }
   if (activeConnection.type === "directSocket" || activeConnection.type === "directPipe") {
     return {
       icon: <Monitor size={theme.iconSize.sm} color={theme.colors.foregroundMuted} />,

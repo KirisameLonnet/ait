@@ -46,3 +46,7 @@ app-example
 /ios
 /android
 /release/
+
+# Playwright artifacts (may contain ephemeral test credentials)
+/test-results/
+/playwright-report/

@@ -1,24 +1,24 @@
-import { afterEach, expect, expectTypeOf, test, vi } from "vitest";
-import { z } from "zod";
-import {
-  DaemonClient,
-  type DaemonClientTrace,
-  type CreateAgentRequestOptions,
-  type DaemonTransport,
-  type Logger,
-} from "./daemon-client";
-import { CLIENT_CAPS } from "@getpaseo/protocol/client-capabilities";
-import { BROWSER_AUTOMATION_COMMAND_NAMES } from "@getpaseo/protocol/browser-automation/rpc-schemas";
 import {
   decodeFileTransferFrame,
   encodeFileTransferFrame,
   FileTransferOpcode,
 } from "@getpaseo/protocol/binary-frames/index";
+import { BROWSER_AUTOMATION_COMMAND_NAMES } from "@getpaseo/protocol/browser-automation/rpc-schemas";
+import { CLIENT_CAPS } from "@getpaseo/protocol/client-capabilities";
 import {
   encodeTerminalSnapshotPayload,
   encodeTerminalStreamFrame,
   TerminalStreamOpcode,
 } from "@getpaseo/protocol/terminal-stream-protocol";
+import { afterEach, expect, expectTypeOf, test, vi } from "vitest";
+import { z } from "zod";
+import {
+  DaemonClient,
+  type CreateAgentRequestOptions,
+  type DaemonClientTrace,
+  type DaemonTransport,
+  type Logger,
+} from "./daemon-client";
 
 expectTypeOf<"getGitDiff" extends keyof DaemonClient ? true : false>().toEqualTypeOf<false>();
 expectTypeOf<
@@ -2807,14 +2807,14 @@ test("normalizes workspace_setup_progress into a workspace-scoped daemon event",
         status: "running",
         detail: {
           type: "worktree_setup",
-          worktreePath: "/tmp/project/.paseo/worktrees/feature-a",
+          worktreePath: "/tmp/project/.ait-server/worktrees/feature-a",
           branchName: "feature-a",
           log: "phase-one\n",
           commands: [
             {
               index: 1,
               command: "npm install",
-              cwd: "/tmp/project/.paseo/worktrees/feature-a",
+              cwd: "/tmp/project/.ait-server/worktrees/feature-a",
               log: "phase-one\n",
               status: "running",
               exitCode: null,
@@ -2834,14 +2834,14 @@ test("normalizes workspace_setup_progress into a workspace-scoped daemon event",
       status: "running",
       detail: {
         type: "worktree_setup",
-        worktreePath: "/tmp/project/.paseo/worktrees/feature-a",
+        worktreePath: "/tmp/project/.ait-server/worktrees/feature-a",
         branchName: "feature-a",
         log: "phase-one\n",
         commands: [
           {
             index: 1,
             command: "npm install",
-            cwd: "/tmp/project/.paseo/worktrees/feature-a",
+            cwd: "/tmp/project/.ait-server/worktrees/feature-a",
             log: "phase-one\n",
             status: "running",
             exitCode: null,
@@ -2873,7 +2873,7 @@ test("sends create_agent_request with workspace and caller identity", async () =
   const createPromise = client.createAgent({
     idempotencyKey: "one-creation",
     provider: "codex",
-    cwd: "/tmp/project/.paseo/worktrees/feature-a",
+    cwd: "/tmp/project/.ait-server/worktrees/feature-a",
     workspaceId: "ws-feature-a",
     callerAgentId: "parent-agent",
     title: "Compat agent",
@@ -3786,7 +3786,7 @@ test("transitions out of connecting when connect timeout elapses", async () => {
   }
 });
 
-test("reconnects after relay close with replaced-by-new-connection reason", async () => {
+test("reconnects after the server replaces a connection", async () => {
   useHeartbeatClock();
   try {
     const logger = createMockLogger();
@@ -3796,7 +3796,7 @@ test("reconnects after relay close with replaced-by-new-connection reason", asyn
     let transportIndex = 0;
 
     const client = new DaemonClient({
-      url: "ws://relay.test/ws?role=client&serverId=srv_test&v=2",
+      url: "ws://server.test/v1/ws",
       clientId: "clsk_test",
       logger,
       reconnect: {
@@ -3833,7 +3833,7 @@ test("reconnects after relay close with replaced-by-new-connection reason", asyn
 test("requires non-empty clientId", () => {
   expect(() => {
     const _client = new DaemonClient({
-      url: "ws://relay.test/ws?role=client&serverId=srv_test&v=2",
+      url: "ws://server.test/v1/ws",
       clientId: "",
       reconnect: { enabled: false },
     });

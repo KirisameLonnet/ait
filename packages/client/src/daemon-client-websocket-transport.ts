@@ -3,7 +3,7 @@ import type {
   WebSocketFactory,
   WebSocketLike,
 } from "./daemon-client-transport-types.js";
-import { extractRelayMessage } from "./daemon-client-transport-utils.js";
+import { extractWebSocketMessage } from "./daemon-client-transport-utils.js";
 
 type GlobalWebSocketConstructor = new (
   url: string,
@@ -82,7 +82,7 @@ function bindWsMessageHandler(
   handler: (data: unknown, isBinary: boolean) => void,
 ): () => void {
   const listener = (...args: unknown[]) => {
-    const message = extractRelayMessage(
+    const message = extractWebSocketMessage(
       args[0],
       typeof args[1] === "boolean" ? args[1] : undefined,
     );

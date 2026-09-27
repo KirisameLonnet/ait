@@ -1,7 +1,7 @@
 import type { CheckoutStatusPayload } from "@/git/use-status-query";
 import {
-  parseHostWorkspaceOpenIntentFromPathname,
   parseHostAgentRouteFromPathname,
+  parseHostWorkspaceOpenIntentFromPathname,
   parseHostWorkspaceRouteFromPathname,
 } from "@/utils/host-routes";
 
@@ -38,22 +38,6 @@ export function resolveSelectedAgentForNewAgent(input: {
   return parseHostAgentRouteFromPathname(input.pathname) ?? parseAgentKey(input.selectedAgentId);
 }
 
-function inferMainRepoRootFromPaseoWorktreePath(cwd: string): string | null {
-  const normalizedPath = cwd.replace(/\\/g, "/");
-  const marker = "/.paseo/worktrees";
-  const markerIndex = normalizedPath.indexOf(marker);
-  if (markerIndex <= 0) {
-    return null;
-  }
-  const markerEnd = markerIndex + marker.length;
-  const nextChar = normalizedPath[markerEnd];
-  if (nextChar && nextChar !== "/") {
-    return null;
-  }
-  const inferred = cwd.slice(0, markerIndex).replace(/[\\/]+$/, "");
-  return inferred.trim() ? inferred : null;
-}
-
 export function resolveNewAgentWorkingDir(
   cwd: string,
   checkout: CheckoutStatusPayload | null,
@@ -65,5 +49,5 @@ export function resolveNewAgentWorkingDir(
     return explicitMainRepoRoot;
   }
 
-  return inferMainRepoRootFromPaseoWorktreePath(cwd) ?? cwd;
+  return cwd;
 }

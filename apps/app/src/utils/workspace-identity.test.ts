@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import type { WorkspaceDescriptor } from "@/stores/session-store";
+import { describe, expect, it } from "vitest";
 import { resolveWorkspaceMapKeyByIdentity, resolveWorkspaceRouteId } from "./workspace-identity";
 
 function createWorkspace(
@@ -41,7 +41,7 @@ describe("resolveWorkspaceMapKeyByIdentity", () => {
         "workspace-1",
         createWorkspace({
           id: "workspace-1",
-          workspaceDirectory: "/repo/.paseo/worktrees/feature",
+          workspaceDirectory: "/repo/.ait-server/worktrees/feature",
         }),
       ],
     ]);

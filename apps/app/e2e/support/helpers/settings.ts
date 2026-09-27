@@ -1,12 +1,13 @@
-import { expect, type Page } from "@playwright/test";
-import { buildCreateAgentPreferences, buildSeededHost, TEST_HOST_LABEL } from "./daemon-registry";
-import { getServerId } from "./server-id";
-import { expectAppRoute } from "./route-assertions";
 import {
   buildSettingsHostSectionRoute,
   buildSettingsRoute,
   buildSettingsSectionRoute,
 } from "@/utils/host-routes";
+import { expect, type Page } from "@playwright/test";
+import { requireAitServer } from "./ait-server";
+import { buildCreateAgentPreferences, buildSeededHost, TEST_HOST_LABEL } from "./daemon-registry";
+import { expectAppRoute } from "./route-assertions";
+import { getServerId } from "./server-id";
 
 const DISABLE_DEFAULT_SEED_ONCE_KEY = "@paseo:e2e-disable-default-seed-once";
 const SEED_NONCE_KEY = "@paseo:e2e-seed-nonce";
@@ -23,7 +24,6 @@ const SECTION_LABELS = {
   appearance: "Appearance",
   editor: "Editor",
   shortcuts: "Shortcuts",
-  integrations: "Integrations",
   permissions: "Permissions",
   diagnostics: "Diagnostics",
   about: "About",
@@ -80,11 +80,8 @@ export async function openAddHostFlow(page: Page): Promise<void> {
   await expect(page.getByText("Add connection", { exact: true })).toBeVisible();
 }
 
-export async function selectHostConnectionType(
-  page: Page,
-  type: "direct" | "relay",
-): Promise<void> {
-  const label = type === "direct" ? "Direct connection" : "Paste pairing link";
+export async function selectHostConnectionType(page: Page, _type: "direct"): Promise<void> {
+  const label = "Direct connection";
   await page.getByRole("button", { name: label }).click();
 }
 
@@ -96,6 +93,7 @@ export async function addDirectHostFromSettings(
   await selectHostConnectionType(page, "direct");
   await page.getByTestId("direct-host-input").fill(input.host);
   await page.getByTestId("direct-port-input").fill(String(input.port));
+  await page.getByTestId("direct-password-input").fill(requireAitServer(input.port).token);
   await page.getByTestId("direct-host-submit").click();
   await expect(page.getByTestId("add-host-modal")).toHaveCount(0, { timeout: 30_000 });
 }

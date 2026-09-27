@@ -88,7 +88,7 @@ pub struct ProjectConfigRevision {
 pub struct ProjectConfigRead {
     /// Canonical active project root.
     pub repo_root: String,
-    /// Parsed document, or none when `paseo.json` is absent.
+    /// Parsed document, or none when `ait.json` is absent.
     pub config: Option<serde_json::Value>,
     /// Matching file revision, or none when absent.
     pub revision: Option<ProjectConfigRevision>,
@@ -154,7 +154,7 @@ pub struct DirectoryDependencies {
     pub workspaces: Box<dyn WorkspaceRegistry>,
     /// Local directory inspection and creation.
     pub source: Box<dyn DirectorySource>,
-    /// `paseo.json` persistence.
+    /// `ait.json` persistence.
     pub config_store: Box<dyn ProjectConfigStore>,
     /// Project icon persistence.
     pub icon_store: Box<dyn ProjectIconStore>,
@@ -387,7 +387,7 @@ impl Directory {
         self.workspaces.list().map_err(map_error)
     }
 
-    /// Read `paseo.json` for a known active project root.
+    /// Read `ait.json` for a known active project root.
     ///
     /// # Errors
     /// Returns project-not-found or invalid-config errors inline to the API layer.
@@ -407,7 +407,7 @@ impl Directory {
         })
     }
 
-    /// Optimistically write `paseo.json` for a known active project root.
+    /// Optimistically write `ait.json` for a known active project root.
     ///
     /// # Errors
     /// Returns project-not-found, stale-revision, or write failures inline to the API layer.

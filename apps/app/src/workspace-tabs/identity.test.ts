@@ -159,22 +159,15 @@ describe("commit diff tab identity", () => {
 });
 
 describe("plugin panel tab identity", () => {
-  it("normalizes exact workspace and agent context", () => {
+  it("discards persisted plugin targets after plugin removal", () => {
     expect(
       normalizeWorkspaceTabTarget({
         kind: "plugin",
-        pluginId: " review ",
-        panelId: " details ",
-        context: "agent",
-        agentId: " agent-1 ",
+        pluginId: "review",
+        panelId: "details",
+        context: "workspace",
       }),
-    ).toEqual({
-      kind: "plugin",
-      pluginId: "review",
-      panelId: "details",
-      context: "agent",
-      agentId: "agent-1",
-    });
+    ).toBeNull();
   });
 
   it("gives workspace and agent instances distinct stable ids", () => {

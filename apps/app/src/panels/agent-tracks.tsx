@@ -1,17 +1,15 @@
-import { memo, useCallback, type ReactElement } from "react";
 import { WorkspaceDiffStatPill } from "@/composer/diff-stat-pill";
-import { useWorkspaceHasDiffStat } from "@/composer/workspace-diff-stat";
 import { AgentTaskList } from "@/composer/task-list";
 import { ComposerTrackBar } from "@/composer/tracks";
+import { useWorkspaceHasDiffStat } from "@/composer/workspace-diff-stat";
 import { supportsDesktopPaneSplits, useIsCompactFormFactor } from "@/constants/layout";
-import { usePaneContext } from "@/panels/pane-context";
 import { useSettings } from "@/hooks/use-settings";
-import { PluginComposerPills } from "@/plugins";
+import { usePaneContext } from "@/panels/pane-context";
 import { useSessionStore } from "@/stores/session-store";
 import {
-  type ArchiveFinishedStatus,
   useArchiveSubagent,
   useDetachSubagent,
+  type ArchiveFinishedStatus,
   type SubagentRow,
 } from "@/subagents";
 import { SubagentsTrack } from "@/subagents/track";
@@ -20,6 +18,7 @@ import { navigateToAgent } from "@/utils/navigate-to-agent";
 import { buildWorkspaceTabPersistenceKey } from "@/workspace-tabs/model";
 import { openPreferredWorkspaceTarget } from "@/workspace-tabs/open-beside";
 import { openComposerChanges } from "@/workspace-tabs/open-supporting-view";
+import { memo, useCallback, type ReactElement } from "react";
 
 /**
  * The pane's ambient context — workspace changes, subagents, and tasks — as a row of pills above
@@ -31,13 +30,11 @@ import { openComposerChanges } from "@/workspace-tabs/open-supporting-view";
 export const AgentTracks = memo(function AgentTracks({
   serverId,
   workspaceId,
-  agentId,
   cwd,
   subagentRows,
   tasks,
   archiveFinishedStatus,
   onArchiveFinished,
-  hasPluginComposerPills,
 }: {
   serverId: string;
   workspaceId: string;
@@ -47,7 +44,6 @@ export const AgentTracks = memo(function AgentTracks({
   tasks: TodoEntry[] | undefined;
   archiveFinishedStatus: ArchiveFinishedStatus;
   onArchiveFinished: () => void;
-  hasPluginComposerPills: boolean;
 }): ReactElement | null {
   const { tabId, openTab } = usePaneContext();
   const hasWorkspaceDiffStat = useWorkspaceHasDiffStat(serverId, workspaceId);
@@ -118,7 +114,6 @@ export const AgentTracks = memo(function AgentTracks({
       subagentRows,
       tasks,
       archiveFinishedStatus,
-      hasPluginComposerPills,
     })
   ) {
     return null;
@@ -137,12 +132,7 @@ export const AgentTracks = memo(function AgentTracks({
         archiveFinishedStatus={archiveFinishedStatus}
         onDetachSubagent={canDetachSubagents ? detachSubagent : undefined}
       />
-      <PluginComposerPills
-        serverId={serverId}
-        workspaceId={workspaceId}
-        agentId={agentId}
-        compact={isCompact}
-      />
+
       <WorkspaceDiffStatPill
         serverId={serverId}
         workspaceId={workspaceId}
@@ -156,17 +146,10 @@ export function hasAgentTracks({
   subagentRows,
   tasks,
   archiveFinishedStatus,
-  hasPluginComposerPills = false,
 }: {
   subagentRows: readonly SubagentRow[];
   tasks: readonly TodoEntry[] | undefined;
   archiveFinishedStatus: ArchiveFinishedStatus;
-  hasPluginComposerPills?: boolean;
 }): boolean {
-  return (
-    subagentRows.length > 0 ||
-    Boolean(tasks?.length) ||
-    archiveFinishedStatus.kind !== "idle" ||
-    hasPluginComposerPills
-  );
+  return subagentRows.length > 0 || Boolean(tasks?.length) || archiveFinishedStatus.kind !== "idle";
 }

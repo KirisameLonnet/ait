@@ -16,7 +16,7 @@ interface ProjectPickerFixtureResource {
 }
 
 export async function createProjectPickerFixture(): Promise<ProjectPickerFixtureResource> {
-  const root = await mkdtemp(path.join(homedir(), "paseo-e2e-project-picker-"));
+  const root = await mkdtemp(path.join(homedir(), "ait-e2e-project-picker-"));
   const nonce = randomUUID().replaceAll("-", "").slice(0, 8);
   const projectPath = path.join(root, "client", "team", `paseo-desktop-fuzzy-target-${nonce}`);
   await mkdir(projectPath, { recursive: true });

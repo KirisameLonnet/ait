@@ -41,7 +41,7 @@ fn wait_for(
 fn script_config_filters_invalid_entries_and_sorts_names() {
     let directory = tempfile::tempdir().expect("tempdir");
     fs::write(
-        directory.path().join("paseo.json"),
+        directory.path().join("ait.json"),
         r#"{
           "scripts": {
             "zeta": {"command":" echo z "},
@@ -74,7 +74,7 @@ fn script_config_filters_invalid_entries_and_sorts_names() {
 #[test]
 fn malformed_and_linked_configs_are_rejected() {
     let directory = tempfile::tempdir().expect("tempdir");
-    fs::write(directory.path().join("paseo.json"), "[").expect("config");
+    fs::write(directory.path().join("ait.json"), "[").expect("config");
     let automation = LocalWorkspaceAutomation::default();
     assert!(matches!(
         automation.list_scripts(&placement(directory.path(), "wks_bad")),
@@ -85,9 +85,9 @@ fn malformed_and_linked_configs_are_rejected() {
     {
         use std::os::unix::fs::symlink;
 
-        fs::remove_file(directory.path().join("paseo.json")).expect("remove config");
+        fs::remove_file(directory.path().join("ait.json")).expect("remove config");
         fs::write(directory.path().join("outside.json"), "{}").expect("outside");
-        symlink("outside.json", directory.path().join("paseo.json")).expect("symlink");
+        symlink("outside.json", directory.path().join("ait.json")).expect("symlink");
         assert!(matches!(
             automation.list_scripts(&placement(directory.path(), "wks_link")),
             Err(WorkspaceAutomationError::InvalidConfig(_))
@@ -100,7 +100,7 @@ fn malformed_and_linked_configs_are_rejected() {
 fn scripts_start_refresh_and_stop_real_children() {
     let directory = tempfile::tempdir().expect("tempdir");
     fs::write(
-        directory.path().join("paseo.json"),
+        directory.path().join("ait.json"),
         r#"{"scripts":{
           "once":{"command":"printf done > once.txt"},
           "service":{"type":"service","command":"while :; do sleep 1; done"}
@@ -157,7 +157,7 @@ fn scripts_start_refresh_and_stop_real_children() {
 fn setup_runs_in_order_with_paseo_environment() {
     let directory = tempfile::tempdir().expect("tempdir");
     fs::write(
-        directory.path().join("paseo.json"),
+        directory.path().join("ait.json"),
         r#"{"worktree":{"setup":[
           "printf '%s' \"$PASEO_BRANCH_NAME\" > branch.txt",
           "printf '%s' \"$PASEO_WORKTREE_PORT\" > port.txt"
@@ -193,7 +193,7 @@ fn setup_runs_in_order_with_paseo_environment() {
 fn setup_stops_after_the_first_failed_command() {
     let directory = tempfile::tempdir().expect("tempdir");
     fs::write(
-        directory.path().join("paseo.json"),
+        directory.path().join("ait.json"),
         r#"{"worktree":{"setup":["printf before; exit 7","touch after.txt"]}}"#,
     )
     .expect("config");
@@ -212,7 +212,7 @@ fn setup_stops_after_the_first_failed_command() {
 fn setup_thread_does_not_retain_the_runtime_across_restart() {
     let directory = tempfile::tempdir().expect("tempdir");
     fs::write(
-        directory.path().join("paseo.json"),
+        directory.path().join("ait.json"),
         r#"{"worktree":{"setup":["sleep 5"]}}"#,
     )
     .expect("config");
@@ -222,4 +222,33 @@ fn setup_thread_does_not_retain_the_runtime_across_restart() {
     assert!(automation.start_setup(&workspace).expect("start"));
     drop(automation);
     assert!(inner.upgrade().is_none());
+}
+
+#[test]
+fn script_config_prefers_ait_and_reads_legacy_only_when_ait_is_absent() {
+    use crate::ports::provisioning::{LEGACY_PROJECT_CONFIG_FILE_NAME, PROJECT_CONFIG_FILE_NAME};
+
+    let directory = tempfile::tempdir().unwrap();
+    fs::write(
+        directory.path().join(LEGACY_PROJECT_CONFIG_FILE_NAME),
+        r#"{"scripts":{"legacy":{"command":"echo old"}}}"#,
+    )
+    .unwrap();
+    assert!(
+        read_config(directory.path())
+            .unwrap()
+            .scripts
+            .contains_key("legacy")
+    );
+    let preferred = directory.path().join(PROJECT_CONFIG_FILE_NAME);
+    fs::write(
+        &preferred,
+        r#"{"scripts":{"ait":{"command":"echo current"}}}"#,
+    )
+    .unwrap();
+    let config = read_config(directory.path()).unwrap();
+    assert!(config.scripts.contains_key("ait"));
+    assert!(!config.scripts.contains_key("legacy"));
+    fs::write(&preferred, "invalid").unwrap();
+    assert!(read_config(directory.path()).is_err());
 }
