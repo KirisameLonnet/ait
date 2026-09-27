@@ -15,6 +15,9 @@ use crate::ports::worktrees::{
     OwnedWorktree, WorktreeCreateMode, WorktreeError,
 };
 
+mod provisioning;
+pub use provisioning::WorkspaceWorktrees;
+
 /// Create action independent of the transport schema.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CreateAction {
@@ -27,6 +30,14 @@ pub enum CreateAction {
 /// Validated worktree creation intent from the API layer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CreateWorktree {
+    /// Caller-reserved workspace identity, when supplied.
+    pub workspace_id: Option<String>,
+    /// Explicit title override, including an explicitly empty title.
+    pub title: Option<String>,
+    /// Explicit branch name, independent of the worktree slug.
+    pub branch_name: Option<String>,
+    /// Default base branch override.
+    pub base_branch: Option<String>,
     /// Selected source directory.
     pub cwd: String,
     /// Optional owning project identity.
@@ -219,6 +230,15 @@ impl Worktrees {
         if input.has_change_request_source {
             return Err(WorktreeError::ForgeUnavailable.into());
         }
+        if let Some(workspace_id) = &input.workspace_id
+            && self
+                .workspaces
+                .get(workspace_id)
+                .map_err(map_registry)?
+                .is_some()
+        {
+            return Err(WorktreeError::Invalid("workspaceId already exists".to_owned()).into());
+        }
         let slug = input
             .worktree_slug
             .as_deref()
@@ -227,8 +247,11 @@ impl Worktrees {
             .map_or_else(random_slug, Ok)?;
         let mode = match input.action {
             CreateAction::BranchOff => WorktreeCreateMode::BranchOff {
-                base_ref: normalize_ref(input.ref_name.as_deref()).map(str::to_owned),
-                branch_name: slug.clone(),
+                base_ref: normalize_ref(input.ref_name.as_deref())
+                    .or_else(|| normalize_ref(input.base_branch.as_deref()))
+                    .map(str::to_owned),
+                branch_name: normalize_ref(input.branch_name.as_deref())
+                    .map_or_else(|| slug.clone(), str::to_owned),
             },
             CreateAction::Checkout => WorktreeCreateMode::Checkout {
                 branch_name: normalize_ref(input.ref_name.as_deref())
@@ -351,15 +374,21 @@ impl Worktrees {
     ) -> Result<CreatedWorkspace, WorktreesError> {
         let project = self.resolve_project(created, input.project_id.as_deref(), timestamp)?;
         let workspace = PersistedWorkspaceRecord {
-            workspace_id: generate_workspace_id().map_err(|_| WorktreesError::Registry)?,
+            workspace_id: input.workspace_id.clone().map_or_else(
+                || generate_workspace_id().map_err(|_| WorktreesError::Registry),
+                Ok,
+            )?,
             project_id: project.project_id.clone(),
             cwd: created.workspace_cwd.clone(),
             kind: PersistedWorkspaceKind::Worktree,
             display_name: created.branch_name.clone(),
-            title: input
-                .first_agent_prompt
-                .as_deref()
-                .and_then(first_prompt_title),
+            title: match &input.title {
+                Some(title) => normalize_ref(Some(title)).map(str::to_owned),
+                None => input
+                    .first_agent_prompt
+                    .as_deref()
+                    .and_then(first_prompt_title),
+            },
             branch: Some(created.branch_name.clone()),
             worktree_root: Some(created.worktree_path.clone()),
             base_branch: created.comparison_base_ref.clone(),
@@ -371,13 +400,16 @@ impl Worktrees {
             auto_archived_change_request_url: None,
             pinned_at: None,
             labels: None,
-            auto_name: Some(server_metadata::model::registry::PendingWorkspaceName {
-                placeholder_branch: (input.action == CreateAction::BranchOff
-                    && input
-                        .worktree_slug
-                        .as_deref()
-                        .is_none_or(|slug| slug.trim().is_empty()))
-                .then(|| created.branch_name.clone()),
+            auto_name: input.title.is_none().then(|| {
+                server_metadata::model::registry::PendingWorkspaceName {
+                    placeholder_branch: (input.action == CreateAction::BranchOff
+                        && normalize_ref(input.branch_name.as_deref()).is_none()
+                        && input
+                            .worktree_slug
+                            .as_deref()
+                            .is_none_or(|slug| slug.trim().is_empty()))
+                    .then(|| created.branch_name.clone()),
+                }
             }),
             untrusted_source: None,
         };

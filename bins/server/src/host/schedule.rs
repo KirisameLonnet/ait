@@ -148,6 +148,10 @@ impl AgentRunner {
                     .map_err(|_| "Workspace lock failed")?
                     .create(
                         &CreateWorktree {
+                            workspace_id: None,
+                            title: None,
+                            branch_name: None,
+                            base_branch: None,
                             cwd,
                             project_id: None,
                             worktree_slug: None,

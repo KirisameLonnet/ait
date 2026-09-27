@@ -241,8 +241,8 @@ async fn assert_directory_creation_and_errors(client: &mut Socket, parent: &Path
             "workspace.create.request",
             json!({"source":{"kind":"worktree","cwd":existing}})
         )
-        .await["code"],
-        "unsupported_capability"
+        .await["result"]["errorCode"],
+        "not_git_repository"
     );
 }
 

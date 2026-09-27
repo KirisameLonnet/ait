@@ -1,4 +1,4 @@
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::symlink;
 use std::path::PathBuf;
 
 use server_domain::agent_runtime::StoredAgentConfig;
@@ -16,12 +16,11 @@ impl Fixture {
     pub(crate) fn new() -> Self {
         let root = tempfile::tempdir().unwrap();
         let program = root.path().join("codex");
-        std::fs::write(
-            &program,
-            include_str!("../tests/fixtures/codex_app_server.py"),
-        )
-        .unwrap();
-        std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o700)).unwrap();
+        // Keep the executable immutable while concurrent tests spawn native processes.
+        // The link also scopes optional diagnostic cwd overrides to this fixture.
+        let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/codex_app_server.py");
+        symlink(source, &program).unwrap();
         let cwd = root.path().join("work");
         std::fs::create_dir(&cwd).unwrap();
         Self { root, program, cwd }
