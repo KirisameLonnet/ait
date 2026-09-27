@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -10,6 +10,15 @@ const require = createRequire(import.meta.url);
 const desktop = fileURLToPath(new URL("..", import.meta.url));
 const root = path.resolve(desktop, "../..");
 const temporary = mkdtempSync(path.join(os.tmpdir(), "ait-paseo-desktop-smoke-"));
+const fixtureBin = path.join(temporary, "bin");
+const workspace = path.join(temporary, "workspace");
+mkdirSync(fixtureBin);
+mkdirSync(workspace);
+copyFileSync(
+  path.join(root, "crates/server-provider/tests/fixtures/codex_app_server.py"),
+  path.join(fixtureBin, "codex"),
+);
+chmodSync(path.join(fixtureBin, "codex"), 0o755);
 const packagedApp = process.env.AIT_PACKAGED_APP;
 const env = {
   ...process.env,
@@ -39,6 +48,11 @@ try {
     errors.push(error.message);
     console.error("renderer error:", error.message);
   });
+  page.on("console", (message) => {
+    if (/Message validation failed|Subscription request failed/.test(message.text())) {
+      errors.push(message.text());
+    }
+  });
   await page.waitForFunction(() => typeof window.paseoDesktop?.invoke === "function");
   // The renderer must bootstrap the daemon itself. This test never sends start.
   const deadline = Date.now() + 90_000;
@@ -63,6 +77,26 @@ try {
     return await runtime.getSnapshot(id).client.listProjects();
   }, status.serverId);
   assert(Array.isArray(projects.projects), "Authenticated renderer RPC did not return projects");
+  const terminals = await page.evaluate(
+    async ({ id, cwd }) => {
+      const client = globalThis.__paseoHostRuntimeStore.getSnapshot(id).client;
+      const subscription = client.observeTerminals({ cwd });
+      try {
+        const snapshot = await subscription.ready;
+        return { ...snapshot, connected: client.isConnected };
+      } finally {
+        await subscription.release();
+      }
+    },
+    { id: status.serverId, cwd: temporary },
+  );
+  assert(Array.isArray(terminals.terminals) && terminals.subscriptionId);
+  assert(terminals.connected, "Terminal subscription disconnected the renderer");
+  // Login-shell hydration has finished. The next server must use only our offline
+  // peer for Codex, regardless of tools installed on the developer's machine.
+  await app.evaluate((_electron, bin) => {
+    process.env.PATH = `${bin}:${process.env.PATH}`;
+  }, fixtureBin);
   const restarted = await page.evaluate(() => window.paseoDesktop.invoke("restart_desktop_daemon"));
   assert.equal(restarted.serverId, status.serverId);
   assert.equal(restarted.listen, status.listen);
@@ -78,6 +112,100 @@ try {
     return await globalThis.__paseoHostRuntimeStore.getSnapshot(id).client.listProjects();
   }, status.serverId);
   assert(Array.isArray(afterRestart.projects), "Renderer did not reconnect after Rust restart");
+
+  const live = await page.evaluate(
+    async ({ id, cwd }) => {
+      const client = globalThis.__paseoHostRuntimeStore.getSnapshot(id).client;
+      const project = await client.createProjectDirectory({ parentPath: cwd, name: "first-chat" });
+      if (!project.project || !project.directoryPath)
+        throw new Error(project.error ?? "No new project");
+      const prompt = "first conversation";
+      const created = await client.createWorkspace({
+        idempotencyKey: "first-chat",
+        source: {
+          kind: "directory",
+          path: project.directoryPath,
+          projectId: project.project.projectId,
+        },
+        firstAgentContext: { prompt, attachments: [] },
+        agent: {
+          config: { provider: "codex", cwd: project.directoryPath },
+          initialPrompt: prompt,
+        },
+      });
+      if (!created.workspace || !created.agent)
+        throw new Error(created.error ?? "No first conversation");
+      const agent = created.agent;
+      await client.waitForFinish(agent.id, 5000);
+      const timeline = client.observeTimeline([agent.id]);
+      const events = [];
+      timeline.subscribe({ snapshot: () => {}, update: (message) => events.push(message.type) });
+      try {
+        await timeline.ready;
+        const initial = await client.fetchAgentTimeline(agent.id, { timeout: 5000 });
+        await client.sendAgentMessage(agent.id, "stream");
+        const running = await client.fetchAgents({});
+        await client.sendAgentMessage(agent.id, "continue", { activeTurnBehavior: "steer" });
+        const finished = await client.waitForFinish(agent.id, 5000);
+        const page = await client.fetchAgentTimeline(agent.id, { timeout: 5000 });
+        return {
+          agentId: agent.id,
+          cwd: project.directoryPath,
+          initialEntries: initial.entries,
+          running: running.entries.find((entry) => entry.agent.id === agent.id)?.agent.status,
+          finished: finished.status,
+          entries: page.entries,
+          events,
+        };
+      } finally {
+        await timeline.release();
+      }
+    },
+    { id: status.serverId, cwd: workspace },
+  );
+  assert.equal(live.initialEntries.length, 2);
+  assert.equal(live.initialEntries[0].item.text, "first conversation");
+  assert.equal(live.initialEntries[1].item.text, "Echo: first conversation");
+  assert.equal(live.running, "running");
+  assert.equal(live.finished, "idle");
+  assert(live.events.includes("agent_stream"), "No live timeline updates reached the SDK");
+  const assistantText = (entries) =>
+    entries
+      .filter((entry) => entry.item.type === "assistant_message")
+      .map((entry) => entry.item.text)
+      .join("");
+  assert.equal(assistantText(live.entries), "Echo: first conversationEcho: stream + continue");
+  assert(live.entries.some((entry) => entry.item.type === "tool_call"));
+  const nativeRequests = readFileSync(path.join(live.cwd, "native-requests.jsonl"), "utf8");
+  assert(nativeRequests.includes('"method": "turn/steer"'), "Offline peer was not exercised");
+
+  const reloaded = await page.evaluate(() => window.paseoDesktop.invoke("restart_desktop_daemon"));
+  assert.throws(() => process.kill(pid, 0), "Previous Rust process survived second restart");
+  pid = reloaded.pid;
+  await page.waitForFunction(
+    (id) => globalThis.__paseoHostRuntimeStore?.getSnapshot(id)?.connectionStatus === "online",
+    status.serverId,
+    { timeout: 30000 },
+  );
+  const persisted = await page.evaluate(
+    async ({ id, agentId }) => {
+      const client = globalThis.__paseoHostRuntimeStore.getSnapshot(id).client;
+      const agents = await client.fetchAgents({});
+      const timeline = await client.fetchAgentTimeline(agentId, { timeout: 5000 });
+      return { count: agents.entries.length, entries: timeline.entries };
+    },
+    { id: status.serverId, agentId: live.agentId },
+  );
+  assert.equal(persisted.count, 1);
+  // Cold history has canonical items; live pages can contain incremental deltas.
+  assert.equal(assistantText(persisted.entries), assistantText(live.entries));
+  assert.deepEqual(
+    persisted.entries
+      .filter((entry) => entry.item.type === "user_message")
+      .map((entry) => entry.item.text),
+    ["first conversation", "stream", "continue"],
+  );
+  assert(persisted.entries.some((entry) => entry.item.type === "tool_call"));
 
   await page.waitForTimeout(2000);
   assert.equal(errors.length, 0, errors.join("\n"));

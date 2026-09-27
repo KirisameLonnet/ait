@@ -452,6 +452,19 @@ wait 不阻塞同一连接继续发 cancel；响应按 request_id 匹配，可�
 最多 32 个 live session、64 个待处理 worker 命令、32 个并发 wait；native RPC 超时 10 秒，
 JSON 行上限 2 MiB。超过预算会返回错误或终止有问题的原生连接，不静默丢失数据。
 
+## 新目录项目的首次对话
+
+`project.create_directory.request` 创建并登记目录后，客户端可以调用
+`workspace.create.request`，使用 `source.kind="directory"`，并附带
+`firstAgentContext: {prompt, attachments}`。该上下文保存在创建意图中，并标记 Workspace
+将有首个 Agent；它本身不创建 Agent、不发送消息，也不读取附件或生成标题。显式 `title`
+保持原有语义。相同幂等键及上下文重放同一个 Workspace；修改上下文时返回
+`idempotency_conflict`。
+
+当前桌面 SDK 在收到 Workspace 后通过独立的 `agent.create.request` 传递 `workspaceId`
+和 `initialPrompt`，启动首次对话。包含 `agent` 的服务端组合创建，以及此接口的 worktree
+来源仍未接通。回归验证见[首次对话修复报告](../reports/new-project-first-conversation.md)。
+
 ## 早期 Project 接口已废除
 
 `project.open`、`project.list`、`project.get`、`project.close` 已从路由与能力协商中移除，

@@ -787,8 +787,16 @@ const AgentPersistenceHandleSchema: z.ZodType<AgentPersistenceHandle | null> = z
   .object({
     provider: AgentProviderSchema,
     sessionId: z.string(),
-    nativeHandle: z.string().optional(),
-    metadata: z.record(z.string(), z.unknown()).optional(),
+    nativeHandle: z
+      .string()
+      .nullable()
+      .transform((value) => value ?? undefined)
+      .optional(),
+    metadata: z
+      .record(z.string(), z.unknown())
+      .nullable()
+      .transform((value) => value ?? undefined)
+      .optional(),
   })
   .nullable();
 
@@ -798,7 +806,11 @@ const AgentRuntimeInfoSchema: z.ZodType<AgentRuntimeInfo> = z.object({
   model: z.string().nullable().optional(),
   thinkingOptionId: z.string().nullable().optional(),
   modeId: z.string().nullable().optional(),
-  extra: z.record(z.string(), z.unknown()).optional(),
+  extra: z
+    .record(z.string(), z.unknown())
+    .nullable()
+    .transform((value) => value ?? undefined)
+    .optional(),
 });
 
 const AgentActiveTurnPayloadSchema = z.object({
@@ -827,7 +839,12 @@ export const AgentSnapshotPayloadSchema = z.object({
   persistence: AgentPersistenceHandleSchema.nullable(),
   runtimeInfo: AgentRuntimeInfoSchema.optional(),
   lastUsage: AgentUsageSchema.optional(),
-  lastError: z.string().optional(),
+  // Rust serializes an absent error as null; keep the SDK's optional-string output.
+  lastError: z
+    .string()
+    .nullable()
+    .transform((value) => value ?? undefined)
+    .optional(),
   title: z.string().nullable(),
   labels: z.record(z.string(), z.string()).default({}),
   requiresAttention: z.boolean().optional(),

@@ -78,7 +78,19 @@ async fn native_discovery_and_read_only_history_use_real_stdio_without_model_cal
         .await
         .unwrap();
     assert_eq!(details.models[0]["id"], "offline-model");
-    assert_eq!(details.modes[0]["id"], "read-only");
+    assert_eq!(
+        details
+            .modes
+            .iter()
+            .map(|mode| (mode["id"].as_str(), mode["icon"].as_str()))
+            .collect::<Vec<_>>(),
+        vec![
+            (Some("auto"), Some("Shield")),
+            (Some("full-access"), Some("ShieldOff")),
+        ]
+    );
+    assert_eq!(details.features[0]["icon"], "zap");
+    assert_eq!(details.features[0]["tooltip"], "Toggle fast mode");
     let mut session = client.create_session(&fixture.spec()).await.unwrap();
     let handle = session.persistence().unwrap();
     session

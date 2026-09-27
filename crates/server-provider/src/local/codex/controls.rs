@@ -209,16 +209,19 @@ pub(super) fn fast(config: &StoredAgentConfig) -> bool {
 
 pub(super) fn modes() -> Vec<Value> {
     vec![
-        json!({"id":"read-only","label":"Read only","description":"Inspect without writing files"}),
-        json!({"id":"auto","label":"Default Permissions","description":"Write in the workspace and request approval when needed"}),
-        json!({"id":"full-access","label":"Full Access","description":"Run without sandbox restrictions or approval prompts"}),
+        json!({"id":"auto","label":"Default Permissions",
+            "description":"Write in the workspace and request approval when needed",
+            "icon":"Shield","colorTier":"moderate"}),
+        json!({"id":"full-access","label":"Full Access",
+            "description":"Run without sandbox restrictions or approval prompts",
+            "icon":"ShieldOff","colorTier":"dangerous","isUnattended":true}),
     ]
 }
 
 pub(super) fn features(config: &StoredAgentConfig) -> Vec<Value> {
-    vec![
-        json!({"id":"fast_mode","type":"toggle","label":"Fast mode","description":"Use the selected model's fast service tier when available","value":fast(config)}),
-    ]
+    vec![json!({"id":"fast_mode","type":"toggle","label":"Fast",
+            "description":"Priority inference at increased usage",
+            "tooltip":"Toggle fast mode","icon":"zap","value":fast(config)})]
 }
 
 pub(super) fn policy(config: &StoredAgentConfig) -> (Value, &str, Value) {

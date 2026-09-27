@@ -1375,8 +1375,6 @@ export const ptBR: TranslationResources = {
         copied: "Status copiado para a área de transferência.",
         fetchFailed: "Falha ao buscar status do daemon: {{message}}",
       },
-      advancedSettings: "Configurações avançadas",
-      openAdvancedSettings: "Abrir configurações avançadas do daemon",
       versionMismatch:
         "As versões do app e do daemon não coincidem. Atualize ambos para a mesma versão para a melhor experiência.",
       loadFailed: "Não foi possível carregar o status do daemon desktop.",
