@@ -94,6 +94,10 @@ impl AgentExecution {
             .recover_inputs()
             .map_err(|_| std::io::Error::other("recover input receipts"))?;
         dependencies.manager = dependencies.manager.with_timeline(timeline.clone());
+        dependencies
+            .manager
+            .recover_titles()
+            .map_err(|_| std::io::Error::other("recover Agent titles"))?;
         let creations = dependencies.manager.creations();
         let events = dependencies.manager.events();
         let runtime = tokio::runtime::Builder::new_current_thread()

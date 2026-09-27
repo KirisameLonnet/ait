@@ -4,6 +4,7 @@ mod controls;
 mod delivery;
 pub(crate) mod native_sessions;
 mod streaming;
+mod titles;
 
 use std::collections::BTreeMap;
 
@@ -194,6 +195,9 @@ impl AgentManager {
             .await
             .map_err(|_| ErrorCode::AgentIo)?;
         timeline.reconcile(agent_id, &record.provider, &entries)?;
+        if titles::missing(&record) {
+            self.fill_missing_title(agent_id, titles::from_entries(&entries))?;
+        }
         self.loaded_timelines.insert(agent_id.to_owned());
         Ok(())
     }
@@ -544,6 +548,9 @@ impl AgentManager {
                 next.requires_attention = false;
                 next.attention_reason = None;
                 next.attention_timestamp = None;
+                if titles::missing(current) {
+                    next.title = titles::from_prompt(&prompt.text);
+                }
                 next
             })
             .map_err(map_registry)?

@@ -8,6 +8,7 @@ use server_domain::agent_runtime::{AgentPersistenceHandle, StoredAgentConfig};
 use super::*;
 
 mod paseo;
+mod titles;
 mod usage;
 
 #[derive(Debug, Default)]

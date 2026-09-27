@@ -1,5 +1,34 @@
 use super::*;
 
+#[test]
+fn first_user_text_reads_only_current_history_without_creating_a_generation() {
+    let timeline = Timeline::memory().unwrap();
+    assert_eq!(timeline.first_user_text("agent").unwrap(), None);
+    let mut assistant = item("assistant", "Not a title");
+    assistant.item["type"] = json!("assistant_message");
+    let entries = [
+        assistant,
+        item("empty", "\n\t\0"),
+        item("first", "Question"),
+        item("second", "Later"),
+    ];
+    timeline.append("agent", "codex", &entries).unwrap();
+    timeline
+        .append("other", "codex", &[item("other", "Other agent")])
+        .unwrap();
+    assert_eq!(
+        timeline.first_user_text("agent").unwrap().as_deref(),
+        Some("Question")
+    );
+    timeline
+        .reconcile("agent", "codex", &[item("replacement", "Replacement")])
+        .unwrap();
+    assert_eq!(
+        timeline.first_user_text("agent").unwrap().as_deref(),
+        Some("Replacement")
+    );
+}
+
 fn item(key: &str, text: &str) -> NativeItem {
     NativeItem {
         key: key.to_owned(),

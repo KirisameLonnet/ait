@@ -242,6 +242,9 @@ impl AgentManager {
 }
 
 pub(super) fn apply_history(record: &mut PersistedAgentRuntimeRecord, history: &SessionHistory) {
+    if super::titles::missing(record) {
+        record.title = super::titles::from_history(history);
+    }
     if let Some(handle) = &mut record.persistence {
         handle.metadata = Some(history.resume_metadata.clone());
     }
