@@ -23,6 +23,8 @@ describe("Ait host capabilities", () => {
       agentProfiles: true,
       providerRemoval: true,
       projectCustomIcon: true,
+      importSessionWorkspaceTarget: true,
+      importSessionSearch: true,
       directorySubscriptions: false,
       daemonPairing: false,
     });
@@ -43,6 +45,8 @@ describe("Ait host capabilities", () => {
       agentProfiles: false,
       providerRemoval: false,
       projectCustomIcon: false,
+      importSessionWorkspaceTarget: false,
+      importSessionSearch: false,
     });
   });
 });
