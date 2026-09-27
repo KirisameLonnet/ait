@@ -40,7 +40,7 @@ cargo run -p ait-cli -- session send --session-id main --text-stdin < /path/to/p
 ```
 
 `--database` 指定全局目录数据库，默认是当前工作目录下的 `ait.sqlite3`；
-旧版 Desktop 使用 `<Electron userData>/ait.sqlite3`，开发版使用独立的
+已移除的旧版 Desktop 使用 `<Electron userData>/ait.sqlite3`，开发版使用独立的
 `ait-development.sqlite3`。对话、Session、Run 和进度保存在各项目的
 `.ait/project.sqlite3`，并自动通过 Git `info/exclude` 排除。旧单文件库首次打开时
 先生成 `*.pre-split.sqlite3` 备份再迁移，迁移时所有已注册项目目录必须可访问。
@@ -71,7 +71,7 @@ API Agent 现在也执行 `webfetch` / `websearch`、Project-local `skill`、`to
 命名、恢复和当前不支持的后台/跨模型子任务边界见 [NEC-313 ADR](docs/decisions/NEC-313/adr-001-aligned-api-agent-tools.md)。
 CLI 边界决策见 [NEC-241 ADR](docs/decisions/NEC-241/adr-001-entity-cli.md) 与
 [NEC-257 修订](docs/decisions/NEC-257/adr-001-cli-command-and-address-simplification.md)。
-Gemini 使用原生 GenerateContent API；可在 Desktop 的 Settings → Models 中选择 Gemini，或用
+Gemini 使用原生 GenerateContent API；用
 `agent provider save --kind gemini --secret-stdin` 保存连接。省略 `--url` 时使用官方 API 根，
 随后通过 `agent provider discover-models` 或 `refresh-models` 获取可选模型。
 MiniMax 使用官方 OpenAI-compatible Chat Completions API；用
@@ -102,6 +102,5 @@ GitHub Release 会为 Linux x86_64 与 Apple Silicon 构建名为 **Ait** 的桌
 - `bins/daemon`、`bins/worker`、`bins/cli`：保留的旧实现入口，不随桌面发布。
 - `apps/paseo`：当前 Electron 桌面与 Rust server 生命周期管理。
 - `apps/app`：桌面、Web 与移动端共享界面。
-- `apps/desktop`：保留的旧桌面实现，不再发布。
 
 更完整的依赖方向见 `docs/decisions/NEC-154/adr-002-rust-workspace-runtime-architecture.md`。

@@ -21,16 +21,16 @@
 
 ## Rust 侧优先缺口
 
-| 优先级 | 行为 | 实测或来源 | 影响 |
-| --- | --- | --- | --- |
-| P0 | `agent.message.send.request` 接受 SDK 消息身份 | SDK 自动携带 `messageId`；Rust `only()` 仅允许 `agentId`/`text`，返回 `unsupported_capability` | 原始 SDK 的发送消息调用无法成功；需要实现消息身份/幂等语义，不能在前端丢弃该字段 |
-| P0 | `agent.list.request` 的 subscribe/sync | `observeAgents()` 返回 `unsupported_capability` | Agent 列表实时观察未接通 |
-| P0 | `workspace.list.request` 的 subscribe/sync | `observeWorkspaces()` 返回 `unsupported_capability` | Workspace 列表实时观察未接通 |
-| P1 | 完整 Session 事件生产者 | `agent_permission_request` 事件订阅失败；daemon config 订阅成功 | 当前只支持 Provider snapshot、Agent attention、server info、daemon config 四类 |
-| P1 | 业务完整性 | 已有服务报告和参数校验：组合 Workspace+Agent/worktree、resume overrides、富消息附件、完整 Timeline 增量等仍有限制 | 不能把方法已注册当作业务与 Paseo 完全一致 |
-| P2 | Schedule/Plugin/Hub/Browser 等占位 | `scheduleList()` 立即得到 `not_implemented`，没有伪成功或等待超时 | 可实现方法以生产 `implemented_capabilities` 为准 |
-| P2 | 浏览器登录与远程连接 | Rust 只接受本机来源和 Authorization header；本次仅通过 Electron 主进程或原生 header transport 连接 | 普通浏览器、Rust relay/SSH/IPC 仍没有对应接入 |
-| P2 | Session ping 的服务端时间戳 | Rust `connection.ping` 只回显 nonce | SDK liveness ping 已适配，要求服务端收发时间的 Session ping 明确拒绝 |
+| 优先级 | 行为                                           | 实测或来源                                                                                                        | 影响                                                                             |
+| ------ | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| P0     | `agent.message.send.request` 接受 SDK 消息身份 | SDK 自动携带 `messageId`；Rust `only()` 仅允许 `agentId`/`text`，返回 `unsupported_capability`                    | 原始 SDK 的发送消息调用无法成功；需要实现消息身份/幂等语义，不能在前端丢弃该字段 |
+| P0     | `agent.list.request` 的 subscribe/sync         | `observeAgents()` 返回 `unsupported_capability`                                                                   | Agent 列表实时观察未接通                                                         |
+| P0     | `workspace.list.request` 的 subscribe/sync     | `observeWorkspaces()` 返回 `unsupported_capability`                                                               | Workspace 列表实时观察未接通                                                     |
+| P1     | 完整 Session 事件生产者                        | `agent_permission_request` 事件订阅失败；daemon config 订阅成功                                                   | 当前只支持 Provider snapshot、Agent attention、server info、daemon config 四类   |
+| P1     | 业务完整性                                     | 已有服务报告和参数校验：组合 Workspace+Agent/worktree、resume overrides、富消息附件、完整 Timeline 增量等仍有限制 | 不能把方法已注册当作业务与 Paseo 完全一致                                        |
+| P2     | Schedule/Plugin/Hub/Browser 等占位             | `scheduleList()` 立即得到 `not_implemented`，没有伪成功或等待超时                                                 | 可实现方法以生产 `implemented_capabilities` 为准                                 |
+| P2     | 浏览器登录与远程连接                           | Rust 只接受本机来源和 Authorization header；本次仅通过 Electron 主进程或原生 header transport 连接                | 普通浏览器、Rust relay/SSH/IPC 仍没有对应接入                                    |
+| P2     | Session ping 的服务端时间戳                    | Rust `connection.ping` 只回显 nonce                                                                               | SDK liveness ping 已适配，要求服务端收发时间的 Session ping 明确拒绝             |
 
 发送消息的具体入口见
 [agent_execution.rs](../../crates/server-provider/src/rpc/agent_execution.rs) 的 `send()` 和 `only()`；
@@ -51,7 +51,7 @@ IPC 由进程内测试回调连接，因此不等于 Electron preload/UI 端到�
 
 可通过 `PASEO_TEST_DEPS` 指向已安装的独立测试依赖目录，避免为这次接口测试迁入全部 Expo
 依赖。脚本需要 esbuild、Vitest、Zod ^4.4.3、tweetnacl、base64-js、semver 和 ws；已有
-`apps/desktop` 的 esbuild/Playwright 也可复用。本次使用 Vitest 4.1.11、Zod 4.6.5；
+根 npm workspace 的依赖也可复用。本次使用 Vitest 4.1.11、Zod 4.6.5；
 依赖来源和范围在脚本开头说明。
 
 ```sh

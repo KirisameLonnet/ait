@@ -9,7 +9,54 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+      ui: ${{ steps.filter.outputs.ui }}
+    steps:
+      - uses: actions/checkout@v4
+        if: github.event_name == 'push'
+        with:
+          fetch-depth: 2
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          # PRs use their full diff; main pushes use the previous branch tip.
+          base: ${{ github.ref }}
+          filters: |
+            rust:
+              - 'bins/**'
+              - 'crates/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - '.cargo/**'
+              - 'rust-toolchain*'
+              - 'rustfmt.toml'
+              - '.rustfmt.toml'
+              - 'clippy.toml'
+              - '.clippy.toml'
+              - '.github/workflows/ci.yml'
+            ui:
+              - 'apps/**'
+              - 'packages/**'
+              - 'scripts/**'
+              - 'patches/**'
+              - 'assets/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.npmrc'
+              - 'tsconfig.base.json'
+              - '.oxfmtrc.json'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/release.yml'
+
   rust:
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     env:
       AIT_REQUIRE_SHELL_SANDBOX: "1"
@@ -31,7 +78,9 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
 
-  desktop:
+  ui:
+    needs: changes
+    if: needs.changes.outputs.ui == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
