@@ -63,7 +63,12 @@ impl CodexClient {
     pub(super) fn modes(&self) -> Vec<Value> {
         let mut modes = controls::modes();
         if self.capabilities.load(Ordering::Relaxed) & REVIEW != 0 {
-            modes.push(json!({"id":"auto-review","label":"Auto review","description":"Native Codex reviews approval requests within the workspace sandbox"}));
+            modes.insert(
+                1,
+                json!({"id":"auto-review","label":"Auto-review",
+                "description":"Native Codex reviews approval requests within the workspace sandbox",
+                "icon":"ShieldCheck","colorTier":"moderate"}),
+            );
         }
         modes
     }
@@ -71,8 +76,9 @@ impl CodexClient {
     pub(super) fn features(&self, config: &StoredAgentConfig) -> Vec<Value> {
         let mut features = controls::features(config);
         if self.capabilities.load(Ordering::Relaxed) & PLAN != 0 {
-            features.push(json!({"id":"plan_mode","type":"toggle","label":"Plan mode",
-                "description":"Use the native planning workflow","value":plan(config)}));
+            features.push(json!({"id":"plan_mode","type":"toggle","label":"Plan",
+                "description":"Switch Codex into planning-only collaboration mode",
+                "tooltip":"Toggle plan mode","icon":"list-todo","value":plan(config)}));
         }
         features
     }

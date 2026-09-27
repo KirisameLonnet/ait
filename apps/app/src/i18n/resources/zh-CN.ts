@@ -1343,8 +1343,6 @@ export const zhCN: TranslationResources = {
         copied: "状态已复制到剪贴板。",
         fetchFailed: "获取 daemon 状态失败：{{message}}",
       },
-      advancedSettings: "高级设置",
-      openAdvancedSettings: "打开 daemon 高级设置",
       versionMismatch: "App 和 daemon 版本不匹配。请将两者更新到相同版本，以获得最佳体验。",
       loadFailed: "无法加载桌面 daemon 状态。",
     },

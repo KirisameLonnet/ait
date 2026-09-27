@@ -816,7 +816,7 @@ export const METHODS: Readonly<Record<string, MethodSpec>> = {
         method: "terminal.list.subscribe.request",
         kind: "request",
         channel: 1,
-        response: "list_terminals_response",
+        response: "terminals_changed",
     },
     unsubscribe_terminals_request: {
         method: "terminal.list.unsubscribe.request",

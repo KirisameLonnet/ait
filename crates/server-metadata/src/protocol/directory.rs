@@ -104,6 +104,19 @@ pub enum WorkspaceCreateSource {
     },
 }
 
+/// Context for the Agent that the client will create after its directory Workspace.
+///
+/// This is creation metadata, not an instruction to start a Provider turn.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+pub struct FirstAgentContext {
+    /// Optional first prompt, retained in the Workspace creation intent.
+    #[serde(default)]
+    pub prompt: Option<String>,
+    /// Optional normalized attachments, retained without executing or reading them.
+    #[serde(default)]
+    pub attachments: Vec<Value>,
+}
+
 /// Create a fresh workspace from a directory or worktree source.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -125,7 +138,7 @@ pub struct WorkspaceCreateRequest {
     pub title: Option<String>,
     /// Optional first-agent prompt context.
     #[serde(default)]
-    pub first_agent_context: Option<Value>,
+    pub first_agent_context: Option<FirstAgentContext>,
     /// Directory or worktree backing source.
     pub source: WorkspaceCreateSource,
 }

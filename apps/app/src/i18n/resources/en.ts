@@ -1379,8 +1379,6 @@ export const en = {
         copied: "Status copied to clipboard.",
         fetchFailed: "Failed to fetch daemon status: {{message}}",
       },
-      advancedSettings: "Advanced settings",
-      openAdvancedSettings: "Open advanced daemon settings",
       versionMismatch:
         "App and daemon versions don't match. Update both to the same version for the best experience.",
       loadFailed: "Unable to load desktop daemon status.",

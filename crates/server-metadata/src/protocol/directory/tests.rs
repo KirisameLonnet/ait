@@ -80,3 +80,47 @@ fn validates_workspace_page_shape_during_deserialization() {
         Some("ignored")
     );
 }
+
+#[test]
+fn parses_first_agent_context_without_requiring_combined_agent_creation() {
+    for context in [
+        json!({}),
+        json!({"prompt":"first message"}),
+        json!({"attachments":[{"type":"text","text":"context"}]}),
+        json!({"prompt":"first message","attachments":[]}),
+    ] {
+        let request: WorkspaceCreateRequest = serde_json::from_value(json!({
+            "source":{"kind":"directory","path":"/repo"},
+            "firstAgentContext":context
+        }))
+        .unwrap();
+        let parsed = request.first_agent_context.unwrap();
+        assert_eq!(parsed.prompt.as_deref(), context["prompt"].as_str());
+        assert_eq!(
+            parsed.attachments,
+            context["attachments"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default()
+        );
+        assert!(request.agent.is_none());
+    }
+}
+
+#[test]
+fn rejects_malformed_first_agent_context() {
+    for context in [
+        json!("prompt"),
+        json!(42),
+        json!({"prompt":42}),
+        json!({"attachments":{}}),
+    ] {
+        assert!(
+            serde_json::from_value::<WorkspaceCreateRequest>(json!({
+                "source":{"kind":"directory","path":"/repo"},
+                "firstAgentContext":context
+            }))
+            .is_err()
+        );
+    }
+}

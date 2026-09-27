@@ -26,15 +26,15 @@ Review the code for unnecessary work and allocations before handing it off, whil
 - Use `serde` with `serde_json` for JSON serialization/deserialization.
 - Use `ratatui` and `crossterm` for terminal applications/TUIs.
 - Use `axum` for creating any web servers or HTTP APIs.
-    - Keep request handlers async, returning `Result<Response, AppError>` to centralize error handling.
-    - Use layered extractors and shared state structs instead of global mutable data.
-    - Add `tower` middleware (timeouts, tracing, compression) for observability and resilience.
-    - Offload CPU-bound work to `tokio::task::spawn_blocking` or background services to avoid blocking the reactor.
+  - Keep request handlers async, returning `Result<Response, AppError>` to centralize error handling.
+  - Use layered extractors and shared state structs instead of global mutable data.
+  - Add `tower` middleware (timeouts, tracing, compression) for observability and resilience.
+  - Offload CPU-bound work to `tokio::task::spawn_blocking` or background services to avoid blocking the reactor.
 - When reporting errors to the console, use `tracing::error!` or `log::error!` instead of `println!`.
 - For data processing:
-    - **ALWAYS** use `polars` instead of other data frame libraries for tabular data manipulation.
-    - If a `polars` dataframe will be printed, **NEVER** simultaneously print the number of entries in the dataframe nor the schema as it is redundant.
-    - **NEVER** ingest more than 10 rows of a data frame at a time. Only analyze subsets of data to avoid overloading your memory context.
+  - **ALWAYS** use `polars` instead of other data frame libraries for tabular data manipulation.
+  - If a `polars` dataframe will be printed, **NEVER** simultaneously print the number of entries in the dataframe nor the schema as it is redundant.
+  - **NEVER** ingest more than 10 rows of a data frame at a time. Only analyze subsets of data to avoid overloading your memory context.
 
 ## Code Style and Formatting
 
@@ -130,6 +130,10 @@ You could find long and complicated functions when working with some code. Do no
 
 ## Testing
 
+During local iteration, before preparing a commit, run only tests for the changed code and directly related behavior. Select the relevant module, test filter, integration target, or affected crate; do not run full test suites such as `cargo test --workspace`. Expand focused testing only when the change or a failure affects related code. A routine local handoff is not commit preparation.
+
+Run the full Rust workspace suite when preparing a commit that changes Rust code in `bins/` or `crates/`. If the current task changes no Rust code in either directory, skip Rust tests even if the working tree contains Rust changes from other tasks. Workspace-wide coverage runs execute the full suite too and follow the same restriction.
+
 - **MUST** write unit tests for all new functions and types
 - **MUST** mock external dependencies (APIs, databases, file systems)
 - **MUST** use the built-in `#[test]` attribute and `cargo test`
@@ -176,8 +180,8 @@ fn adds_two_numbers() {
 
 ## Code Coverage
 
-- **MUST** use `cargo llvm-cov` (`cargo-llvm-cov`) to measure coverage
-- Generate an HTML report with `cargo llvm-cov --workspace --html`; the report is written to `target/llvm-cov/html/index.html`
+- When measuring coverage, **MUST** use `cargo llvm-cov` (`cargo-llvm-cov`). During local iteration, any measurement must stay within the affected crates and focused tests; workspace coverage is deferred until commit preparation.
+- When preparing a commit with Rust changes, generate an HTML report with `cargo llvm-cov --workspace --html`; the report is written to `target/llvm-cov/html/index.html`. Do not run this full suite merely to populate a local progress report.
 - Every new public function or behaviour change **MUST** be covered by at least one test; aim to keep line coverage above **80%** across the workspace
 - Cover both the happy path and key error/edge-case branches
 - Do not add `#[allow(dead_code)]` or dummy call sites solely to satisfy the coverage tool; fix the underlying gap with a real test
@@ -187,12 +191,12 @@ fn adds_two_numbers() {
 
 Every project progress or delivery report, including PR descriptions and issue completion reports, **MUST** include a **Test coverage** section with:
 
-- The measured workspace line coverage percentage and covered/total line counts. Include relevant crate results for the changed code and the change from a comparable baseline when one exists; if none exists, say so.
+- The measured line coverage percentage and covered/total line counts for the actual measurement scope. During local iteration, report focused results when measured and state that workspace coverage is deferred until commit preparation. For commit preparation, include workspace and relevant crate results. Include the change from a comparable baseline when one exists; if none exists, say so.
 - The exact command, revision, and measurement scope: workspace or selected crates, enabled features, and any excluded files, skipped tests, or unavailable platforms.
 - A reviewable coverage artifact (for example, an attached report or CI artifact link), plus the important uncovered behavior and follow-up needed. The generated local report is at `target/llvm-cov/html/index.html`; a local path alone is not a shared artifact.
 - Test execution results separately from coverage. A passing test count is not a coverage percentage.
 
-If coverage could not be measured, state **not measured**, the reason, and the next step; never invent a percentage or present an older result as current. For documentation-only changes, the section may state **not applicable — no Rust behavior changed**, with the validation performed. An unavailable measurement does not waive the requirement to report its status.
+If coverage was not measured, state **not measured**, the reason, and the next step; never invent a percentage or present an older result as current. Local iteration with focused tests is a valid reason to defer coverage; reporting requirements must not expand the test scope. For documentation-only changes, the section may state **not applicable — no Rust behavior changed**, with the validation performed. An unavailable or deferred measurement does not waive the requirement to report its status.
 
 ## Imports and Dependencies
 
@@ -204,6 +208,8 @@ If coverage could not be measured, state **not measured**, the reason, and the n
 
 ## Rust Best Practices
 
+- **NEVER** use macros to implement business logic; use ordinary functions, methods, and types instead.
+- Before adding any new macro definition, including `macro_rules!` and procedural macros, **MUST** explain the proposed design and obtain explicit confirmation from the user.
 - **NEVER** use `unsafe` in this workspace; `unsafe_code = "forbid"` is enforced by the workspace lints
 - **MUST** call `.clone()` explicitly on non-`Copy` types; avoid hidden clones in closures and iterators
 - **MUST** declare parameterless `&'static str` (or any other pure-constant) producers as `const`, not `fn`. Anything shaped like `fn FOO() -> &'static str { "..." }` should be `const FOO: &str = "...";` — call sites become `FOO` instead of `FOO()`. The constant form makes it immediately obvious there is no runtime work; it can be used in `const` contexts; and it costs zero indirection. The only reason to keep a function is when the value actually depends on a runtime input. This applies most often to hand-written SQL string helpers.
@@ -232,7 +238,7 @@ If coverage could not be measured, state **not measured**, the reason, and the n
 ## Security
 
 - **NEVER** store secrets, API keys, or passwords in code. Only store them in `.env`.
-    - Ensure `.env` is declared in `.gitignore`.
+  - Ensure `.env` is declared in `.gitignore`.
 - **MUST** use environment variables for sensitive configuration via `dotenvy` or `std::env`
 - **NEVER** log sensitive information (passwords, tokens, PII)
 - Use `secrecy` crate for sensitive data types
@@ -255,6 +261,8 @@ If coverage could not be measured, state **not measured**, the reason, and the n
 - **NEVER** build with `cargo build --features python`: this will always fail. Instead, **ALWAYS** use `maturin`.
 
 ## Before Committing
+
+Apply this checklist when preparing a commit, not during routine local edits or handoffs. The full Rust test and coverage checks apply only when the proposed commit changes Rust code in `bins/` or `crates/`; documentation-only changes do not require Rust tests or coverage.
 
 - [ ] All workspace tests pass (`cargo test --workspace`)
 - [ ] No compiler warnings (`cargo build --workspace`)

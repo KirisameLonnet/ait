@@ -299,9 +299,7 @@ fn workspace_open(
 fn workspace_creation(directory: &Directory, mut params: Value) -> Result<Value, ErrorCode> {
     use crate::protocol::creation::Kind;
     let mut request: WorkspaceCreateRequest = decode(params.clone())?;
-    if request.agent.is_some()
-        || request.first_agent_context.is_some()
-        || !matches!(request.source, WorkspaceCreateSource::Directory { .. })
+    if request.agent.is_some() || !matches!(request.source, WorkspaceCreateSource::Directory { .. })
     {
         return Err(ErrorCode::UnsupportedCapability);
     }
@@ -358,7 +356,7 @@ fn workspace_create(
     directory: &Directory,
     request: WorkspaceCreateRequest,
 ) -> Result<Value, ErrorCode> {
-    if request.agent.is_some() || request.first_agent_context.is_some() {
+    if request.agent.is_some() {
         return Err(ErrorCode::UnsupportedCapability);
     }
     let WorkspaceCreateSource::Directory { path, project_id } = request.source else {
@@ -370,7 +368,7 @@ fn workspace_create(
         title: request.title,
         project_id: project_id.as_deref(),
         workspace_id: request.workspace_id,
-        expects_initial_agent: false,
+        expects_initial_agent: request.first_agent_context.is_some(),
         timestamp: &timestamp,
     }) {
         Ok(workspace) => encode(WorkspaceCreateResult {

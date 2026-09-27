@@ -1385,8 +1385,6 @@ export const fr: TranslationResources = {
         copied: "Statut copié dans le presse-papiers.",
         fetchFailed: "Échec de la récupération de l'état du démon:{{message}}",
       },
-      advancedSettings: "Paramètres avancés",
-      openAdvancedSettings: "Ouvrir les paramètres avancés du démon",
       versionMismatch:
         "Les versions de l'application et du démon ne correspondent pas. Mettez à jour les deux vers la même version pour une meilleure expérience.",
       loadFailed: "Impossible de charger l'état du démon de bureau.",

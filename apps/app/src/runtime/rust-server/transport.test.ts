@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { DaemonClient } from "@getpaseo/client/internal/daemon-client";
 import { CHANNEL_CAPABILITIES, createRustServerTransportFactory } from "./transport";
 import { METHODS } from "./methods";
 import type { Payload, TransportFactory } from "./types";
@@ -72,7 +73,9 @@ function harness(
   });
   transport.onError(errors);
   transport.onClose(closed);
-  transport.onOpen(() => transport.send(JSON.stringify({ type: "hello", clientId: "test" })));
+  const stopHello = transport.onOpen(() =>
+    transport.send(JSON.stringify({ type: "hello", clientId: "test" })),
+  );
   function ready() {
     for (const socket of sockets) socket.open();
     for (const [index, socket] of sockets.entries())
@@ -95,6 +98,7 @@ function harness(
   }
   return {
     transport,
+    stopHello,
     sockets,
     ready,
     send,
@@ -202,6 +206,49 @@ describe("Rust protocol adapter", () => {
       });
     } finally {
       h.transport.close();
+    }
+  });
+
+  it("bootstraps SDK terminal subscriptions and routes updates without reconnecting", async () => {
+    const h = harness();
+    h.stopHello();
+    const client = new DaemonClient({
+      url: "ws://127.0.0.1:7316/v1/ws",
+      clientId: "terminal-subscription-test",
+      transportFactory: () => h.transport,
+      reconnect: { enabled: false },
+    });
+    try {
+      const connected = client.connect();
+      h.ready();
+      await connected;
+      const subscription = client.observeTerminals({ cwd: "/workspace", workspaceId: "workspace" });
+      const update = vi.fn();
+      subscription.subscribe({ snapshot: () => {}, update });
+      const request = h.last(1);
+      expect(request.method).toBe("terminal.list.subscribe.request");
+      const snapshot = {
+        subscriptionId: "terminal-list",
+        cwd: "/workspace",
+        workspaceId: "workspace",
+        terminals: [],
+      };
+      h.sockets[1].message({ type: "response", request_id: request.request_id, result: snapshot });
+      await expect(subscription.ready).resolves.toMatchObject(snapshot);
+      h.sockets[1].message({ type: "event", method: "terminal.list.changed", params: snapshot });
+      expect(update).toHaveBeenCalledWith({ type: "terminals_changed", payload: snapshot });
+      expect(client.isConnected).toBe(true);
+      expect(h.sockets.every((socket) => socket.close.mock.calls.length === 0)).toBe(true);
+      const released = subscription.release();
+      await vi.waitFor(() => expect(h.last(1).method).toBe("subscription.release.request"));
+      h.sockets[1].message({
+        type: "response",
+        request_id: h.last(1).request_id,
+        result: { subscriptionId: "terminal-list", released: true },
+      });
+      await released;
+    } finally {
+      await client.close();
     }
   });
 

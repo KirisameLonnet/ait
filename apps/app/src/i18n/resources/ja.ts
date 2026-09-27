@@ -1363,8 +1363,6 @@ export const ja: TranslationResources = {
         copied: "ステータスをクリップボードにコピーしました。",
         fetchFailed: "デーモンのステータスの取得に失敗しました: {{message}}",
       },
-      advancedSettings: "詳細設定",
-      openAdvancedSettings: "高度なデーモン設定を開く",
       versionMismatch:
         "アプリとデーモンのバージョンが一致しません。最良の体験のために両方を同じバージョンに更新してください。",
       loadFailed: "デスクトップデーモンのステータスを読み込めません。",

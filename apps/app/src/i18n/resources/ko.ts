@@ -1355,8 +1355,6 @@ export const ko: TranslationResources = {
         copied: "상태가 클립보드에 복사되었습니다.",
         fetchFailed: "데몬 상태를 가져오지 못했습니다: {{message}}",
       },
-      advancedSettings: "고급 설정",
-      openAdvancedSettings: "고급 데몬 설정 열기",
       versionMismatch:
         "앱과 데몬의 버전이 일치하지 않습니다. 최상의 경험을 위해 둘 다 동일한 버전으로 업데이트하세요.",
       loadFailed: "데스크톱 데몬 상태를 불러올 수 없습니다.",

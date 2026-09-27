@@ -126,10 +126,12 @@ async fn controls_validate_atomically_apply_next_turn_and_persist() {
     let (execution, registry) = worker(&fixture);
     let created = create(&execution, &fixture).await;
     let id = created["agentId"].as_str().unwrap();
-    assert_eq!(
-        created["agent"]["availableModes"].as_array().unwrap().len(),
-        3
-    );
+    let modes = created["agent"]["availableModes"].as_array().unwrap();
+    assert_eq!(modes.len(), 2);
+    assert_eq!(modes[0]["id"], "auto");
+    assert_eq!(modes[1]["id"], "full-access");
+    assert_eq!(modes[1]["icon"], "ShieldOff");
+    assert_eq!(created["agent"]["features"][0]["icon"], "zap");
     assert_eq!(
         created["agent"]["capabilities"]["supportsRewindConversation"],
         true

@@ -8,6 +8,9 @@ use server_metadata::model::registry::{
 use super::transport::{Socket, connect, request};
 use super::{ready, start, terminate};
 
+#[path = "directory/conversation.rs"]
+mod conversation;
+
 #[tokio::test]
 async fn binary_serves_canonical_project_workspace_directory_methods() {
     let root = tempfile::tempdir().unwrap();

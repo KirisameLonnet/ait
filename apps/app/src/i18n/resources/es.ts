@@ -1385,8 +1385,6 @@ export const es: TranslationResources = {
         copied: "Estado copiado al portapapeles.",
         fetchFailed: "No se pudo recuperar el estado del demonio:{{message}}",
       },
-      advancedSettings: "Configuraciones avanzadas",
-      openAdvancedSettings: "Abrir configuración avanzada del demonio",
       versionMismatch:
         "Las versiones de la aplicación y del demonio no coinciden. Actualice ambos a la misma versión para obtener la mejor experiencia.",
       loadFailed: "No se puede cargar el estado del demonio del escritorio.",

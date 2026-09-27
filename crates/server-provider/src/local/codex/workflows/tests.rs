@@ -47,13 +47,33 @@ async fn plan_selection_uses_native_presets_and_can_return_to_default_workflow()
     let client = fixture.client();
     let mut spec = fixture.spec();
     let details = client.discover(&spec.cwd).await.unwrap();
-    assert!(
+    assert_eq!(
+        details
+            .modes
+            .iter()
+            .map(|mode| (mode["id"].as_str(), mode["icon"].as_str()))
+            .collect::<Vec<_>>(),
+        vec![
+            (Some("auto"), Some("Shield")),
+            (Some("auto-review"), Some("ShieldCheck")),
+            (Some("full-access"), Some("ShieldOff")),
+        ]
+    );
+    assert_eq!(details.modes[1]["label"], "Auto-review");
+    assert_eq!(details.modes[2]["colorTier"], "dangerous");
+    assert_eq!(details.modes[2]["isUnattended"], true);
+    assert_eq!(
         details
             .features
             .iter()
-            .any(|feature| feature["id"] == "plan_mode")
+            .map(|feature| (feature["id"].as_str(), feature["icon"].as_str()))
+            .collect::<Vec<_>>(),
+        vec![
+            (Some("fast_mode"), Some("zap")),
+            (Some("plan_mode"), Some("list-todo")),
+        ]
     );
-    assert!(details.modes.iter().any(|mode| mode["id"] == "auto-review"));
+    assert_eq!(details.features[1]["tooltip"], "Toggle plan mode");
     spec.config =
         serde_json::from_value(json!({"modeId":"auto-review","featureValues":{"plan_mode":true}}))
             .unwrap();
