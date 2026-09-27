@@ -1,0 +1,108 @@
+{
+  "version": "0.0.7",
+  "release_url": "https://github.com/necokeine/ait/releases/tag/v0.0.7",
+  "verified_at_utc": "2026-09-27T18:05:59.659028+00:00",
+  "build_info": {
+    "version": "0.0.7",
+    "releaseTag": "v0.0.7",
+    "sourceCommit": "c03c42d4a05b54910463826465ed6efe3027e1ea",
+    "workflowCommit": "c03c42d4a05b54910463826465ed6efe3027e1ea",
+    "workflowRunUrl": "https://github.com/necokeine/ait/actions/runs/36338537563"
+  },
+  "tag_ref_unchanged": true,
+  "tag_refs": [
+    "ce794251c5944c6a8ff33524d01bd7061bc9fb59\trefs/tags/v0.0.7",
+    "4583883d4acf89f5ec57f7194cd0aa82a09613c7\trefs/tags/v0.0.7^{}"
+  ],
+  "verification": {
+    "asset_count": 10,
+    "sha256_manifest_entries": 9,
+    "github_asset_sha256_matches": true,
+    "all_asset_ids_replaced": true,
+    "downloaded_assets": ["BUILD-INFO.json", "SHA256SUMS", "latest-linux.yml", "latest-mac.yml"],
+    "binary_files_downloaded_locally": false,
+    "binary_validation": "Release workflow validates native packages, updater SHA-512, packaged resources and server lifecycle; macOS additionally signs and notarizes"
+  },
+  "assets": [
+    {
+      "name": "Ait-0.0.7-linux-x64.tar.gz",
+      "size": 133818676,
+      "digest": "sha256:8c41103475d4a949e5dfb9e8e4dc29acaf199adfbbf9181af9207245f242f1b9",
+      "createdAt": "2026-09-27T18:04:43Z",
+      "updatedAt": "2026-09-27T18:04:49Z",
+      "url": "https://github.com/necokeine/ait/releases/download/v0.0.7/Ait-0.0.7-linux-x64.tar.gz"
+    },
+    {
+      "name": "Ait-0.0.7-macos-arm64.dmg",
+      "size": 143170458,
+      "digest": "sha256:b5892fef5ac2e369328f5cb4de7b9df8ec917ad3e1202289a826dc3982c6d485",
+      "createdAt": "2026-09-27T18:04:43Z",
+      "updatedAt": "2026-09-27T18:04:50Z",
+      "url": "https://github.com/necokeine/ait/releases/download/v0.0.7/Ait-0.0.7-macos-arm64.dmg"
+    },
+    {
+      "name": "Ait-0.0.7-macos-arm64.dmg.blockmap",
+      "size": 150038,
+      "digest": "sha256:a3773c43bd727b35ee6958fa6eb20de81d61e2a14ca716baba36edaa48816437",
+      "createdAt": "2026-09-27T18:04:43Z",
+      "updatedAt": "2026-09-27T18:04:43Z",
+      "url": "https://github.com/necokeine/ait/releases/download/v0.0.7/Ait-0.0.7-macos-arm64.dmg.blockmap"
+    },
+    {
+      "name": "Ait-0.0.7-macos-arm64.zip",
+      "size": 138217238,
+      "digest": "sha256:fe81eca2b297644da600cb61a712ffb4f6c2f64c50921a7fcd1fa9cea8a0dba0",
+      "createdAt": "2026-09-27T18:04:43Z",
+      "updatedAt": "2026-09-27T18:04:49Z",
+      "url": "https://github.com/necokeine/ait/releases/download/v0.0.7/Ait-0.0.7-macos-arm64.zip"
+    },
+    {
+      "name": "Ait-0.0.7-macos-arm64.zip.blockmap",
+      "size": 145530,
+      "digest": "sha256:26e20674885f46f1745eb04beb300a5439c80dd89ce408b74945dfaf602a0500",
+      "createdAt": "2026-09-27T18:04:43Z",
+      "updatedAt": "2026-09-27T18:04:43Z",
+      "url": "https://github.com/necokeine/ait/releases/download/v0.0.7/Ait-0.0.7-macos-arm64.zip.blockmap"
+    },
+    {
+      "name": "Ait-linux-x86_64.AppImage",
+      "size": 140730248,
+      "digest": "sha256:34cfe4c5bb93384608c4c1e5201e6f98dce53f0faedf3b984525baa49d4469fb",
+      "createdAt": "2026-09-27T18:04:44Z",
+      "updatedAt": "2026-09-27T18:04:50Z",
+      "url": "https://github.com/necokeine/ait/releases/download/v0.0.7/Ait-linux-x86_64.AppImage"
+    },
+    {
+      "name": "BUILD-INFO.json",
+      "size": 258,
+      "digest": "sha256:f841e51cbbd7aedea7d0d8ffeca77fffe12b1b2ca1e370bd731b3492e3f4055b",
+      "createdAt": "2026-09-27T18:04:44Z",
+      "updatedAt": "2026-09-27T18:04:44Z",
+      "url": "https://github.com/necokeine/ait/releases/download/v0.0.7/BUILD-INFO.json"
+    },
+    {
+      "name": "SHA256SUMS",
+      "size": 817,
+      "digest": "sha256:2033f2c0fddf9f156ecd32f3311cf9e4c59d96a89bfc8ccfd837c356109c4a72",
+      "createdAt": "2026-09-27T18:04:45Z",
+      "updatedAt": "2026-09-27T18:04:45Z",
+      "url": "https://github.com/necokeine/ait/releases/download/v0.0.7/SHA256SUMS"
+    },
+    {
+      "name": "latest-linux.yml",
+      "size": 372,
+      "digest": "sha256:6c5beb49978feeaa874ddad30e751346ccb149b63414b0dcba4bb5712b7eafc8",
+      "createdAt": "2026-09-27T18:04:46Z",
+      "updatedAt": "2026-09-27T18:04:46Z",
+      "url": "https://github.com/necokeine/ait/releases/download/v0.0.7/latest-linux.yml"
+    },
+    {
+      "name": "latest-mac.yml",
+      "size": 503,
+      "digest": "sha256:e623852ff13be3ad33f04fc1c6fda625ae09c2971ce875eac85788de4ff6bf1e",
+      "createdAt": "2026-09-27T18:04:46Z",
+      "updatedAt": "2026-09-27T18:04:46Z",
+      "url": "https://github.com/necokeine/ait/releases/download/v0.0.7/latest-mac.yml"
+    }
+  ]
+}
