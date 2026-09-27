@@ -1,5 +1,8 @@
 # WF-04：判断运行状态、取消并继续
 
+> 历史文档：旧 daemon、worker、CLI 及其测试入口已按 [ADR-059](../docs/decisions/adr-059-remove-legacy-rust-runtime.md) 移除。
+> 下文保留原操作记录，命令不适用于当前代码；当前服务见 [server 说明](../docs/operations/independent-server.md)。
+
 用户目标：知道任务是否完成，必要时取消仍在运行的任务，然后继续使用 Session。
 前置条件：完成 WF-01，并准备两个终端连接同一个 daemon。
 
@@ -23,12 +26,12 @@ ait session send --session-id s-main --text '取消后继续处理'
 
 ## 验收与恢复
 
-| 操作/结果 | Run 状态 | 可观察结果与下一步 |
-| --- | --- | --- |
-| Agent 正常结束 | `completed` | `last_message_id` 指向最终 assistant，Session 已释放 |
-| Provider 调用失败 | `failed` | `run.error.code` 给出稳定原因；Session 已释放，可检查后发起新输入 |
-| 取消非终态 Run | `cancelled` | `run.error.code=RUN_CANCELLED`，释放 Session，保留取消前已写入的消息 |
-| 再次取消同一个终态 Run | 不变 | 业务拒绝 `RUN_ALREADY_TERMINAL`，退出码 2 |
+| 操作/结果              | Run 状态    | 可观察结果与下一步                                                   |
+| ---------------------- | ----------- | -------------------------------------------------------------------- |
+| Agent 正常结束         | `completed` | `last_message_id` 指向最终 assistant，Session 已释放                 |
+| Provider 调用失败      | `failed`    | `run.error.code` 给出稳定原因；Session 已释放，可检查后发起新输入    |
+| 取消非终态 Run         | `cancelled` | `run.error.code=RUN_CANCELLED`，释放 Session，保留取消前已写入的消息 |
+| 再次取消同一个终态 Run | 不变        | 业务拒绝 `RUN_ALREADY_TERMINAL`，退出码 2                            |
 
 发送命令可能返回退出码 0、`ok=true`，因为它成功返回了一个 Run；仍必须读取 Run 的 `status`
 和 `error`。`retryable=true` 描述错误性质，不表示 CLI 已自动重试。
@@ -55,7 +58,7 @@ ait run approval cancel --run-id "$RUN_ID" --approval-id "$APPROVAL_ID"
 `turn` 或 `session`。`session` scope 还受管理员策略限制，daemon 校验审批记录、Run 权限快照和授权上限。
 deny/cancel 不接受 scope；回复仍属于同一 Run，不产生伪造的 ToolUse/ToolResult。
 
-自动化：[`wf04_observe_injected_provider_failure_and_continue`](../bins/cli/tests/workflows.rs)
+自动化：[`wf04_observe_injected_provider_failure_and_continue`](https://github.com/necokeine/ait/blob/49478a7f600fde997339a8d36d368c72d3546c14/bins/cli/tests/workflows.rs)
 通过 `WorkspaceAgent` test fake 覆盖持久化 Provider 失败、Session 释放和后续交互；
 `crates/application/tests/session_configuration.rs::cancelling_an_active_call_releases_the_session_and_discards_its_output`
 使用 blocking executor 覆盖活动取消。两者都不向生产 Provider 目录注册测试模式。

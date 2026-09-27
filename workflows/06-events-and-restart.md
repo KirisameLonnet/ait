@@ -1,5 +1,8 @@
 # WF-06：续读事件并在重启后恢复视图
 
+> 历史文档：旧 daemon、worker、CLI 及其测试入口已按 [ADR-059](../docs/decisions/adr-059-remove-legacy-rust-runtime.md) 移除。
+> 下文保留原操作记录，命令不适用于当前代码；当前服务见 [server 说明](../docs/operations/independent-server.md)。
+
 用户目标：中断查看后可以从上次位置继续，并能在服务重启后找回最终状态。
 前置条件：完成 WF-01，记录本次 daemon 的数据库文件和监听端口。
 
@@ -51,5 +54,5 @@ SSE 帧包含 `id`（cursor）、`event`（事件种类）和 `data`（JSON）�
 
 此处恢复的是持久化数据，不代表中断中的 worker、工具调用或模型请求已自动恢复执行。
 
-自动化：[`wf06_replay_events_and_reopen_workspace`](../bins/cli/tests/workflows.rs)，
+自动化：[`wf06_replay_events_and_reopen_workspace`](https://github.com/necokeine/ait/blob/49478a7f600fde997339a8d36d368c72d3546c14/bins/cli/tests/workflows.rs)，
 关闭 HTTP 服务和 store 后重开同一 SQLite 文件，验证实体记录、Run 和游标续读保持一致。

@@ -4,6 +4,9 @@
 > 替代本文“仅参考架构、继续采用 Ait 领域模型”的新功能方向。本文已实现部分仍用于说明
 > 现有服务骨架与过渡协议；不能据此继续扩展尚未实现的 Session/Run 设计。
 
+> 运行时收敛：[ADR-059](adr-059-remove-legacy-rust-runtime.md) 已移除旧 daemon、worker、CLI
+> 及其专用 crate，取代下文的双实现并存条款。当前 Cargo workspace 仅保留 server 实现。
+
 - 状态：Accepted；用户已确认独立实现方向并授权在 `new` 分支实施。M0 已落地，业务与执行层仍按里程碑推进。
 - 日期：2026-09-21。
 - 用户约束：产物名为 `server`；暂时与 daemon 并存；所需内部 crate 全部新建。
@@ -24,14 +27,14 @@
 
 本 ADR 不修改旧 daemon 的行为，也不宣布旧实现被替代。以下变化仅适用于新 server：
 
-| 既有决定 | 新 server 的处理 |
-| --- | --- |
-| ADR-001 v4 的 Message、Session、Run 不变量 | 保留语义，以新类型和新实现表达 |
-| NEC-154 / NEC-169 的控制面与执行面隔离 | 保留进程隔离与单一持久化权威；使用新协议和新监督器 |
-| ADR-017 的 `ait-worker` 执行入口 | 改为 `server` 自身的内部 worker 模式；旧服务继续使用原入口 |
-| ADR-017 的原生历史确认、未知输入对账 | 作为首个 Codex adapter 的正确性要求；需用当前协议独立验证 |
-| ADR-018 的旧目录、格式、锁和接管实现 | 新命名空间、新格式；不宣称与旧协议兼容或支持跨后端接管 |
-| ADR-013 / ADR-017 的 Session worktree 路径 | 新 server 使用 `.ait-server/worktrees/<session-id>` |
+| 既有决定                                   | 新 server 的处理                                           |
+| ------------------------------------------ | ---------------------------------------------------------- |
+| ADR-001 v4 的 Message、Session、Run 不变量 | 保留语义，以新类型和新实现表达                             |
+| NEC-154 / NEC-169 的控制面与执行面隔离     | 保留进程隔离与单一持久化权威；使用新协议和新监督器         |
+| ADR-017 的 `ait-worker` 执行入口           | 改为 `server` 自身的内部 worker 模式；旧服务继续使用原入口 |
+| ADR-017 的原生历史确认、未知输入对账       | 作为首个 Codex adapter 的正确性要求；需用当前协议独立验证  |
+| ADR-018 的旧目录、格式、锁和接管实现       | 新命名空间、新格式；不宣称与旧协议兼容或支持跨后端接管     |
+| ADR-013 / ADR-017 的 Session worktree 路径 | 新 server 使用 `.ait-server/worktrees/<session-id>`        |
 
 首期不提供旧数据迁移、同目录双后端管理、已有原生 Thread 导入、远程监听、Relay、语音、
 PTY、插件、MCP、Cron、自动 Git 提交或通用 API Provider 工具循环。领域类型不为这些后续功能
@@ -41,14 +44,14 @@ PTY、插件、MCP、Cron、自动 Git 提交或通用 API Provider 工具循环
 
 参考快照为 `getpaseo/paseo@2c8e8a826810337492cc5a38bb0bbd705b6fb632`。
 
-| 源码 / 文档 | 采用的原则 | 在新 server 中的表达 |
-| --- | --- | --- |
-| [bootstrap.ts](https://github.com/getpaseo/paseo/blob/2c8e8a826810337492cc5a38bb0bbd705b6fb632/packages/server/src/server/bootstrap.ts) | 显式组装、启动与停止 | binary composition root 与受监督的任务树 |
-| [websocket-server.ts](https://github.com/getpaseo/paseo/blob/2c8e8a826810337492cc5a38bb0bbd705b6fb632/packages/server/src/server/websocket-server.ts) | 握手、请求来源、背压、连接清理 | 每个物理连接独立的 `ClientConnection` |
-| [creation/index.ts](https://github.com/getpaseo/paseo/blob/2c8e8a826810337492cc5a38bb0bbd705b6fb632/packages/server/src/server/creation/index.ts) | 接纳操作跨连接存活，结果不明要对账 | 持久化 operation、input intent 与 receipt |
-| [timeline-sync.md](https://github.com/getpaseo/paseo/blob/2c8e8a826810337492cc5a38bb0bbd705b6fb632/docs/timeline-sync.md) | 实时预览与权威历史分离 | 可合并 delta + 持久化 Message path 与事件回放 |
-| [protocol-compatibility.md](https://github.com/getpaseo/paseo/blob/2c8e8a826810337492cc5a38bb0bbd705b6fb632/docs/protocol-compatibility.md) | 能力显式协商，订阅拥有生命周期 | 版本握手、capability、subscription ID |
-| [agent/mcp-server.ts](https://github.com/getpaseo/paseo/blob/2c8e8a826810337492cc5a38bb0bbd705b6fb632/packages/server/src/server/agent/mcp-server.ts) | MCP 是业务能力的 adapter | 后续 MCP 调同一 application use case |
+| 源码 / 文档                                                                                                                                           | 采用的原则                         | 在新 server 中的表达                          |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | --------------------------------------------- |
+| [bootstrap.ts](https://github.com/getpaseo/paseo/blob/2c8e8a826810337492cc5a38bb0bbd705b6fb632/packages/server/src/server/bootstrap.ts)               | 显式组装、启动与停止               | binary composition root 与受监督的任务树      |
+| [websocket-server.ts](https://github.com/getpaseo/paseo/blob/2c8e8a826810337492cc5a38bb0bbd705b6fb632/packages/server/src/server/websocket-server.ts) | 握手、请求来源、背压、连接清理     | 每个物理连接独立的 `ClientConnection`         |
+| [creation/index.ts](https://github.com/getpaseo/paseo/blob/2c8e8a826810337492cc5a38bb0bbd705b6fb632/packages/server/src/server/creation/index.ts)     | 接纳操作跨连接存活，结果不明要对账 | 持久化 operation、input intent 与 receipt     |
+| [timeline-sync.md](https://github.com/getpaseo/paseo/blob/2c8e8a826810337492cc5a38bb0bbd705b6fb632/docs/timeline-sync.md)                             | 实时预览与权威历史分离             | 可合并 delta + 持久化 Message path 与事件回放 |
+| [protocol-compatibility.md](https://github.com/getpaseo/paseo/blob/2c8e8a826810337492cc5a38bb0bbd705b6fb632/docs/protocol-compatibility.md)           | 能力显式协商，订阅拥有生命周期     | 版本握手、capability、subscription ID         |
+| [agent/mcp-server.ts](https://github.com/getpaseo/paseo/blob/2c8e8a826810337492cc5a38bb0bbd705b6fb632/packages/server/src/server/agent/mcp-server.ts) | MCP 是业务能力的 adapter           | 后续 MCP 调同一 application use case          |
 
 Paseo 的 `Session` 是客户端连接/订阅上下文，不对应本项目业务 Session；`ManagedAgent`
 跨越本项目 Agent 配置、Session 和 Run 的职责。其内存 timeline 与文件元数据存储也不作为
@@ -60,18 +63,18 @@ Paseo 的 `Session` 是客户端连接/订阅上下文，不对应本项目业�
 `server-execution` 负责父子进程及私有 IPC。它们分别避免 application 包含文件系统实现，
 以及 provider adapter 同时拥有 Run 状态和进程监督。
 
-| 新组件 | 责任 | 允许的 workspace 依赖 |
-| --- | --- | --- |
-| `server-domain` | ID、实体、状态转换、Message/Run 不变量 | 无 |
-| `server-ports` | 原子持久化、Workspace、Execution、Provider、Clock 接口及语义数据 | domain |
-| `server-application` | Project/Session/Run 用例、输入接纳、权限、恢复、事务编排 | domain、ports |
-| `server-protocol` | 公共 WS DTO、独立的 worker DTO、版本、错误和 cursor envelope | 无；不重导出 domain 或 SDK 类型 |
-| `server-storage` | 新 SQLite schema、迁移、receipt、outbox、分页 | domain、ports |
-| `server-workspace` | 路径规范化、Git、worktree、目录租约与所有权 | domain、ports |
-| `server-execution` | worker 启动、framing、握手、lease、进程树回收；实现 Execution port | domain、ports、protocol |
-| `server-providers` | 首个 Codex adapter；协议映射、历史规范化、Provider port 实现 | domain、ports |
-| `server-api` | Axum HTTP/WS、鉴权、ClientConnection、订阅、DTO 映射 | application、domain、protocol |
-| `bins/server` | 两种进程模式的组装、配置、日志、信号与服务任务监督 | 上述新 crate |
+| 新组件               | 责任                                                               | 允许的 workspace 依赖           |
+| -------------------- | ------------------------------------------------------------------ | ------------------------------- |
+| `server-domain`      | ID、实体、状态转换、Message/Run 不变量                             | 无                              |
+| `server-ports`       | 原子持久化、Workspace、Execution、Provider、Clock 接口及语义数据   | domain                          |
+| `server-application` | Project/Session/Run 用例、输入接纳、权限、恢复、事务编排           | domain、ports                   |
+| `server-protocol`    | 公共 WS DTO、独立的 worker DTO、版本、错误和 cursor envelope       | 无；不重导出 domain 或 SDK 类型 |
+| `server-storage`     | 新 SQLite schema、迁移、receipt、outbox、分页                      | domain、ports                   |
+| `server-workspace`   | 路径规范化、Git、worktree、目录租约与所有权                        | domain、ports                   |
+| `server-execution`   | worker 启动、framing、握手、lease、进程树回收；实现 Execution port | domain、ports、protocol         |
+| `server-providers`   | 首个 Codex adapter；协议映射、历史规范化、Provider port 实现       | domain、ports                   |
+| `server-api`         | Axum HTTP/WS、鉴权、ClientConnection、订阅、DTO 映射               | application、domain、protocol   |
+| `bins/server`        | 两种进程模式的组装、配置、日志、信号与服务任务监督                 | 上述新 crate                    |
 
 ```mermaid
 flowchart TD
@@ -165,12 +168,12 @@ M0 仅从环境变量读取服务 token，不自动加载 `.env`。目录只初�
 
 持久化权威按边界划分：
 
-| Catalog | 单个 Project |
-| --- | --- |
-| 全局 Provider 配置、Agent preset、默认选择 | Project identity、根指令快照 |
-| 本机注册路径和可重建目录摘要 | Session、不可变 Message、Run、RunQueue |
-| catalog 自身事件和操作 receipt | 冻结 Agent 配置、审批、input intent、执行 journal |
-| catalog schema/stream identity | Project revision、owner epoch、receipt、outbox |
+| Catalog                                    | 单个 Project                                      |
+| ------------------------------------------ | ------------------------------------------------- |
+| 全局 Provider 配置、Agent preset、默认选择 | Project identity、根指令快照                      |
+| 本机注册路径和可重建目录摘要               | Session、不可变 Message、Run、RunQueue            |
+| catalog 自身事件和操作 receipt             | 冻结 Agent 配置、审批、input intent、执行 journal |
+| catalog schema/stream identity             | Project revision、owner epoch、receipt、outbox    |
 
 Message 追加、Session 指针 CAS、Run 状态、相关 receipt 和 outbox 在同一 Project 事务中提交。
 跨 Project 操作不伪装成原子事务。Catalog 注册与 Project 初始化使用可恢复步骤和稳定 ID，
@@ -238,15 +241,15 @@ HTTP 首期只承担 `/healthz`、`/readyz`、`/v1/server/info` 和 `/v1/ws` upg
 
 ### 7.1 身份与握手
 
-| 标识 | 语义 |
-| --- | --- |
-| `server_id` | data-dir 中持久化的服务身份 |
-| `instance_id` | 每次主进程启动生成，标识连接与运行实例 |
-| `client_id` | 客户端提供的诊断标识；不是认证身份或订阅归属证据 |
-| `connection_id` | 服务端为一个物理连接分配；该连接拥有请求和订阅 |
-| `request_id` | 当前连接的一次 RPC 关联 ID |
-| `operation_id` / `idempotency_key` | 持久化业务操作与客户端重试关联，不随连接变化 |
-| `subscription_id` | 服务端分配的连接内订阅身份 |
+| 标识                               | 语义                                             |
+| ---------------------------------- | ------------------------------------------------ |
+| `server_id`                        | data-dir 中持久化的服务身份                      |
+| `instance_id`                      | 每次主进程启动生成，标识连接与运行实例           |
+| `client_id`                        | 客户端提供的诊断标识；不是认证身份或订阅归属证据 |
+| `connection_id`                    | 服务端为一个物理连接分配；该连接拥有请求和订阅   |
+| `request_id`                       | 当前连接的一次 RPC 关联 ID                       |
+| `operation_id` / `idempotency_key` | 持久化业务操作与客户端重试关联，不随连接变化     |
+| `subscription_id`                  | 服务端分配的连接内订阅身份                       |
 
 先在 upgrade 边界完成凭据及 Host/Origin 校验，再接受 `hello`。hello 声明 major/minor 范围、
 客户端支持/必需 capability；server_info 返回协商版本、交集、实例信息和预算。未握手、无版本
@@ -261,18 +264,18 @@ HTTP 首期只承担 `/healthz`、`/readyz`、`/v1/server/info` 和 `/v1/ws` upg
 
 以下为新协议提案名称，不是现有 Ait/Paseo endpoint：
 
-| 方法 | 语义 |
-| --- | --- |
-| `project.open/list/get/close` | 打开新格式项目、读取目录与状态、排空后释放 |
-| `agent.configure/list` | 配置并选择版本化 Agent，完成无 UI 初始化 |
-| `provider.list/models` | 返回实际可用能力和模型；辅助 worker 执行发现 |
-| `session.create/list/get` | 创建指针和工作区，读取会话 |
-| `session.input.submit` | 持久化接纳输入，返回 operation/Run/queue 回执 |
-| `session.history.page` | 按固定 head Message 分页读取不可变路径 |
-| `run.get/cancel` | 查询 Run；持久化取消意图并监督停止 |
-| `approval.list/resolve` | 读取/处理仍有效的审批；首期仅一次 grant |
-| `operation.get` | 查询结果不明的客户端请求 |
-| `events.subscribe/unsubscribe` | 以明确 scope/filter 订阅与解除订阅 |
+| 方法                           | 语义                                          |
+| ------------------------------ | --------------------------------------------- |
+| `project.open/list/get/close`  | 打开新格式项目、读取目录与状态、排空后释放    |
+| `agent.configure/list`         | 配置并选择版本化 Agent，完成无 UI 初始化      |
+| `provider.list/models`         | 返回实际可用能力和模型；辅助 worker 执行发现  |
+| `session.create/list/get`      | 创建指针和工作区，读取会话                    |
+| `session.input.submit`         | 持久化接纳输入，返回 operation/Run/queue 回执 |
+| `session.history.page`         | 按固定 head Message 分页读取不可变路径        |
+| `run.get/cancel`               | 查询 Run；持久化取消意图并监督停止            |
+| `approval.list/resolve`        | 读取/处理仍有效的审批；首期仅一次 grant       |
+| `operation.get`                | 查询结果不明的客户端请求                      |
+| `events.subscribe/unsubscribe` | 以明确 scope/filter 订阅与解除订阅            |
 
 写请求携带 `idempotency_key` 和必要的 expected version/owner context。去重范围为认证主体、
 catalog/Project scope、方法和 key；相同规范化业务参数返回同一 operation，参数不同返回

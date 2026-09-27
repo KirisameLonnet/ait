@@ -3,6 +3,7 @@
 - 状态：Accepted
 - 日期：2026-09-27
 - 关联：ADR-053
+- 后续：第 4 条保留旧 Rust 入口的决定已由 [ADR-059](adr-059-remove-legacy-rust-runtime.md) 取代。
 - 修订：取代 ADR-053 中保留旧桌面源码与独立版本的条款。
 
 ## 背景

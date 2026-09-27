@@ -1,5 +1,8 @@
 # WF-10：从空目录创建项目，让 Codex 生成并提交 Rust Hello World
 
+> 历史文档：旧 daemon、worker、CLI 及其测试入口已按 [ADR-059](../docs/decisions/adr-059-remove-legacy-rust-runtime.md) 移除。
+> 下文保留原操作记录，命令不适用于当前代码；当前服务见 [server 说明](../docs/operations/independent-server.md)。
+
 用户目标：创建一个独立的 AIT 工作空间，在其中接入 `example-project`，通过 `ait-cli`
 调用真实 Codex 创建可运行的 Rust Hello World，最终得到一个可追溯的 Git 提交。
 本流程独立执行，不依赖 WF-01，也不使用已有 daemon 或数据库。
@@ -22,11 +25,11 @@
 ./test_with_codex.sh
 ```
 
-根目录的 [`test_with_codex.sh`](../test_with_codex.sh) 会先构建 `ait-cli`、`ait-daemon` 和 `ait-worker`，
+根目录的 [`test_with_codex.sh`](https://github.com/necokeine/ait/blob/49478a7f600fde997339a8d36d368c72d3546c14/test_with_codex.sh) 会先构建 `ait-cli`、`ait-daemon` 和 `ait-worker`，
 再显式运行当前 WF-10 测试并显示输出；构建或测试失败时返回非零退出码。
 也可以从其他目录通过脚本路径调用，它会自动切换到所在仓库。
 
-测试：[`wf10_create_project_with_real_codex_and_commit`](../bins/cli/tests/project_creation.rs)。
+测试：[`wf10_create_project_with_real_codex_and_commit`](https://github.com/necokeine/ait/blob/49478a7f600fde997339a8d36d368c72d3546c14/bins/cli/tests/project_creation.rs)。
 测试使用本次 Cargo 构建的 CLI，默认从其同级目录查找 `ait-daemon`；使用不同 target/profile
 时先构建对应 daemon，或通过 `AIT_WORKFLOW_DAEMON_BIN` 指定它的路径。
 

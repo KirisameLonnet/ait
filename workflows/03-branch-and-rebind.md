@@ -1,5 +1,8 @@
 # WF-03：从历史开分支、命名和切换 Agent
 
+> 历史文档：旧 daemon、worker、CLI 及其测试入口已按 [ADR-059](../docs/decisions/adr-059-remove-legacy-rust-runtime.md) 移除。
+> 下文保留原操作记录，命令不适用于当前代码；当前服务见 [server 说明](../docs/operations/independent-server.md)。
+
 用户目标：保留原 Session 的进度，从选定历史节点探索另一个方向，或在空闲时更换执行者。
 前置条件：完成 WF-01，`ROOT_ID` 已从注册响应获取。Codex 当前仅支持从 Project 根创建独立任务，或在 derive 可复用当前原生 Session 时继续；原生历史 fork/steer 待实现。API Provider 可从其支持的同 Project Message 派生。
 
@@ -43,6 +46,6 @@ ait session derive --id s-derived --project-id p1 --source-session-id s-main \
 - 旧版本改绑返回 `SESSION_POINTER_CONFLICT`，应重新读取；活动时改绑返回 `SESSION_BUSY`，
   需要等待 Run 结束或按 WF-04 取消。不要覆盖别的客户端的新选择。
 
-自动化：[`wf03_branch_rename_and_rebind_session`](../bins/cli/tests/workflows.rs)，
+自动化：[`wf03_branch_rename_and_rebind_session`](https://github.com/necokeine/ait/blob/49478a7f600fde997339a8d36d368c72d3546c14/bins/cli/tests/workflows.rs)，
 校验从 Project 根创建独立任务、命名与同 Provider 改绑、历史逐项不变和非法分支失败原子性。
 绑定原生 Thread 后不允许切换 Provider；同 Provider 的模型/Agent 配置仍可在空闲时更新。

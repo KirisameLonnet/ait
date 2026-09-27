@@ -1,5 +1,8 @@
 # WF-13：远程 Provider 创建并验证项目文件
 
+> 历史文档：旧 daemon、worker、CLI 及其测试入口已按 [ADR-059](../docs/decisions/adr-059-remove-legacy-rust-runtime.md) 移除。
+> 下文保留原操作记录，命令不适用于当前代码；当前服务见 [server 说明](../docs/operations/independent-server.md)。
+
 公共 `Session → RunCoordinator → API Provider → HostTool` 路径的默认离线验收：
 
 ```bash

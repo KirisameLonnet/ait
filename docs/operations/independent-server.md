@@ -8,10 +8,11 @@
 > 见 [ADR-029](../decisions/adr-029-server-metadata.md)。Git、Forge/PR、文件/目录、Worktree、
 > 恢复和 GitHub clone 由 `server-filesystem` 管理，见 [ADR-030](../decisions/adr-030-server-filesystem.md)。
 
-`server` 与现有 daemon 并存，当前支持本机服务、WebSocket、独立 Git 项目、Paseo Agent runtime
-snapshot、版本化 Agent 配置、Codex 原生纯文本执行、Session 事件与 Terminal。内部代码全部来自八个 `server-*` package；
-领域 Session ref、Message 树与 Run 尚未在独立 server 接通。
-项目必须使用独立 clone，不能与旧 daemon 共管同一目录或共享 Git worktree。
+`server` 是当前唯一的 Rust 服务入口，支持本机服务、WebSocket、Paseo Project/Workspace、
+原生 Provider 会话、Session 事件与 Terminal。实现由 `bins/server` 和 11 个 `server-*` crate 组成。
+旧 daemon、worker、CLI 及其专用 crate 已按 [ADR-059](../decisions/adr-059-remove-legacy-rust-runtime.md)
+移除。协议中的 `daemon.*` 名称仍是当前 server 的兼容接口；旧 SQLite 数据不由此服务迁移或读取。
+使用旧版本操作原有目录时，仍需避免让旧 daemon 与当前 server 共管同一 Git worktree。
 
 ## 启动
 
@@ -54,12 +55,12 @@ Authorization、请求内容和 URL query。配置解析错误不回显 TOML 内
 
 ## HTTP 与升级
 
-| Endpoint | 凭据 | 行为 |
-| --- | --- | --- |
-| `GET /healthz` | 无 | 最小存活状态 |
-| `GET /readyz` | 无 | ready 时 200，draining 时 503 |
+| Endpoint              | 凭据   | 行为                                            |
+| --------------------- | ------ | ----------------------------------------------- |
+| `GET /healthz`        | 无     | 最小存活状态                                    |
+| `GET /readyz`         | 无     | ready 时 200，draining 时 503                   |
 | `GET /v1/server/info` | Bearer | 稳定/实例身份、实际地址、版本、capability、预算 |
-| `GET /v1/ws` | Bearer | 校验后升级 WebSocket；draining 拒绝新连接 |
+| `GET /v1/ws`          | Bearer | 校验后升级 WebSocket；draining 拒绝新连接       |
 
 ```sh
 curl http://127.0.0.1:7316/healthz
@@ -95,20 +96,20 @@ capability 拒绝握手。服务端返回 `type=server_info`，包含 `info`、�
 RPC 格式：
 
 ```json
-{"type":"request","request_id":"r1","method":"connection.ping","params":{"nonce":"n1"}}
+{ "type": "request", "request_id": "r1", "method": "connection.ping", "params": { "nonce": "n1" } }
 ```
 
 ```json
-{"type":"response","request_id":"r1","result":{"nonce":"n1"}}
+{ "type": "response", "request_id": "r1", "result": { "nonce": "n1" } }
 ```
 
-| Method | Params | Result |
-| --- | --- | --- |
-| `server.info` | 空 | 与 HTTP info 相同 |
-| `connection.ping` | `nonce`，1–128 字节、无控制字符 | 回显 nonce |
-| `server.status.subscribe` | 空 | 新的 `subscription_id`；随后发送 ready 状态 |
-| `server.status.unsubscribe` | `subscription_id` | `unsubscribed: true`；只能取消本连接订阅 |
-| `subscription.release.request` | `subscriptionId` | 幂等释放本连接的 connection-owned 订阅 |
+| Method                         | Params                          | Result                                      |
+| ------------------------------ | ------------------------------- | ------------------------------------------- |
+| `server.info`                  | 空                              | 与 HTTP info 相同                           |
+| `connection.ping`              | `nonce`，1–128 字节、无控制字符 | 回显 nonce                                  |
+| `server.status.subscribe`      | 空                              | 新的 `subscription_id`；随后发送 ready 状态 |
+| `server.status.unsubscribe`    | `subscription_id`               | `unsubscribed: true`；只能取消本连接订阅    |
+| `subscription.release.request` | `subscriptionId`                | 幂等释放本连接的 connection-owned 订阅      |
 
 状态通知形如 `{"type":"status","subscription_id":"…","lifecycle":"ready"}`。
 每连接最多 16 个订阅，断开即清理，重连需要重新订阅。退出时 best-effort 发出 `draining`。
@@ -127,17 +128,17 @@ RPC 格式：
 
 以下 capability 已在生产 binary 组装：
 
-| Method | Params | Result |
-| --- | --- | --- |
-| `daemon.get_status.request` | `{}` | server/version/pid/executable/start/listen、relay、provider 状态 |
-| `daemon.get_pairing_offer.request` | `{}` | `url`、`qr`、`relayEnabled`；当前无 relay，返回空 offer |
-| `daemon.config.get.request` | `{}` | 规范化 mutable config |
-| `daemon.config.set.request` | `config` patch | 原子持久化后的规范化 config |
-| `daemon.config.reload.request` | `{}` | live、需重启、启动 override 控制的路径分类 |
-| `diagnostics.request` | `{}` | 不含凭据的进程、系统与 capability 文本报告 |
-| `daemon.update.request` | `{}` | Paseo update 结果；standalone 安装明确返回 unsupported failure |
-| `server.restart.request` | 可选 `reason` | 响应后 drain，释放锁并在同一进程重新组装实例 |
-| `server.shutdown.request` | `{}` | 响应后 drain 并正常退出 |
+| Method                             | Params         | Result                                                           |
+| ---------------------------------- | -------------- | ---------------------------------------------------------------- |
+| `daemon.get_status.request`        | `{}`           | server/version/pid/executable/start/listen、relay、provider 状态 |
+| `daemon.get_pairing_offer.request` | `{}`           | `url`、`qr`、`relayEnabled`；当前无 relay，返回空 offer          |
+| `daemon.config.get.request`        | `{}`           | 规范化 mutable config                                            |
+| `daemon.config.set.request`        | `config` patch | 原子持久化后的规范化 config                                      |
+| `daemon.config.reload.request`     | `{}`           | live、需重启、启动 override 控制的路径分类                       |
+| `diagnostics.request`              | `{}`           | 不含凭据的进程、系统与 capability 文本报告                       |
+| `daemon.update.request`            | `{}`           | Paseo update 结果；standalone 安装明确返回 unsupported failure   |
+| `server.restart.request`           | 可选 `reason`  | 响应后 drain，释放锁并在同一进程重新组装实例                     |
+| `server.shutdown.request`          | `{}`           | 响应后 drain 并正常退出                                          |
 
 legacy 名称 `get_daemon_config_request`、`set_daemon_config_request`、
 `restart_server_request`、`shutdown_server_request` 不作为 alias，返回 `method_not_found`。
@@ -148,13 +149,13 @@ legacy 名称 `get_daemon_config_request`、`set_daemon_config_request`、
 
 以下 capability 已在生产 binary 组装：
 
-| Method | Params | Result |
-| --- | --- | --- |
-| `workspace.label.list.request` | 可选 `sync:{generation,afterSeq}`；订阅时加 `subscribe:{}` | `labels`、`sync`，订阅时另有服务端 `subscriptionId` |
-| `workspace.label.assignment.set.request` | `workspaceId`、`label:{name,color}`、`assigned` | 权威 label 与完整 `workspaceLabels` |
-| `workspace.label.update.request` | `name`，可选 `newName` / `color` | 原子编辑后的 label 与受影响 Workspace 数 |
-| `workspace.label.delete.inspect.request` | `name` | active/archived Workspace 的受影响数量 |
-| `workspace.label.delete.request` | `name` | 删除 definition 和 assignments 后的受影响数量 |
+| Method                                   | Params                                                     | Result                                              |
+| ---------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------- |
+| `workspace.label.list.request`           | 可选 `sync:{generation,afterSeq}`；订阅时加 `subscribe:{}` | `labels`、`sync`，订阅时另有服务端 `subscriptionId` |
+| `workspace.label.assignment.set.request` | `workspaceId`、`label:{name,color}`、`assigned`            | 权威 label 与完整 `workspaceLabels`                 |
+| `workspace.label.update.request`         | `name`，可选 `newName` / `color`                           | 原子编辑后的 label 与受影响 Workspace 数            |
+| `workspace.label.delete.inspect.request` | `name`                                                     | active/archived Workspace 的受影响数量              |
+| `workspace.label.delete.request`         | `name`                                                     | 删除 definition 和 assignments 后的受影响数量       |
 
 标签名会 trim 并折叠内部空白，以不区分大小写的 key 查找；同名已有 definition 时，其显示名和
 颜色优先。palette 为 `violet`、`sky`、`emerald`、`orange`、`pink`、`indigo`、`teal`、
@@ -165,7 +166,17 @@ legacy 名称 `get_daemon_config_request`、`set_daemon_config_request`、
 建立多个独立订阅。live update 使用统一 envelope：
 
 ```json
-{"type":"event","method":"workspace.label.update","params":{"kind":"upsert","subscriptionId":"…","label":{"name":"QA","color":"blue"},"generation":"…","seq":1}}
+{
+  "type": "event",
+  "method": "workspace.label.update",
+  "params": {
+    "kind": "upsert",
+    "subscriptionId": "…",
+    "label": { "name": "QA", "color": "blue" },
+    "generation": "…",
+    "seq": 1
+  }
+}
 ```
 
 客户端保存 `sync.generation` 和 `sync.headSeq` 作为下次 list 的 cursor。同一进程内且 cursor 仍在
@@ -180,11 +191,11 @@ catalog 位于 `<data-dir>/projects/workspace-labels.json`。跨 catalog 与 `wo
 
 以下 capability 已在生产 binary 组装：
 
-| Method | Params | Result |
-| --- | --- | --- |
-| `workspace.worktree.list.request` | `cwd` 或 `repoRoot` | managed `worktrees` 与 inline `error` |
-| `workspace.worktree.create.request` | `cwd`，可选 `projectId`、`worktreeSlug`、first-Agent context、`refName`、`action` | Workspace descriptor、setup 字段与 inline error |
-| `workspace.worktree.archive.request` | path 或 repo+branch，可选 `workspaceId`、`scope` | `success`、`removedAgents` 与 inline error |
+| Method                               | Params                                                                            | Result                                          |
+| ------------------------------------ | --------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `workspace.worktree.list.request`    | `cwd` 或 `repoRoot`                                                               | managed `worktrees` 与 inline `error`           |
+| `workspace.worktree.create.request`  | `cwd`，可选 `projectId`、`worktreeSlug`、first-Agent context、`refName`、`action` | Workspace descriptor、setup 字段与 inline error |
+| `workspace.worktree.archive.request` | path 或 repo+branch，可选 `workspaceId`、`scope`                                  | `success`、`removedAgents` 与 inline error      |
 
 worktree 固定创建在 `<data-dir>/worktrees/<repo-hash>/<slug>`，不会把 repository 内的任意 linked
 worktree 认作服务所有。`branch-off` 从 `refName` 或 default branch 创建新分支；`checkout` 使用
@@ -208,13 +219,13 @@ ownership 共同决定。成功创建后，响应之后会收到
 
 以下 capability 已在生产 binary 组装：
 
-| Method | Params | Result |
-| --- | --- | --- |
-| `workspace.setup.status.request` | `workspaceId` | `workspaceId` 与 nullable setup `snapshot` |
-| `workspace.setup.run.request` | `workspaceId` | `started` 与 inline `error` |
-| `workspace.script.list.request` | `workspaceId` | 已排序 script payload 与 inline `error` |
-| `workspace.script.start.request` | `workspaceId`、`scriptName` | 启动后的 `script` 或 inline `error` |
-| `workspace.script.stop.request` | `workspaceId`、`scriptName` | 停止后的 `script` 或 inline `error` |
+| Method                           | Params                      | Result                                     |
+| -------------------------------- | --------------------------- | ------------------------------------------ |
+| `workspace.setup.status.request` | `workspaceId`               | `workspaceId` 与 nullable setup `snapshot` |
+| `workspace.setup.run.request`    | `workspaceId`               | `started` 与 inline `error`                |
+| `workspace.script.list.request`  | `workspaceId`               | 已排序 script payload 与 inline `error`    |
+| `workspace.script.start.request` | `workspaceId`、`scriptName` | 启动后的 `script` 或 inline `error`        |
+| `workspace.script.stop.request`  | `workspaceId`、`scriptName` | 停止后的 `script` 或 inline `error`        |
 
 配置读取 Workspace cwd 下的 `paseo.json`。文件必须是不超过 1 MiB 的普通文件；symlink、非 JSON 或
 非 object 会返回明确 parse error。`worktree.setup` 接受一条字符串或字符串数组，trim 后按顺序执行；
@@ -242,12 +253,12 @@ teardown 等待后续订阅、Terminal 与 proxy 切片。完整差异见第五�
 
 以下 capability 已在生产 binary 组装：
 
-| Method | Params | Result |
-| --- | --- | --- |
-| `workspace.clear_attention.request` | `workspaceId` 字符串或字符串数组 | flattened `clearedAgentIds`、逐 Workspace `results`、`success` 与 inline `error` |
-| `workspace.mark_unread.request` | `workspaceId` | nullable `markedAgentId`、`success` 与 inline `error` |
-| `workspace.recovery.inspect.request` | `workspaceId` | `recoverable` 或 `unavailable` 的 `state` |
-| `workspace.recovery.restore.request` | `workspaceId` | `accepted` 与 inline `error`；成功后发送 `workspace.update` |
+| Method                               | Params                           | Result                                                                           |
+| ------------------------------------ | -------------------------------- | -------------------------------------------------------------------------------- |
+| `workspace.clear_attention.request`  | `workspaceId` 字符串或字符串数组 | flattened `clearedAgentIds`、逐 Workspace `results`、`success` 与 inline `error` |
+| `workspace.mark_unread.request`      | `workspaceId`                    | nullable `markedAgentId`、`success` 与 inline `error`                            |
+| `workspace.recovery.inspect.request` | `workspaceId`                    | `recoverable` 或 `unavailable` 的 `state`                                        |
+| `workspace.recovery.restore.request` | `workspaceId`                    | `accepted` 与 inline `error`；成功后发送 `workspace.update`                      |
 
 clear-attention 只处理 active Workspace 中归属 ID 完全匹配、未归档、非 internal 且没有 permission reason
 的 Agent。批量请求逐项执行，单个 Workspace 失败不会撤销已经提交的其他项。mark-unread 沿
@@ -270,15 +281,15 @@ merged change-request latch，不写 Paseo metadata，也不调用 plugin recove
 
 以下 capability 已在生产 binary 组装：
 
-| Method | Params | Result |
-| --- | --- | --- |
-| `checkout.status.get.request` | `cwd` | Git/root/branch/dirty/base/upstream/remote/managed-worktree 状态与 inline `error` |
-| `checkout.refresh.request` | `cwd` | `success` 与 inline `error` |
-| `checkout.diff.get.request` | `cwd`、`compare` | path-sorted structured `files`、inline `error`、可选 `diffTooLarge` |
-| `checkout.diff.subscribe.request` | 可选 `subscriptionId`、`cwd`、`compare` | 初始 snapshot；变化后发送 `checkout.diff.update` |
-| `checkout.diff.unsubscribe.request` | `subscriptionId` | 已释放的 `subscriptionId` |
-| `checkout.commits.list.request` | `cwd` | Workspace commits、最多十条 base context、remote/base 标记与文件统计 |
-| `checkout.commits.file_diff.request` | `cwd`、hex `sha`、repository-relative `path` | nullable textual structured diff 与 inline `error` |
+| Method                               | Params                                       | Result                                                                            |
+| ------------------------------------ | -------------------------------------------- | --------------------------------------------------------------------------------- |
+| `checkout.status.get.request`        | `cwd`                                        | Git/root/branch/dirty/base/upstream/remote/managed-worktree 状态与 inline `error` |
+| `checkout.refresh.request`           | `cwd`                                        | `success` 与 inline `error`                                                       |
+| `checkout.diff.get.request`          | `cwd`、`compare`                             | path-sorted structured `files`、inline `error`、可选 `diffTooLarge`               |
+| `checkout.diff.subscribe.request`    | 可选 `subscriptionId`、`cwd`、`compare`      | 初始 snapshot；变化后发送 `checkout.diff.update`                                  |
+| `checkout.diff.unsubscribe.request`  | `subscriptionId`                             | 已释放的 `subscriptionId`                                                         |
+| `checkout.commits.list.request`      | `cwd`                                        | Workspace commits、最多十条 base context、remote/base 标记与文件统计              |
+| `checkout.commits.file_diff.request` | `cwd`、hex `sha`、repository-relative `path` | nullable textual structured diff 与 inline `error`                                |
 
 `compare.mode` 支持 `uncommitted` 和 `base`；后者比较 merge-base 到 `HEAD`，不会混入 working tree
 修改。uncommitted 模式合并 tracked、staged 与 untracked 文件。Git 子进程不经过 shell，清理继承的
@@ -296,21 +307,21 @@ fanout。结构化 diff 不生成 syntax-highlight tokens；aggregate 超过 4 M
 
 以下 capability 已在生产 binary 组装：
 
-| Method | Params | Result |
-| --- | --- | --- |
-| `checkout.branch.validate.request` | `cwd`、`branchName` | `exists`、规范化 `resolvedRef`、`isRemote` 与 string `error` |
-| `checkout.branch.suggestions.request` | `cwd`、可选 `query`/`limit` | 排序后的 `branches`、local/remote/divergence `branchDetails` 与 string `error` |
-| `checkout.branch.switch.request` | `cwd`、`branch` | `success`、`branch`、可选 `source` 与 inline `error` |
-| `checkout.rename_branch.request` | `cwd`、`branch` | `success`、nullable `currentBranch` 与 inline `error` |
-| `checkout.commit.request` | `cwd`、可选 `message`/`addAll` | `success` 与 inline `error` |
-| `checkout.merge.request` | `cwd`、可选 `baseRef`/`strategy`/`requireCleanTarget` | `success` 与 inline `error` |
-| `checkout.merge_from_base.request` | `cwd`、可选 `baseRef`/`requireCleanTarget` | `success` 与 inline `error` |
-| `checkout.pull.request` | `cwd` | `success` 与 inline `error` |
-| `checkout.push.request` | `cwd` | `success` 与 inline `error` |
-| `checkout.discard_changes.request` | `cwd`、非空 repository-relative `paths` | `success` 与 inline `error` |
-| `checkout.stash.save.request` | `cwd`、可选 `branch` | `success` 与 inline `error` |
-| `checkout.stash.pop.request` | `cwd`、非负 `stashIndex` | `success` 与 inline `error` |
-| `checkout.stash.list.request` | `cwd`、可选 `paseoOnly` | `entries` 与 inline `error` |
+| Method                                | Params                                                | Result                                                                         |
+| ------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `checkout.branch.validate.request`    | `cwd`、`branchName`                                   | `exists`、规范化 `resolvedRef`、`isRemote` 与 string `error`                   |
+| `checkout.branch.suggestions.request` | `cwd`、可选 `query`/`limit`                           | 排序后的 `branches`、local/remote/divergence `branchDetails` 与 string `error` |
+| `checkout.branch.switch.request`      | `cwd`、`branch`                                       | `success`、`branch`、可选 `source` 与 inline `error`                           |
+| `checkout.rename_branch.request`      | `cwd`、`branch`                                       | `success`、nullable `currentBranch` 与 inline `error`                          |
+| `checkout.commit.request`             | `cwd`、可选 `message`/`addAll`                        | `success` 与 inline `error`                                                    |
+| `checkout.merge.request`              | `cwd`、可选 `baseRef`/`strategy`/`requireCleanTarget` | `success` 与 inline `error`                                                    |
+| `checkout.merge_from_base.request`    | `cwd`、可选 `baseRef`/`requireCleanTarget`            | `success` 与 inline `error`                                                    |
+| `checkout.pull.request`               | `cwd`                                                 | `success` 与 inline `error`                                                    |
+| `checkout.push.request`               | `cwd`                                                 | `success` 与 inline `error`                                                    |
+| `checkout.discard_changes.request`    | `cwd`、非空 repository-relative `paths`               | `success` 与 inline `error`                                                    |
+| `checkout.stash.save.request`         | `cwd`、可选 `branch`                                  | `success` 与 inline `error`                                                    |
+| `checkout.stash.pop.request`          | `cwd`、非负 `stashIndex`                              | `success` 与 inline `error`                                                    |
+| `checkout.stash.list.request`         | `cwd`、可选 `paseoOnly`                               | `entries` 与 inline `error`                                                    |
 
 branch switch 要求工作区干净；origin-only branch 会创建同名 local tracking branch。rename 使用 Paseo 的
 lowercase slug 规则。commit 默认 `addAll:true`；独立 server 尚无 Paseo Provider commit-message generator，
@@ -329,18 +340,18 @@ discard 使用 literal pathspec，恢复 tracked 内容并删除所选 untracked
 
 以下 capability 已在生产 binary 组装：
 
-| Method | Params | Result |
-| --- | --- | --- |
-| `forge.search.request` | `cwd`、`query`、可选 `limit`/`kinds` | neutral issue/change-request `items`、`authState`、string `error` |
-| `github.search.request` | 同上，兼容 `github-issue`/`github-pr`/`pr` kind | legacy issue/PR `items` 与两个 availability flag |
-| `checkout.pr.create.request` | `cwd`、`title`、`body`、可选 `baseRef` | nullable `url`/`number` 与 inline `error` |
-| `checkout.pr.merge.request` | `cwd`、`mergeMethod` | `success` 与 inline `error` |
-| `checkout.pr.status.request` | `cwd` | nullable current PR、check rollup、forge/auth 与 inline `error` |
-| `checkout.pr.timeline.request` | `cwd`、正数 `prNumber`、`repoOwner`、`repoName` | review/comment/thread items、`truncated` 与 timeline error |
-| `checkout.forge.set_auto_merge.request` | `cwd`、`enabled`、启用时必需 `mergeMethod` | requested state、`success` 与 inline `error` |
-| `checkout.github.set_auto_merge.request` | 同上 | GitHub compatibility 入口，结果 shape 相同 |
-| `checkout.forge.get_check_details.request` | `cwd`、repo identity、check/workflow ID | annotation/failed-job details 与 inline `error` |
-| `checkout.github.get_check_details.request` | 同上 | GitHub compatibility 入口，结果 shape 相同 |
+| Method                                      | Params                                          | Result                                                            |
+| ------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------- |
+| `forge.search.request`                      | `cwd`、`query`、可选 `limit`/`kinds`            | neutral issue/change-request `items`、`authState`、string `error` |
+| `github.search.request`                     | 同上，兼容 `github-issue`/`github-pr`/`pr` kind | legacy issue/PR `items` 与两个 availability flag                  |
+| `checkout.pr.create.request`                | `cwd`、`title`、`body`、可选 `baseRef`          | nullable `url`/`number` 与 inline `error`                         |
+| `checkout.pr.merge.request`                 | `cwd`、`mergeMethod`                            | `success` 与 inline `error`                                       |
+| `checkout.pr.status.request`                | `cwd`                                           | nullable current PR、check rollup、forge/auth 与 inline `error`   |
+| `checkout.pr.timeline.request`              | `cwd`、正数 `prNumber`、`repoOwner`、`repoName` | review/comment/thread items、`truncated` 与 timeline error        |
+| `checkout.forge.set_auto_merge.request`     | `cwd`、`enabled`、启用时必需 `mergeMethod`      | requested state、`success` 与 inline `error`                      |
+| `checkout.github.set_auto_merge.request`    | 同上                                            | GitHub compatibility 入口，结果 shape 相同                        |
+| `checkout.forge.get_check_details.request`  | `cwd`、repo identity、check/workflow ID         | annotation/failed-job details 与 inline `error`                   |
+| `checkout.github.get_check_details.request` | 同上                                            | GitHub compatibility 入口，结果 shape 相同                        |
 
 当前 adapter 使用本机 `gh` 认证，只支持 GitHub 和已配置的 GitHub Enterprise。搜索 limit 为 1–50；省略
 kind 时同时查询 issue 和 PR。PR create 需要显式非空 title/body，先执行 `git push -u origin <head>`，再调用
@@ -355,19 +366,19 @@ mutation invalidation、GitHub merge-policy GraphQL facts或 failed-job log tail
 
 以下 11 个 capability 已在生产 binary 组装：
 
-| Method | Params | Result |
-| --- | --- | --- |
-| `directory.suggestions.request` | `query`，可选 `cwd`/`includeFiles`/`includeDirectories`/`matchMode`/`limit` | `directories`、`entries`、nullable `error` |
-| `fs.explorer.request` | `cwd`、`mode: list/file`，可选 `path`/`acceptBinary`/`maxBytes` | `directory` 或 `file`，或者二进制文件帧 |
-| `fs.file.subscribe.request` | `cwd`、`path`，可选 `subscriptionId` | `subscriptionId`、`initial`；随后 `fs.file.update` |
-| `fs.file.unsubscribe.request` | `subscriptionId` | `subscriptionId` |
-| `fs.file.write.request` | `cwd`、`path`、`content`、`expectedModifiedAt`，可选 `expectedRevision` | `result.status: written/conflict/error` |
-| `fs.entry.create.request` | `cwd`、`parentPath`、`name`、`kind: file/directory` | nullable `path`、`success`、`error` |
-| `fs.entry.rename.request` | `cwd`、`path`、`name` | nullable `renamedPath`、`success`、`error` |
-| `fs.entry.duplicate.request` | `cwd`、`path` | nullable `duplicatedPath`、`success`、`error` |
-| `fs.entry.delete.request` | `cwd`、`path` | `success`、`error` |
-| `fs.file.download_token.request` | `cwd`、`path` | nullable `token`/`fileName`/`mimeType`/`size`、`error` |
-| `file.upload.request` | `fileName`、`mimeType`、`size`、`modifiedAt` | End 后返回 uploaded-file attachment 或 `error` |
+| Method                           | Params                                                                      | Result                                                 |
+| -------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `directory.suggestions.request`  | `query`，可选 `cwd`/`includeFiles`/`includeDirectories`/`matchMode`/`limit` | `directories`、`entries`、nullable `error`             |
+| `fs.explorer.request`            | `cwd`、`mode: list/file`，可选 `path`/`acceptBinary`/`maxBytes`             | `directory` 或 `file`，或者二进制文件帧                |
+| `fs.file.subscribe.request`      | `cwd`、`path`，可选 `subscriptionId`                                        | `subscriptionId`、`initial`；随后 `fs.file.update`     |
+| `fs.file.unsubscribe.request`    | `subscriptionId`                                                            | `subscriptionId`                                       |
+| `fs.file.write.request`          | `cwd`、`path`、`content`、`expectedModifiedAt`，可选 `expectedRevision`     | `result.status: written/conflict/error`                |
+| `fs.entry.create.request`        | `cwd`、`parentPath`、`name`、`kind: file/directory`                         | nullable `path`、`success`、`error`                    |
+| `fs.entry.rename.request`        | `cwd`、`path`、`name`                                                       | nullable `renamedPath`、`success`、`error`             |
+| `fs.entry.duplicate.request`     | `cwd`、`path`                                                               | nullable `duplicatedPath`、`success`、`error`          |
+| `fs.entry.delete.request`        | `cwd`、`path`                                                               | `success`、`error`                                     |
+| `fs.file.download_token.request` | `cwd`、`path`                                                               | nullable `token`/`fileName`/`mimeType`/`size`、`error` |
+| `file.upload.request`            | `fileName`、`mimeType`、`size`、`modifiedAt`                                | End 后返回 uploaded-file attachment 或 `error`         |
 
 写入优先比较 `expectedRevision`，缺失时比较显示时间；只编辑已存在、最多 1 MiB 的 UTF-8 文本。
 临时文件同步、再次检查版本后原子替换，并保留权限。目录按 mtime 降序、同时间按名称排序；复制使用
@@ -395,17 +406,17 @@ JSON preview 上限 512 KiB，图片用 base64，其他二进制只返回 metada
 
 以下 capability 已在生产 binary 组装：
 
-| Method | Params | Result |
-| --- | --- | --- |
-| `agent.list.request` | 可选 `scope:"active"`、`filter`、`sort`、`page` | placement 后的 unarchived Agent rows 与 `pageInfo` |
-| `agent.history.get.request` | 可选 `filter`、`search`、`sort`、`page` | 默认包含 archived Agent 的 rows 与 `pageInfo` |
-| `agent.get.request` | `agentId`（完整 ID、唯一前缀或精确标题） | nullable `agent`、nullable `project` 与 inline `error` |
-| `agent.update.request` | `agentId`，以及非空 `name` 或 `labels` | `agentId`、`accepted` 与 inline `error` |
-| `agent.archive.request` | `agentId` | `agentId`、`archivedAt` |
-| `agent.delete.request` | `agentId` | 已永久删除的 `agentId` |
-| `agent.detach.request` | `agentId` | `agentId`、`accepted` 与 inline `error` |
-| `agent.attention.clear.request` | 一个 `agentId` 或 Agent ID 数组 | 原 selection 与更新后的 `agents` |
-| `agent.items.close.request` | `agentIds`、`terminalIds` | 成功归档的 `agents` 与逐项 `terminalId/success` |
+| Method                          | Params                                          | Result                                                 |
+| ------------------------------- | ----------------------------------------------- | ------------------------------------------------------ |
+| `agent.list.request`            | 可选 `scope:"active"`、`filter`、`sort`、`page` | placement 后的 unarchived Agent rows 与 `pageInfo`     |
+| `agent.history.get.request`     | 可选 `filter`、`search`、`sort`、`page`         | 默认包含 archived Agent 的 rows 与 `pageInfo`          |
+| `agent.get.request`             | `agentId`（完整 ID、唯一前缀或精确标题）        | nullable `agent`、nullable `project` 与 inline `error` |
+| `agent.update.request`          | `agentId`，以及非空 `name` 或 `labels`          | `agentId`、`accepted` 与 inline `error`                |
+| `agent.archive.request`         | `agentId`                                       | `agentId`、`archivedAt`                                |
+| `agent.delete.request`          | `agentId`                                       | 已永久删除的 `agentId`                                 |
+| `agent.detach.request`          | `agentId`                                       | `agentId`、`accepted` 与 inline `error`                |
+| `agent.attention.clear.request` | 一个 `agentId` 或 Agent ID 数组                 | 原 selection 与更新后的 `agents`                       |
+| `agent.items.close.request`     | `agentIds`、`terminalIds`                       | 成功归档的 `agents` 与逐项 `terminalId/success`        |
 
 runtime snapshot 保存于 `<data-dir>/agents/agents.json`，shape 来自 Paseo `StoredAgentRecord`，与下文
 ADR-024 Agent preset catalog 是两类数据。list/history 会用 Workspace/Project registry 生成 placement，
@@ -430,13 +441,13 @@ Claude 模式见 [使用说明](claude-code.md)。配置、权限及能力边界
 
 先用 `workspace.open.request` 打开目录，再在已协商相应 capability 的连接中调用：
 
-| 方法 | 参数 | 结果 |
-| --- | --- | --- |
-| `agent.create.request` | `config:{provider:"codex",cwd:"/absolute/path",modeId:"read-only"}`；可选 `agentId` UUID、`workspaceId`、`labels`；config 可加 title/model/thinkingOptionId/systemPrompt | `status:"agent_created"`、agentId、agent snapshot |
-| `agent.resume.request` | `handle:{provider:"codex",sessionId:"..."}`，必须已登记在本 server | 同一个 Agent ID、`status:"agent_resumed"`、snapshot |
-| `agent.message.send.request` | `agentId`、`text`、可选 `messageId` / `activeTurnBehavior` / 图片与附件 | accepted 与 inline error；默认中断后投递，steer 向运行中轮次追加 |
-| `agent.cancel.request` | `agentId` | 发送原生 interrupt 后的 snapshot；终态由 wait 确认 |
-| `agent.finish.wait.request` | `agentId`、可选 `timeoutMs`，1–30000，默认 30000 | idle/error/timeout、final snapshot、lastMessage、error |
+| 方法                         | 参数                                                                                                                                                                     | 结果                                                             |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| `agent.create.request`       | `config:{provider:"codex",cwd:"/absolute/path",modeId:"read-only"}`；可选 `agentId` UUID、`workspaceId`、`labels`；config 可加 title/model/thinkingOptionId/systemPrompt | `status:"agent_created"`、agentId、agent snapshot                |
+| `agent.resume.request`       | `handle:{provider:"codex",sessionId:"..."}`，必须已登记在本 server                                                                                                       | 同一个 Agent ID、`status:"agent_resumed"`、snapshot              |
+| `agent.message.send.request` | `agentId`、`text`、可选 `messageId` / `activeTurnBehavior` / 图片与附件                                                                                                  | accepted 与 inline error；默认中断后投递，steer 向运行中轮次追加 |
+| `agent.cancel.request`       | `agentId`                                                                                                                                                                | 发送原生 interrupt 后的 snapshot；终态由 wait 确认               |
+| `agent.finish.wait.request`  | `agentId`、可选 `timeoutMs`，1–30000，默认 30000                                                                                                                         | idle/error/timeout、final snapshot、lastMessage、error           |
 
 wait 不阻塞同一连接继续发 cancel；响应按 request_id 匹配，可能与其他响应交错。
 断开连接只停止等待，已接纳 turn 继续运行。超时也只结束观察。Agent 的原生 turn 没有固定运行时限。
@@ -479,18 +490,32 @@ JSON 行上限 2 MiB。超过预算会返回错误或终止有问题的原生连
 
 在 hello 中协商所需的以下五项 capability。配置操作不需要打开 Project 或启动 Desktop。
 
-| Method | Params | Result |
-| --- | --- | --- |
-| `agent.configure` | `config`、`idempotency_key`；修改还需 `agent_id`、`expected_revision` | `operation_id`、`agent_id`、不可变 `revision` |
-| `agent.get` | `agent_id`；可选 `revision` | 精确配置、revision、`recorded_at`（Unix 毫秒） |
-| `agent.list` | `{}` 或 `after`、`limit`（1–50，默认 20） | 当前配置的 `agents`、`next_after` |
-| `agent.default.get` | `{}` | `agent_id`（可空）、`version`（初始 0） |
-| `agent.default.set` | `agent_id`（必须提供，可显式 null）、`expected_version`、`idempotency_key` | `operation_id`、历史 `selection` |
+| Method              | Params                                                                     | Result                                         |
+| ------------------- | -------------------------------------------------------------------------- | ---------------------------------------------- |
+| `agent.configure`   | `config`、`idempotency_key`；修改还需 `agent_id`、`expected_revision`      | `operation_id`、`agent_id`、不可变 `revision`  |
+| `agent.get`         | `agent_id`；可选 `revision`                                                | 精确配置、revision、`recorded_at`（Unix 毫秒） |
+| `agent.list`        | `{}` 或 `after`、`limit`（1–50，默认 20）                                  | 当前配置的 `agents`、`next_after`              |
+| `agent.default.get` | `{}`                                                                       | `agent_id`（可空）、`version`（初始 0）        |
+| `agent.default.set` | `agent_id`（必须提供，可显式 null）、`expected_version`、`idempotency_key` | `operation_id`、历史 `selection`               |
 
 创建配置：
 
 ```json
-{"type":"request","request_id":"a1","method":"agent.configure","params":{"config":{"name":"My Codex","driver_type":"codex","model":"explicit-model-id","credential_ref":null,"enabled":true},"idempotency_key":"create-agent-1"}}
+{
+  "type": "request",
+  "request_id": "a1",
+  "method": "agent.configure",
+  "params": {
+    "config": {
+      "name": "My Codex",
+      "driver_type": "codex",
+      "model": "explicit-model-id",
+      "credential_ref": null,
+      "enabled": true
+    },
+    "idempotency_key": "create-agent-1"
+  }
+}
 ```
 
 `model` 示例是占位标识，应替换为计划使用的模型。这里只验证标识格式，不访问 Provider。
@@ -503,7 +528,7 @@ driver 当前只接受 `codex`；保存成功不代表模型已验证、凭据�
 默认指向 Agent 身份，未来 Session/Run 还需冻结具体 revision；禁用默认 Agent 前先清空或换选。
 
 字段限制：name 1–255 UTF-8 字节，不能全空白或含控制字符；model 1–128 ASCII 字节，
-仅允许字母、数字、`-_.:/`。credential_ref 可省略/null，或为 `env:AIT_SERVER_CREDENTIAL_<NAME>`；
+仅允许字母、数字、`-_.:/`。credential*ref 可省略/null，或为 `env:AIT_SERVER_CREDENTIAL*<NAME>`；
 NAME 1–64 字节，以大写字母开头，其余仅大写字母、数字和下划线。数据库只保存该引用，
 不会读取对应环境变量，也不验证它是否存在。不要把秘密写入 name/model；API 拒绝 api_key、
 token、任意参数、endpoint 等未知字段。不支持自动加载 `.env`。
@@ -556,13 +581,13 @@ cargo llvm-cov --workspace --html
 
 按 [ADR-034](../decisions/adr-034-agent-config-session-events.md)，新增以下已实现方法：
 
-| 方法 | params | 行为 |
-| --- | --- | --- |
-| `agent.model.set.request` | `{agentId, modelId: string \| null}` | 保存后续 turn 的模型覆盖 |
-| `agent.thinking.set.request` | `{agentId, thinkingOptionId: string \| null}` | 保存后续 turn 的推理等级覆盖 |
-| `agent.config.apply.request` | `{agentId, config: {modelId?, thinkingOptionId?}}` | 一次落盘整个配置补丁 |
-| `session.events.set_subscription.request` | `{events: string[], notifications?: boolean}` | 创建独立连接订阅，返回 subscriptionId |
-| `session.heartbeat` | 下文客户端 event | 更新进程内活动与焦点，不返回响应 |
+| 方法                                      | params                                             | 行为                                  |
+| ----------------------------------------- | -------------------------------------------------- | ------------------------------------- |
+| `agent.model.set.request`                 | `{agentId, modelId: string \| null}`               | 保存后续 turn 的模型覆盖              |
+| `agent.thinking.set.request`              | `{agentId, thinkingOptionId: string \| null}`      | 保存后续 turn 的推理等级覆盖          |
+| `agent.config.apply.request`              | `{agentId, config: {modelId?, thinkingOptionId?}}` | 一次落盘整个配置补丁                  |
+| `session.events.set_subscription.request` | `{events: string[], notifications?: boolean}`      | 创建独立连接订阅，返回 subscriptionId |
+| `session.heartbeat`                       | 下文客户端 event                                   | 更新进程内活动与焦点，不返回响应      |
 
 三个配置方法返回 `{agentId, accepted, error, notice}`。省略字段保持原值，null 清除宿主覆盖并
 交给原生 Provider 继承；它不保证回到创建时的模型。修改不打断正在执行的 turn；活动期间成功
@@ -574,7 +599,17 @@ Session 事件支持 `agent_attention_required`、`status.daemon_config_changed`
 `status.server_info`。未实现的事件类别明确返回 unsupported_capability。事件沿用通用信封：
 
 ```json
-{"type":"event","method":"agent_attention_required","params":{"subscriptionId":"...","agentId":"...","reason":"finished","timestamp":"2026-09-24T00:00:00.000Z","shouldNotify":false}}
+{
+  "type": "event",
+  "method": "agent_attention_required",
+  "params": {
+    "subscriptionId": "...",
+    "agentId": "...",
+    "reason": "finished",
+    "timestamp": "2026-09-24T00:00:00.000Z",
+    "shouldNotify": false
+  }
+}
 ```
 
 订阅无初始快照、无持久化重放；订阅响应在事件之前入队。每次调用创建独立 owner，
@@ -586,7 +621,17 @@ subscriptionId，info.lifecycle 为 draining。可通过 server.info 主动读�
 心跳需要协商 `session.heartbeat`，使用 event 信封：
 
 ```json
-{"type":"event","method":"session.heartbeat","params":{"deviceType":"web","focusedAgentId":null,"focusedTerminalId":null,"lastActivityAt":"2026-09-24T00:00:00.000Z","appVisible":true}}
+{
+  "type": "event",
+  "method": "session.heartbeat",
+  "params": {
+    "deviceType": "web",
+    "focusedAgentId": null,
+    "focusedTerminalId": null,
+    "lastActivityAt": "2026-09-24T00:00:00.000Z",
+    "appVisible": true
+  }
+}
 ```
 
 时间使用 RFC3339；可选 appVisibilityChangedAt 也需合法。未来 lastActivityAt 在接收时截断，
@@ -594,7 +639,6 @@ subscriptionId，info.lifecycle 为 draining。可通过 server.info 主动读�
 活动、启用 notifications 的订阅连接得到一次 shouldNotify=true。其余订阅仍收到状态事件。
 无心跳或过期连接的 shouldNotify=false；不投递 push，不自动清除 Agent attention，
 focusedTerminalId 仅兼容解析。这里的 Session 表示连接协议，不是领域 Message 引用。
-
 
 ## Terminal PTY
 
