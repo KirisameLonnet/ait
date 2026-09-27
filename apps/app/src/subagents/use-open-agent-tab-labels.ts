@@ -1,5 +1,5 @@
-import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
-import { getOpenAgentTabLabel } from "@getpaseo/protocol/agent-labels";
+import type { DaemonClient } from "@ait/client/internal/daemon-client";
+import { getOpenAgentTabLabel } from "@ait/protocol/agent-labels";
 import { useEffect, useRef, useState } from "react";
 import { useSessionStore } from "@/stores/session-store";
 import { getOrCreateClientId } from "@/utils/client-id";

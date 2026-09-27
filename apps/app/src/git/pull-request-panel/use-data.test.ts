@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type {
-  CheckoutPrStatusResponse,
-  PullRequestTimelineResponse,
-} from "@getpaseo/protocol/messages";
+import type { CheckoutPrStatusResponse, PullRequestTimelineResponse } from "@ait/protocol/messages";
 import {
   createInMemoryUnsupportedTimelineRegistry,
   extractPrRepoIdentity,

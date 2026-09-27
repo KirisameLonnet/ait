@@ -1,5 +1,7 @@
 # 概念与架构文档
 
+- [ADR-063：Ait 本地 UI 包与原生测试连接](decisions/adr-063-ait-local-ui-packages.md)：私有 `@ait/*` workspace、本地源码依赖、移除退役包及 Maestro Ait 认证连接；[验证报告](reports/ait-local-ui-packages.md)。
+
 - [Paseo 0.10.0-beta.1 API 对照与搜索移植](reports/paseo-api-update-2026-09-28.md)：205 个入站名称保持不变，移植聊天搜索命中计数、Markdown 搜索和整段聊天导航，记录认证及 relay API 的取舍与验证。
 
 - [Ait 0.0.7 同版本重建发布（2026-09-28）](reports/release-0.0.7-rebuild-2026-09-28.md)：最新 main 的更新内容、安装说明、构建来源与发布校验记录。

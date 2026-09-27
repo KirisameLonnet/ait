@@ -1,4 +1,4 @@
-import type { AgentTimelineSearchPayload } from "@getpaseo/client/internal/daemon-client";
+import type { AgentTimelineSearchPayload } from "@ait/client/internal/daemon-client";
 import type { StreamItem } from "@/types/stream";
 
 // The host estimates occurrences until the client verifies the displayed message.

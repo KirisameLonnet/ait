@@ -5,8 +5,8 @@ import {
 } from "@/desktop/daemon/desktop-daemon-transport";
 import { buildRustClientConfig, buildRustSshClientConfig } from "@/runtime/rust-server/connection";
 import type { HostConnection } from "@/types/host-connection";
-import type { DaemonClientConfig } from "@getpaseo/client/internal/daemon-client";
-import { DaemonClient } from "@getpaseo/client/internal/daemon-client";
+import type { DaemonClientConfig } from "@ait/client/internal/daemon-client";
+import { DaemonClient } from "@ait/client/internal/daemon-client";
 import { resolveAppVersion } from "./app-version";
 import { getOrCreateClientId } from "./client-id";
 

@@ -1,5 +1,5 @@
 import { deriveProjectName } from "@/utils/agent-grouping";
-import type { ProjectPlacementPayload } from "@getpaseo/protocol/messages";
+import type { ProjectPlacementPayload } from "@ait/protocol/messages";
 
 function normalizeWorkingDirectory(cwd: string): string {
   const trimmed = cwd.trim();

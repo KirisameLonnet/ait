@@ -4,9 +4,9 @@ import type {
   AgentTimelineItem,
   JsonValue,
   ToolCallDetail,
-} from "@getpaseo/protocol/agent-types";
-import type { AgentAttachment, AgentStreamEventPayload } from "@getpaseo/protocol/messages";
-import { timelineItemIdentity } from "@getpaseo/protocol/timeline-identity";
+} from "@ait/protocol/agent-types";
+import type { AgentAttachment, AgentStreamEventPayload } from "@ait/protocol/messages";
+import { timelineItemIdentity } from "@ait/protocol/timeline-identity";
 import { extractTaskEntriesFromToolCall } from "../utils/tool-call-parsers";
 
 /**

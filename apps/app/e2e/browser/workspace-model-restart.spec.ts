@@ -1,4 +1,4 @@
-import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
+import type { DaemonClient } from "@ait/client/internal/daemon-client";
 import { expect, test } from "../support/fixtures";
 import { connectDaemonClient } from "../support/helpers/daemon-client-loader";
 import { reloadPreservingHostRegistry } from "../support/helpers/hosts";

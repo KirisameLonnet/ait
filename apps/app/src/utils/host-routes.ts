@@ -1,4 +1,4 @@
-import { buildAgentDeepLinkRoute } from "@getpaseo/protocol/agent-deep-link";
+import { buildAgentDeepLinkRoute } from "@ait/protocol/agent-deep-link";
 import { Buffer } from "buffer";
 
 type NullableString = string | null | undefined;

@@ -65,9 +65,9 @@ import {
   type ConnectionState,
   type DaemonClientConfig,
   type FetchAgentsOptions,
-} from "@getpaseo/client/internal/daemon-client";
-import { BROWSER_AUTOMATION_COMMAND_NAMES } from "@getpaseo/protocol/browser-automation/rpc-schemas";
-import { CLIENT_CAPS } from "@getpaseo/protocol/client-capabilities";
+} from "@ait/client/internal/daemon-client";
+import { BROWSER_AUTOMATION_COMMAND_NAMES } from "@ait/protocol/browser-automation/rpc-schemas";
+import { CLIENT_CAPS } from "@ait/protocol/client-capabilities";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import equal from "fast-deep-equal/es6";
 import { useMemo, useSyncExternalStore } from "react";

@@ -1,81 +1,39 @@
-# @getpaseo/client
+# @ait/client
 
-Repository-local TypeScript library for building integrations on top of a Paseo daemon.
+Private, repository-local Ait client compatibility library. All implementation
+source lives in `packages/client/src` and is built from this checkout. Consumers
+use `file:` dependencies; no Paseo SDK is fetched from npm.
 
-The source lives in `packages/client/src`, imported from
+The initial source was imported from
 `getpaseo/paseo@2c8e8a826810337492cc5a38bb0bbd705b6fb632` (`0.9.0-beta.2`).
-The package name is retained for existing imports; it does not select an npm registry copy.
-Consumers use explicit `file:` dependencies, and this library plus its local protocol
-dependency are private workspace packages. Relay/E2EE transport has been removed. The upstream license is retained in
-[paseo/LICENSE](../../paseo/LICENSE).
+Original attribution is preserved in [paseo/LICENSE](../../paseo/LICENSE).
+Relay/E2EE transport has been removed.
 
-## Build and use locally
+## Local build
 
-Run from the repository root:
-
-```bash
+```sh
 npm ci
+npm run verify:local-packages
 npm run build:sdk
-npm run test:sdk
 ```
 
-`build:sdk` builds protocol schemas and the client, including JavaScript and
-TypeScript declarations under each package's `dist/`. App and desktop builds run this step
-automatically. After editing SDK source, rebuild it; `npm run watch:client` watches client
-source once the dependencies have been built. `test:sdk` builds the libraries and runs their
-local protocol and client tests.
+The App dependency is `"@ait/client": "file:../../packages/client"`; this package
+in turn consumes `"@ait/protocol": "file:../protocol"`. `build:sdk` generates
+JavaScript and TypeScript declarations under each package's `dist/`.
 
-For an app under `apps/`, declare the local library as:
+## Connecting to Ait
 
-```json
-{
-  "dependencies": {
-    "@getpaseo/client": "file:../../packages/client"
-  }
-}
-```
+The library retains the compatibility client API and wire types. Ait uses its
+Rust v1 protocol, so App and native test consumers must supply the production
+[transport adapter](../../apps/app/src/runtime/rust-server/transport.ts),
+connect to `/v1/ws`, and provide the server's Bearer token. Browser connections
+use the production ticket transport. Package renaming alone does not replace
+this adapter.
 
-The public library entry point remains:
+[Maestro's connection helper](../../apps/app/maestro/support/ait-client.ts) shows
+a Node connection using the local `@ait/client/internal/*` modules and the same
+Rust adapter. [App E2E](../../apps/app/e2e/README.md) starts an isolated Ait server.
 
-```ts
-import { createPaseoClient } from "@getpaseo/client";
-
-const client = createPaseoClient({ url: "ws://127.0.0.1:6767/ws" });
-await client.connect();
-
-const agent = await client.agents.create({
-  config: { provider: "codex/gpt-5.5" },
-  cwd: "/Users/me/dev/storefront",
-  prompt: "Review the current diff and name the riskiest change.",
-});
-
-const result = await agent.waitForFinish();
-console.log(result.lastMessage);
-
-await client.close();
-```
-
-The public API is the package root. Imports under `@getpaseo/client/internal/*` are unsupported implementation details used by Paseo's own packages.
-
-Read the [SDK documentation](https://paseo.sh/docs/sdk) for agents, workspaces, terminals, provider discovery, events, recipes, and the API reference. Runnable TypeScript patterns also live in [`examples/`](./examples/README.md).
-
-## Runtime
-
-This library still speaks the Paseo daemon protocol. The repository's Rust server uses a
-different wire protocol; the app currently supplies the adapter in
-[`apps/app/src/runtime/rust-server`](../../apps/app/src/runtime/rust-server).
-The `/ws` example above targets a compatible Paseo daemon, not the desktop-managed Rust
-server. Relay URLs are rejected; use a direct Ait connection.
-
-The client needs a WebSocket implementation. Modern browsers and Node.js 22 provide one globally.
-
-Use a WebSocket URL ending in `/ws`, such as `ws://127.0.0.1:6767/ws`. Pass `password` when the daemon requires authentication.
-
-The client advertises its supported protocol capabilities by default. Optional `capabilities`
-overrides extend or override that declaration; browser hosting must be supplied by the caller.
-Connecting alone does not subscribe to agent timelines or catalog events. See the
-[event guide](https://paseo.sh/docs/sdk/events) for subscription lifetimes and timeline replacements.
-
-## Stability
-
-The high-level API exported from `@getpaseo/client` is the supported SDK surface. The SDK and daemon remain protocol-compatible across versions, but newly added capabilities can require a newer daemon.
+The high-level client API and examples inherited from Paseo still use compatibility
+names such as `createPaseoClient`; those names are not independent Ait transport
+implementations. Imports and workspace builds now consistently use `@ait/*`.

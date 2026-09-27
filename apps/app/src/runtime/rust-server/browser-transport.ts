@@ -1,7 +1,7 @@
 import {
   createWebSocketTransportFactory,
   defaultWebSocketFactory,
-} from "@getpaseo/client/internal/daemon-client-websocket-transport";
+} from "@ait/client/internal/daemon-client-websocket-transport";
 import type { Transport, TransportFactory } from "./types";
 
 /** Exchange the Bearer token for a single-use, origin-bound WebSocket ticket. */

@@ -9,12 +9,12 @@ import {
 import { orderCheckoutDiffFiles } from "@/git/diff-order";
 import { shareCheckoutDiff } from "@/git/diff-sharing";
 import { agentCommandsQueryRoot } from "@/hooks/agent-commands-query";
-import type { OwnedSubscription } from "@getpaseo/client";
+import type { OwnedSubscription } from "@ait/client";
 import type {
   ListTerminalsResponse,
   MutableDaemonConfig,
   SessionOutboundMessage,
-} from "@getpaseo/protocol/messages";
+} from "@ait/protocol/messages";
 import type { Query, QueryCacheNotifyEvent, QueryClient, QueryKey } from "@tanstack/react-query";
 
 type ProvidersSnapshotUpdateMessage = Extract<
@@ -71,10 +71,10 @@ export interface ServerDataQueryMeta extends Record<string, unknown> {
 export type ProvidersSnapshotUpdate = ProvidersSnapshotUpdateMessage;
 
 interface ServerDataPushClient {
-  getProvidersSnapshot: import("@getpaseo/client/internal/daemon-client").DaemonClient["getProvidersSnapshot"];
-  observeEvents: import("@getpaseo/client/internal/daemon-client").DaemonClient["observeEvents"];
-  observeCheckoutDiff: import("@getpaseo/client/internal/daemon-client").DaemonClient["observeCheckoutDiff"];
-  observeTerminals: import("@getpaseo/client/internal/daemon-client").DaemonClient["observeTerminals"];
+  getProvidersSnapshot: import("@ait/client/internal/daemon-client").DaemonClient["getProvidersSnapshot"];
+  observeEvents: import("@ait/client/internal/daemon-client").DaemonClient["observeEvents"];
+  observeCheckoutDiff: import("@ait/client/internal/daemon-client").DaemonClient["observeCheckoutDiff"];
+  observeTerminals: import("@ait/client/internal/daemon-client").DaemonClient["observeTerminals"];
 }
 
 interface PushRouterInput {

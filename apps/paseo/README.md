@@ -19,7 +19,7 @@ is shipped. See [release operations](../../docs/operations/releasing.md).
 With the desktop development server running, run:
 
 ```sh
-EXPO_DEV_URL=http://localhost:8082 npm run test:e2e:settings-rust --workspace=@getpaseo/desktop
+EXPO_DEV_URL=http://localhost:8082 npm run test:e2e:settings-rust --workspace=@ait/desktop
 ```
 
 The test launches a separate Electron profile and Rust data directory, visits all 20 settings pages,
@@ -36,7 +36,7 @@ and reads it when starting the server. Saving does not interrupt the current ser
 The default is `127.0.0.1:0`; port `0` selects an available port. IPv4, IPv6, wildcard
 and LAN addresses are supported. `AIT_SERVER_LISTEN` overrides the saved setting.
 
-With the development server running, `npm run test:e2e:server-listen --workspace=@getpaseo/desktop`
+With the development server running, `npm run test:e2e:server-listen --workspace=@ait/desktop`
 checks the form, persisted configuration and connection recovery across three desktop launches.
 See [the implementation report](../../docs/reports/desktop-server-listen.md) for validation.
 

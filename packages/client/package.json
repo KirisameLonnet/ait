@@ -1,8 +1,8 @@
 {
-  "name": "@getpaseo/client",
+  "name": "@ait/client",
   "version": "0.0.7",
   "private": true,
-  "description": "Paseo client SDK package",
+  "description": "Ait repository-local client and compatibility SDK",
   "files": [
     "dist",
     "!dist/**/*.map",
@@ -29,7 +29,7 @@
   },
   "scripts": {
     "clean": "node ../../scripts/clean-package-dist.mjs",
-    "build": "npm run build --workspace=@getpaseo/protocol && tsc -p tsconfig.json --incremental false",
+    "build": "npm run build --workspace=@ait/protocol && tsc -p tsconfig.json --incremental false",
     "build:clean": "npm run clean && npm run build",
     "prepack": "npm run build:clean",
     "typecheck": "tsgo --noEmit",
@@ -37,7 +37,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@getpaseo/protocol": "file:../protocol",
+    "@ait/protocol": "file:../protocol",
     "zod": "^4.4.3"
   },
   "devDependencies": {

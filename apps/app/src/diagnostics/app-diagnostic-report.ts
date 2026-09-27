@@ -1,6 +1,6 @@
 import type { HostRuntimeSnapshot } from "@/runtime/host-runtime";
 import type { HostConnection, HostProfile } from "@/types/host-connection";
-import type { ServerInfoStatusPayload } from "@getpaseo/protocol/messages";
+import type { ServerInfoStatusPayload } from "@ait/protocol/messages";
 
 interface DiagnosticEntry {
   label: string;

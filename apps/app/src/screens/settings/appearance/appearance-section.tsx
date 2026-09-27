@@ -32,11 +32,7 @@ import {
   THEME_SWATCHES,
   type Theme,
 } from "@/styles/theme";
-import {
-  SYNTAX_THEME_OPTIONS,
-  type SyntaxThemeId,
-  type SyntaxThemeOption,
-} from "@getpaseo/highlight";
+import { SYNTAX_THEME_OPTIONS, type SyntaxThemeId, type SyntaxThemeOption } from "@ait/highlight";
 import type { TFunction } from "i18next";
 import { ChevronDown, Monitor, Moon, Sun } from "lucide-react-native";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";

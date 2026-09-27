@@ -1,7 +1,7 @@
-import type { WorkspaceLabelDefinition } from "@getpaseo/protocol/workspace-labels";
-import { workspaceLabelKey } from "@getpaseo/protocol/workspace-labels";
-import type { WorkspaceLabelListPayload } from "@getpaseo/client/internal/daemon-client";
-import type { SessionOutboundMessage } from "@getpaseo/protocol/messages";
+import type { WorkspaceLabelDefinition } from "@ait/protocol/workspace-labels";
+import { workspaceLabelKey } from "@ait/protocol/workspace-labels";
+import type { WorkspaceLabelListPayload } from "@ait/client/internal/daemon-client";
+import type { SessionOutboundMessage } from "@ait/protocol/messages";
 
 type WorkspaceLabelUpdate = Extract<SessionOutboundMessage, { type: "workspace.label.update" }>;
 

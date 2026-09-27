@@ -79,10 +79,11 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
+      - run: npm run verify:local-packages
       - run: npm run verify:release
       - run: npm run test:release
-      - run: npm run build:paseo
-      - run: npm run test --workspace=@getpaseo/protocol
-      - run: npm run typecheck --workspace=@getpaseo/desktop --workspace=@getpaseo/app
-      - run: npm test --workspace=@getpaseo/desktop
-      - run: npm run test --workspace=@getpaseo/app -- src/i18n/resources.test.ts src/runtime/rust-server native-release-version.test.ts
+      - run: npm run build:desktop-main
+      - run: npm run test --workspace=@ait/protocol
+      - run: npm run typecheck --workspace=@ait/desktop --workspace=@ait/app
+      - run: npm test --workspace=@ait/desktop
+      - run: npm run test --workspace=@ait/app -- src/i18n/resources.test.ts src/runtime/rust-server maestro/support native-release-version.test.ts

@@ -180,9 +180,9 @@ import {
 } from "@/workspace/file-open";
 import { WorkspaceFocusProvider } from "@/workspace/focus";
 import { WorkspaceOpenInEditorButton } from "@/workspace/open-in-editor/button";
-import { getOpenAgentTabLabel } from "@getpaseo/protocol/agent-labels";
-import type { JsonValue } from "@getpaseo/protocol/agent-types";
-import type { TerminalProfile } from "@getpaseo/protocol/messages";
+import { getOpenAgentTabLabel } from "@ait/protocol/agent-labels";
+import type { JsonValue } from "@ait/protocol/agent-types";
+import type { TerminalProfile } from "@ait/protocol/messages";
 import { useIsFocused } from "@react-navigation/native";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Clipboard from "expo-clipboard";

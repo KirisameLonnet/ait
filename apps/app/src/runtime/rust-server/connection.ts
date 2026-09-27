@@ -1,6 +1,6 @@
 import { buildDesktopDaemonTransportUrl } from "@/desktop/daemon/desktop-daemon-transport";
 import type { DesktopDaemonTransportTarget } from "@/desktop/daemon/desktop-daemon";
-import { createWebSocketTransportFactory } from "@getpaseo/client/internal/daemon-client-websocket-transport";
+import { createWebSocketTransportFactory } from "@ait/client/internal/daemon-client-websocket-transport";
 import { buildDaemonWebSocketUrl } from "@/utils/daemon-endpoints";
 import { isWeb } from "@/constants/platform";
 import { createAppWebSocketFactory } from "../websocket-factory";

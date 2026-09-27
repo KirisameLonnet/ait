@@ -16,9 +16,9 @@ describe("desktop dev process ownership", () => {
     );
     const devScript = readFileSync(new URL("./dev.sh", import.meta.url), "utf8");
 
-    expect(rootPackage.scripts["dev:paseo"]).toBe("npm run dev --workspace=@getpaseo/desktop");
+    expect(rootPackage.scripts["dev:desktop"]).toBe("npm run dev --workspace=@ait/desktop");
     expect(desktopPackage.scripts.dev).toBe("./scripts/dev.sh");
-    expect(devScript).toContain('npm --prefix "$ROOT_DIR" run build:paseo');
+    expect(devScript).toContain('npm --prefix "$ROOT_DIR" run build:desktop-main');
     expect(devScript).toContain('exec node "$SCRIPT_DIR/dev-runner.mjs"');
   });
 

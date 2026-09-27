@@ -3,7 +3,7 @@ import {
   ServerListenSchema,
   parseServerListen,
   serverConnectAddress,
-} from "@getpaseo/protocol/server-listen";
+} from "@ait/protocol/server-listen";
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { appendFileSync, mkdirSync } from "node:fs";

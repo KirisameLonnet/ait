@@ -5,7 +5,7 @@ Rust/Cargo and Python 3 are required. Global setup builds the frontend dependenc
 `server-bin`, warms Metro, then starts one isolated Ait server per Playwright worker.
 
 ```sh
-npm run test:e2e --workspace=@getpaseo/app -- e2e/browser/ait-server.spec.ts e2e/browser/workspace-model-restart.spec.ts e2e/browser/daemon-lifecycle.spec.ts
+npm run test:e2e --workspace=@ait/app -- e2e/browser/ait-server.spec.ts e2e/browser/workspace-model-restart.spec.ts e2e/browser/daemon-lifecycle.spec.ts
 ```
 
 `E2E_AIT_SERVER_BIN=/absolute/path/to/server` skips the Cargo build. The binary must

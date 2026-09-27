@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CheckoutStatusUpdate } from "@getpaseo/protocol/messages";
+import type { CheckoutStatusUpdate } from "@ait/protocol/messages";
 import {
   checkoutCommitsQueryKey,
   checkoutPrStatusQueryKey,

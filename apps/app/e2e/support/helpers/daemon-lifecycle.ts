@@ -1,4 +1,4 @@
-import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
+import type { DaemonClient } from "@ait/client/internal/daemon-client";
 import { expect, type Page } from "@playwright/test";
 import { openSettings } from "./app";
 import { connectDaemonClient } from "./daemon-client-loader";

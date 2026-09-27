@@ -1,5 +1,5 @@
-import type { CreatePaseoWorktreeInput } from "@getpaseo/client/internal/daemon-client";
-import type { ForgeSearchItem } from "@getpaseo/protocol/messages";
+import type { CreatePaseoWorktreeInput } from "@ait/client/internal/daemon-client";
+import type { ForgeSearchItem } from "@ait/protocol/messages";
 import type { ComboboxOptionModel } from "@/components/ui/combobox-options";
 import { getForgePresentation } from "@/git/forge";
 

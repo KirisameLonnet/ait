@@ -54,8 +54,8 @@ const plugin = {
     build.onResolve({ filter: /^ws$/ }, () => ({
       path: path.join(work, "ws.cjs"),
     }));
-    build.onResolve({ filter: /^@getpaseo\// }, ({ path: name }) => {
-      let [pkg, ...rest] = name.slice("@getpaseo/".length).split("/");
+    build.onResolve({ filter: /^@ait\// }, ({ path: name }) => {
+      let [pkg, ...rest] = name.slice("@ait/".length).split("/");
       if (rest[0] === "internal") rest.shift();
       return {
         path: path.join(upstream, "packages", pkg, "src", (rest.join("/") || "index") + ".ts"),
@@ -320,16 +320,16 @@ async function runIntegration() {
 
 function runUnitTests() {
   const aliases = ["daemon-endpoints", "connection-offer", "ssh-transport"].map((name) => ({
-    find: "@getpaseo/protocol/" + name,
+    find: "@ait/protocol/" + name,
     replacement: path.join(upstream, "packages/protocol/src", name + ".ts"),
   }));
   aliases.push(
     {
-      find: "@getpaseo/client/internal/daemon-client",
+      find: "@ait/client/internal/daemon-client",
       replacement: path.join(work, "sdk.cjs"),
     },
     {
-      find: "@getpaseo/client/internal/daemon-client-websocket-transport",
+      find: "@ait/client/internal/daemon-client-websocket-transport",
       replacement: path.join(upstream, "packages/client/src/daemon-client-websocket-transport.ts"),
     },
     { find: "@", replacement: path.join(repo, "apps/app/src") },

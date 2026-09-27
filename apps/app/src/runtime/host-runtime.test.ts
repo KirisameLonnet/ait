@@ -10,9 +10,9 @@ import type {
   DaemonClient,
   FetchAgentsEntry,
   FetchAgentsOptions,
-} from "@getpaseo/client/internal/daemon-client";
-import type { AgentPermissionRequest } from "@getpaseo/protocol/agent-types";
-import type { SessionOutboundMessage } from "@getpaseo/protocol/messages";
+} from "@ait/client/internal/daemon-client";
+import type { AgentPermissionRequest } from "@ait/protocol/agent-types";
+import type { SessionOutboundMessage } from "@ait/protocol/messages";
 import type { AppStateStatus } from "react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {

@@ -1,4 +1,4 @@
-import type { BrowserAutomationDialogEvent } from "@getpaseo/protocol/browser-automation/rpc-schemas";
+import type { BrowserAutomationDialogEvent } from "@ait/protocol/browser-automation/rpc-schemas";
 
 export const MAX_DIALOGS_PER_COMMAND = 20;
 

@@ -1,8 +1,8 @@
 {
-  "name": "@getpaseo/protocol",
+  "name": "@ait/protocol",
   "version": "0.0.7",
   "private": true,
-  "description": "Paseo shared protocol schemas and wire types",
+  "description": "Ait repository-local schemas and compatibility wire types",
   "files": [
     "dist",
     "!dist/**/*.map",

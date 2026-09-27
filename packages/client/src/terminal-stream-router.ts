@@ -2,8 +2,8 @@ import {
   decodeTerminalSnapshotPayload,
   TerminalStreamOpcode,
   type TerminalStreamFrame,
-} from "@getpaseo/protocol/binary-frames/index";
-import type { TerminalState } from "@getpaseo/protocol/messages";
+} from "@ait/protocol/binary-frames/index";
+import type { TerminalState } from "@ait/protocol/messages";
 
 export type TerminalStreamEvent = { terminalId: string; subscriptionId: string } & (
   | { type: "output"; data: Uint8Array }

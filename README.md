@@ -14,7 +14,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 
 npm ci
-npm run dev:paseo
+npm run dev:desktop
 ```
 
 ## 本地 server
@@ -35,6 +35,7 @@ cargo run -p server-bin --bin server -- --help
 - `crates/server-filesystem`：文件、Git、worktree 和 Forge 操作。
 - `crates/server-provider`：Codex/Claude 原生会话、历史投影与 metadata generation。
 - `crates/server-terminal`、`crates/server-voice`、`crates/server-schedule`、`crates/server-browser`：终端、语音、调度和浏览器能力。
+- `packages/`：本地私有 `@ait/client`、`@ait/protocol`、`@ait/highlight` 与 `@ait/expo-two-way-audio` 源码；内部依赖使用 `file:`，通过 `npm run verify:local-packages` 校验。
 - `apps/paseo`：Electron 桌面与 Rust server 生命周期管理。
 - `apps/app`：桌面、Web 与移动端共享界面。
 

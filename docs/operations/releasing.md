@@ -28,8 +28,8 @@ Cargo.lock、根 package.json、所有活跃 npm workspace 及其 lockfile。然
 npm ci
 npm run verify:release -- v0.0.7
 npm run test:release
-npm run build:paseo
-npm run typecheck --workspace=@getpaseo/desktop --workspace=@getpaseo/app
+npm run build:desktop-main
+npm run typecheck --workspace=@ait/desktop --workspace=@ait/app
 ```
 
 更新根 CHANGELOG.md：该文件

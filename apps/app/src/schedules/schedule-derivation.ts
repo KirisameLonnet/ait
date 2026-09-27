@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
 import { i18n } from "@/i18n/i18next";
-import type { ScheduleSummary } from "@getpaseo/protocol/schedule/types";
+import type { ScheduleSummary } from "@ait/protocol/schedule/types";
 import { describeScheduleCwd } from "@/schedules/schedule-project-targets";
 
 // Derived from existing fields only — no new protocol state. "active"/"paused"

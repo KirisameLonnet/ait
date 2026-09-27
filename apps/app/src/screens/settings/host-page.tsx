@@ -43,11 +43,8 @@ import { resolveAppVersion } from "@/utils/app-version";
 import { confirmDialog } from "@/utils/confirm-dialog";
 import { formatConnectionStatus, getConnectionStatusTone } from "@/utils/daemons";
 import { formatLatency } from "@/utils/latency";
-import type { TerminalProfile } from "@getpaseo/protocol/messages";
-import {
-  DEFAULT_TERMINAL_PROFILES,
-  getTerminalProfileIcon,
-} from "@getpaseo/protocol/terminal-profiles";
+import type { TerminalProfile } from "@ait/protocol/messages";
+import { DEFAULT_TERMINAL_PROFILES, getTerminalProfileIcon } from "@ait/protocol/terminal-profiles";
 import type { TFunction } from "i18next";
 import {
   ArrowDown,

@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { getHostRuntimeStore } from "@/runtime/host-runtime";
 import { router } from "expo-router";
-import type { WorkspaceProjectDescriptorPayload } from "@getpaseo/protocol/messages";
+import type { WorkspaceProjectDescriptorPayload } from "@ait/protocol/messages";
 import {
   ArrowLeft,
   Folder,

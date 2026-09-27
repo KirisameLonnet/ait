@@ -2,14 +2,14 @@ import {
   decodeFileTransferFrame,
   encodeFileTransferFrame,
   FileTransferOpcode,
-} from "@getpaseo/protocol/binary-frames/index";
-import { BROWSER_AUTOMATION_COMMAND_NAMES } from "@getpaseo/protocol/browser-automation/rpc-schemas";
-import { CLIENT_CAPS } from "@getpaseo/protocol/client-capabilities";
+} from "@ait/protocol/binary-frames/index";
+import { BROWSER_AUTOMATION_COMMAND_NAMES } from "@ait/protocol/browser-automation/rpc-schemas";
+import { CLIENT_CAPS } from "@ait/protocol/client-capabilities";
 import {
   encodeTerminalSnapshotPayload,
   encodeTerminalStreamFrame,
   TerminalStreamOpcode,
-} from "@getpaseo/protocol/terminal-stream-protocol";
+} from "@ait/protocol/terminal-stream-protocol";
 import { afterEach, expect, expectTypeOf, test, vi } from "vitest";
 import { z } from "zod";
 import {

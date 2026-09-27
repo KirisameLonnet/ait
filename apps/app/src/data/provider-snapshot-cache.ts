@@ -1,16 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Buffer } from "buffer";
-import {
-  normalizeAgentModelCatalog,
-  type ProviderSnapshotEntry,
-} from "@getpaseo/protocol/agent-types";
+import { normalizeAgentModelCatalog, type ProviderSnapshotEntry } from "@ait/protocol/agent-types";
 import {
   expandProviderSnapshot,
   type CompactProviderSnapshot,
-} from "@getpaseo/protocol/provider-snapshot-codec";
-import { CompactProviderSnapshotSchema } from "@getpaseo/protocol/messages";
+} from "@ait/protocol/provider-snapshot-codec";
+import { CompactProviderSnapshotSchema } from "@ait/protocol/messages";
 import { z } from "zod";
-import type { GetProvidersSnapshotResponseMessage } from "@getpaseo/protocol/messages";
+import type { GetProvidersSnapshotResponseMessage } from "@ait/protocol/messages";
 type SnapshotPayload = GetProvidersSnapshotResponseMessage["payload"];
 
 const CACHE_VERSION = 2;

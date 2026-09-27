@@ -8,18 +8,14 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
-FLOW_TEMPLATE_DIR="$REPO_ROOT/packages/app/maestro"
-SETUP_TEMPLATE="$REPO_ROOT/packages/app/maestro/workspace-create-android-ready-sidebar.yaml"
-FOCUS_TEMPLATE="$REPO_ROOT/packages/app/maestro/workspace-create-android-create-focused.yaml"
-OUT_DIR="/tmp/paseo-workspace-create-android-focus-$(date +%s)"
-VIDEO_DIR="/tmp/paseo-maestro-videos"
-DEVICE_VIDEO="/sdcard/paseo-maestro-workspace-create-focused.mp4"
-LOCAL_VIDEO="$VIDEO_DIR/paseo-maestro-workspace-create-focused.mp4"
-CLIENT_EXPORTS="$REPO_ROOT/packages/client/dist/daemon-client.js"
+SETUP_TEMPLATE="$REPO_ROOT/apps/app/maestro/workspace-create-android-ready-sidebar.yaml"
+FOCUS_TEMPLATE="$REPO_ROOT/apps/app/maestro/workspace-create-android-create-focused.yaml"
+OUT_DIR="/tmp/ait-workspace-create-android-focus-$(date +%s)"
+VIDEO_DIR="/tmp/ait-maestro-videos"
+DEVICE_VIDEO="/sdcard/ait-maestro-workspace-create-focused.mp4"
+LOCAL_VIDEO="$VIDEO_DIR/ait-maestro-workspace-create-focused.mp4"
 
-export PASEO_MAESTRO_APP_ID="${PASEO_MAESTRO_APP_ID:-dev.ait.mobile.debug}"
-export PASEO_MAESTRO_DIRECT_ENDPOINT="${PASEO_MAESTRO_DIRECT_ENDPOINT:-127.0.0.1:6767}"
-export PASEO_MAESTRO_DAEMON_WS_URL="${PASEO_MAESTRO_DAEMON_WS_URL:-ws://127.0.0.1:6767/ws}"
+source "$REPO_ROOT/apps/app/maestro/support/common.sh"
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -28,106 +24,52 @@ require_command() {
   fi
 }
 
-render_flow() {
-  local source="$1"
-  local target="$2"
-  mkdir -p "$(dirname "$target")"
-  perl -0pe '
-    s/\$\{PASEO_MAESTRO_APP_ID\}/$ENV{PASEO_MAESTRO_APP_ID}/g;
-    s/\$\{PASEO_MAESTRO_DIRECT_ENDPOINT\}/$ENV{PASEO_MAESTRO_DIRECT_ENDPOINT}/g;
-    s/\$\{PASEO_MAESTRO_PROJECT_NAME\}/$ENV{PASEO_MAESTRO_PROJECT_NAME}/g;
-  ' "$source" > "$target"
-}
-
 render_flow_tree() {
-  mkdir -p "$OUT_DIR/flows"
-  render_flow "$SETUP_TEMPLATE" "$SETUP_FLOW"
-  render_flow "$FOCUS_TEMPLATE" "$FOCUS_FLOW"
-  for source in "$FLOW_TEMPLATE_DIR"/flows/*.yaml; do
-    render_flow "$source" "$OUT_DIR/flows/$(basename "$source")"
-  done
+  render_flow "$SETUP_TEMPLATE"
+  render_flow "$FOCUS_TEMPLATE"
 }
 
 require_command adb
 require_command git
 require_command maestro
 require_command node
-require_command perl
 
 mkdir -p "$OUT_DIR" "$VIDEO_DIR"
+trap remove_rendered_flows EXIT
 
-if [ ! -f "$CLIENT_EXPORTS" ]; then
-  echo "Missing client build artifact: $CLIENT_EXPORTS" >&2
-  echo "Run: npm run build:client" >&2
-  exit 1
-fi
+ait_maestro check
 
-if [ -z "${PASEO_MAESTRO_PROJECT_PATH:-}" ]; then
-  PROJECT_PARENT="$(mktemp -d /tmp/paseo-maestro-project-XXXXXX)"
+if [ -z "${AIT_MAESTRO_PROJECT_PATH:-}" ]; then
+  PROJECT_PARENT="$(mktemp -d /tmp/ait-maestro-project-XXXXXX)"
   PROJECT_BASENAME="aaa-workspace-create-android-$(basename "$PROJECT_PARENT")"
-  export PASEO_MAESTRO_PROJECT_PATH="$PROJECT_PARENT/$PROJECT_BASENAME"
-  mkdir -p "$PASEO_MAESTRO_PROJECT_PATH"
-  git -C "$PASEO_MAESTRO_PROJECT_PATH" init >/dev/null
-  git -C "$PASEO_MAESTRO_PROJECT_PATH" checkout -b main >/dev/null 2>&1 || true
-  git -C "$PASEO_MAESTRO_PROJECT_PATH" config user.name "Paseo Maestro"
-  git -C "$PASEO_MAESTRO_PROJECT_PATH" config user.email "maestro@getpaseo.local"
-  printf "# Workspace create Android focused recording\n" > "$PASEO_MAESTRO_PROJECT_PATH/README.md"
-  git -C "$PASEO_MAESTRO_PROJECT_PATH" add README.md
-  git -C "$PASEO_MAESTRO_PROJECT_PATH" commit -m "Initial commit" >/dev/null
+  export AIT_MAESTRO_PROJECT_PATH="$PROJECT_PARENT/$PROJECT_BASENAME"
+  mkdir -p "$AIT_MAESTRO_PROJECT_PATH"
+  git -C "$AIT_MAESTRO_PROJECT_PATH" init >/dev/null
+  git -C "$AIT_MAESTRO_PROJECT_PATH" checkout -b main >/dev/null 2>&1 || true
+  git -C "$AIT_MAESTRO_PROJECT_PATH" config user.name "Ait Maestro"
+  git -C "$AIT_MAESTRO_PROJECT_PATH" config user.email "maestro@ait.local"
+  printf "# Workspace create Android focused recording\n" > "$AIT_MAESTRO_PROJECT_PATH/README.md"
+  git -C "$AIT_MAESTRO_PROJECT_PATH" add README.md
+  git -C "$AIT_MAESTRO_PROJECT_PATH" commit -m "Initial commit" >/dev/null
 fi
 
-export PASEO_MAESTRO_PROJECT_NAME="${PASEO_MAESTRO_PROJECT_NAME:-$(basename "$PASEO_MAESTRO_PROJECT_PATH")}"
+export AIT_MAESTRO_PROJECT_NAME="${AIT_MAESTRO_PROJECT_NAME:-$(basename "$AIT_MAESTRO_PROJECT_PATH")}"
 
-SETUP_FLOW="$OUT_DIR/workspace-create-android-ready-sidebar.rendered.yaml"
-FOCUS_FLOW="$OUT_DIR/workspace-create-android-create-focused.rendered.yaml"
+SETUP_FLOW="$OUT_DIR/workspace-create-android-ready-sidebar.yaml"
+FOCUS_FLOW="$OUT_DIR/workspace-create-android-create-focused.yaml"
 render_flow_tree
 
 echo "=== Focused Android Workspace Create Recording ==="
 echo "Output dir: $OUT_DIR"
 echo "Video: $LOCAL_VIDEO"
-echo "Project: $PASEO_MAESTRO_PROJECT_PATH"
-echo "Project name: $PASEO_MAESTRO_PROJECT_NAME"
+echo "Project: $AIT_MAESTRO_PROJECT_PATH"
+echo "Project name: $AIT_MAESTRO_PROJECT_NAME"
 
-adb reverse tcp:6767 tcp:6767 >/dev/null
+reverse_ait_port
 
 echo ""
-echo "Opening project in daemon..."
-REPO_ROOT="$REPO_ROOT" node --input-type=module <<'NODE'
-import { pathToFileURL } from "node:url";
-import WebSocket from "ws";
-
-const repoRoot = process.env.REPO_ROOT;
-const projectPath = process.env.PASEO_MAESTRO_PROJECT_PATH;
-const daemonUrl = process.env.PASEO_MAESTRO_DAEMON_WS_URL;
-if (!repoRoot || !projectPath || !daemonUrl) {
-  throw new Error("Missing required environment for daemon project setup.");
-}
-
-const moduleUrl = pathToFileURL(`${repoRoot}/packages/client/dist/daemon-client.js`).href;
-const { DaemonClient } = await import(moduleUrl);
-const client = new DaemonClient({
-  url: daemonUrl,
-  clientId: `maestro-workspace-create-focus-${Date.now()}`,
-  clientType: "cli",
-  webSocketFactory: (url, options) => new WebSocket(url, { headers: options?.headers }),
-});
-
-try {
-  await client.connect();
-  const payload = await client.openProject(projectPath);
-  if (payload.error || !payload.workspace) {
-    throw new Error(payload.error ?? "openProject returned no workspace");
-  }
-  console.log(
-    JSON.stringify({
-      workspaceId: payload.workspace.id,
-      projectDisplayName: payload.workspace.projectDisplayName,
-    }),
-  );
-} finally {
-  await client.close().catch(() => undefined);
-}
-NODE
+echo "Opening project in Ait..."
+ait_maestro open-project "$AIT_MAESTRO_PROJECT_PATH"
 
 echo ""
 echo "Staging app at open sidebar..."

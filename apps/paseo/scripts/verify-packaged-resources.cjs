@@ -32,7 +32,7 @@ function verifyPackagedResources({ appOutDir, platform, version }) {
   assert.equal(pkg.name, "@ait/desktop", "Release must use Ait's independent package identity");
   assert(
     !listPackage(asar).some((entry) =>
-      /\/node_modules\/@getpaseo\/(?:cli|server)(?:\/|$)/.test(entry),
+      /\/node_modules\/(?:@getpaseo|@ait)\/(?:cli|server|relay|plugin)(?:\/|$)/.test(entry),
     ),
     "Legacy Node server/CLI must not be bundled",
   );

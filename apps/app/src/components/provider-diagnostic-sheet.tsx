@@ -24,9 +24,9 @@ import { useSessionStore } from "@/stores/session-store";
 import { settingsStyles } from "@/styles/settings";
 import { resolveProviderLabel } from "@/utils/provider-definitions";
 import { formatTimeAgo } from "@/utils/time";
-import { compareMatchScores, scoreTextFields } from "@getpaseo/protocol/search/text-match";
-import type { AgentModelDefinition, AgentProvider } from "@getpaseo/protocol/agent-types";
-import type { ProviderProfileModel } from "@getpaseo/protocol/provider-config";
+import { compareMatchScores, scoreTextFields } from "@ait/protocol/search/text-match";
+import type { AgentModelDefinition, AgentProvider } from "@ait/protocol/agent-types";
+import type { ProviderProfileModel } from "@ait/protocol/provider-config";
 import {
   resolveProviderDiscoveredModels,
   type ProviderDiscoveredModelsCache,

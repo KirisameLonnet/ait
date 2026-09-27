@@ -1,13 +1,11 @@
-# @getpaseo/protocol
+# @ait/protocol
 
-Repository-local Paseo protocol schemas, codecs, and wire types, used by the
-[client library](../client/README.md). Build both with `npm run build:sdk` from the repository root.
+Private Ait workspace containing the local schemas, codecs and compatibility wire
+types used by [@ait/client](../client/README.md) and the App Rust transport.
+Source is checked in under `packages/protocol/src`; consumers use explicit `file:`
+dependencies. Build with `npm run build:sdk` from the repository root.
 
-## Stability
-
-This fork is a private workspace package, consumed through `file:` dependencies.
-The upstream package name is retained for existing imports. It is not a stable public API yet.
-
-Schemas, exports, wire helpers, and types may change or disappear in any release
-without advance notice. Use it outside Paseo at your own risk until the package
-is explicitly documented as stable.
+The package namespace is independent from Paseo. Existing wire message names and
+compatibility types are retained; renaming the package does not change the Ait
+Rust protocol or remove the App transport adapter. Upstream attribution remains
+in [paseo/LICENSE](../../paseo/LICENSE).

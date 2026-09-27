@@ -1,6 +1,6 @@
 import { decodeWorkspaceIdFromPathSegment } from "@/utils/host-routes";
-import type { DaemonClient as InternalDaemonClient } from "@getpaseo/client/internal/daemon-client";
-import type { CreateAgentRequestMessage, SessionInboundMessage } from "@getpaseo/protocol/messages";
+import type { DaemonClient as InternalDaemonClient } from "@ait/client/internal/daemon-client";
+import type { CreateAgentRequestMessage, SessionInboundMessage } from "@ait/protocol/messages";
 import { expect, type BrowserContext, type Page } from "@playwright/test";
 import { connectDaemonClient, loadProtocolSchemas } from "./daemon-client-loader";
 import { daemonWsRoutePattern } from "./daemon-port";

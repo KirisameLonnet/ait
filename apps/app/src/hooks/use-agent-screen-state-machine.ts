@@ -1,9 +1,5 @@
 import { useRef } from "react";
-import type {
-  AgentCapabilityFlags,
-  AgentFeature,
-  AgentProvider,
-} from "@getpaseo/protocol/agent-types";
+import type { AgentCapabilityFlags, AgentFeature, AgentProvider } from "@ait/protocol/agent-types";
 import type { ViewedTimelineStatus } from "@/timeline/viewed-timeline-sync";
 
 export interface AgentScreenAgent {

@@ -51,8 +51,8 @@ import type {
   AgentMode,
   AgentModelDefinition,
   AgentProvider,
-} from "@getpaseo/protocol/agent-types";
-import type { AgentProviderDefinition } from "@getpaseo/protocol/provider-manifest";
+} from "@ait/protocol/agent-types";
+import type { AgentProviderDefinition } from "@ait/protocol/provider-manifest";
 import {
   getFeatureHighlightColor,
   getFeatureTooltip,

@@ -10,7 +10,7 @@ import {
   SquareTerminal,
   Wrench,
 } from "lucide-react-native";
-import type { ToolCallDetail } from "@getpaseo/protocol/agent-types";
+import type { ToolCallDetail } from "@ait/protocol/agent-types";
 import { AitLogo } from "@/components/icons/ait-logo";
 import { resolveToolCallIconName, type ToolCallIcon } from "./tool-call-icon-name";
 

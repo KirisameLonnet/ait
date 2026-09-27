@@ -1,7 +1,4 @@
-import {
-  DEFAULT_DESKTOP_SERVER_LISTEN,
-  ServerListenSchema,
-} from "@getpaseo/protocol/server-listen";
+import { DEFAULT_DESKTOP_SERVER_LISTEN, ServerListenSchema } from "@ait/protocol/server-listen";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";

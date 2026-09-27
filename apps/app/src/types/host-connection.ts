@@ -3,19 +3,16 @@ import {
   HostAppearanceSchema,
   type HostAppearance,
 } from "@/hosts/appearance";
-import {
-  normalizeHostPort,
-  normalizeLoopbackToLocalhost,
-} from "@getpaseo/protocol/daemon-endpoints";
+import { normalizeHostPort, normalizeLoopbackToLocalhost } from "@ait/protocol/daemon-endpoints";
 import {
   DirectTcpHostConnectionSchema,
   type DirectTcpHostConnection,
-} from "@getpaseo/protocol/host-connection-schema";
+} from "@ait/protocol/host-connection-schema";
 import {
   DEFAULT_SSH_DAEMON_PORT,
   validatePort,
   validateSshHost,
-} from "@getpaseo/protocol/ssh-transport";
+} from "@ait/protocol/ssh-transport";
 import { z } from "zod";
 
 export { DirectTcpHostConnectionSchema, type DirectTcpHostConnection };

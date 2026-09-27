@@ -1,7 +1,4 @@
-import {
-  DEFAULT_DESKTOP_SERVER_LISTEN,
-  ServerListenSchema,
-} from "@getpaseo/protocol/server-listen";
+import { DEFAULT_DESKTOP_SERVER_LISTEN, ServerListenSchema } from "@ait/protocol/server-listen";
 import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getIsElectron } from "@/constants/platform";

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { DaemonClient, FetchAgentsEntry } from "@getpaseo/client/internal/daemon-client";
-import type { AgentSnapshotPayload } from "@getpaseo/protocol/messages";
-import { PARENT_AGENT_ID_LABEL } from "@getpaseo/protocol/agent-labels";
-import type { AgentPermissionRequest } from "@getpaseo/protocol/agent-types";
+import type { DaemonClient, FetchAgentsEntry } from "@ait/client/internal/daemon-client";
+import type { AgentSnapshotPayload } from "@ait/protocol/messages";
+import { PARENT_AGENT_ID_LABEL } from "@ait/protocol/agent-labels";
+import type { AgentPermissionRequest } from "@ait/protocol/agent-types";
 import { useSessionStore } from "@/stores/session-store";
 import { normalizeAgentSnapshot } from "@/utils/agent-snapshots";
 import { isAgentArchiving, setAgentArchiving } from "@/hooks/use-archive-agent";

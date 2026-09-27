@@ -2,7 +2,7 @@ import {
   isCompleteGitRemote,
   parseGitHubRemoteUrl,
   parseGitRemoteLocation,
-} from "@getpaseo/protocol/git-remote";
+} from "@ait/protocol/git-remote";
 import { shortenPath } from "@/utils/shorten-path";
 import type { TFunction } from "i18next";
 import { i18n } from "@/i18n/i18next";

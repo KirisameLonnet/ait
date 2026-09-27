@@ -12,5 +12,5 @@ if [ -z "${AIT_SERVER_BIN:-}" ]; then
   cargo build --manifest-path "$ROOT_DIR/Cargo.toml" --target-dir "$ROOT_DIR/target" -p server-bin --bin server
   export AIT_SERVER_BIN="$ROOT_DIR/target/debug/server"
 fi
-npm --prefix "$ROOT_DIR" run build:paseo
+npm --prefix "$ROOT_DIR" run build:desktop-main
 exec node "$SCRIPT_DIR/dev-runner.mjs" "$@"
