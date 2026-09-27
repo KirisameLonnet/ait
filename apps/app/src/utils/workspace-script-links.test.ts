@@ -1,5 +1,5 @@
 import type { ActiveConnection } from "@/runtime/host-runtime";
-import type { WorkspaceScriptPayload } from "@getpaseo/protocol/messages";
+import type { WorkspaceScriptPayload } from "@ait/protocol/messages";
 import { describe, expect, it } from "vitest";
 import { resolveWorkspaceScriptLink } from "./workspace-script-links";
 

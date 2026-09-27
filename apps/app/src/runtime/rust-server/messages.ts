@@ -1,5 +1,5 @@
-import { ProviderSnapshotEntrySchema } from "@getpaseo/protocol/messages";
-import { compactProviderSnapshot } from "@getpaseo/protocol/provider-snapshot-codec";
+import { ProviderSnapshotEntrySchema } from "@ait/protocol/messages";
+import { compactProviderSnapshot } from "@ait/protocol/provider-snapshot-codec";
 import { object, type Payload } from "./types";
 
 export function session(type: string, payload: Payload): Payload {

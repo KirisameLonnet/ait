@@ -102,7 +102,7 @@ import { encodeImages } from "@/utils/encode-images";
 import { openExternalUrl } from "@/utils/open-external-url";
 import { RenderProfile } from "@/utils/render-profiler";
 import { focusWithRetries } from "@/utils/web-focus";
-import type { ForgeSearchItem } from "@getpaseo/protocol/messages";
+import type { ForgeSearchItem } from "@ait/protocol/messages";
 import * as Clipboard from "expo-clipboard";
 import type { TFunction } from "i18next";
 import {

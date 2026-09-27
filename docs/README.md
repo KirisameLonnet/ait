@@ -1,5 +1,7 @@
 # 概念与架构文档
 
+- [ADR-063：Ait 本地 UI 包与原生测试连接](decisions/adr-063-ait-local-ui-packages.md)：私有 `@ait/*` workspace、本地源码依赖、移除退役包及 Maestro Ait 认证连接；[验证报告](reports/ait-local-ui-packages.md)。
+
 - [ADR-062：Ait 运行路径与项目配置](decisions/adr-062-ait-runtime-paths.md)：工作区归属采用 server 元数据，`ait.json` 及旧文件读取兼容，清理旧 CLI 与测试启动器，更新项目版权署名；[验证报告](reports/ait-e2e-migration.md)与[提交准备覆盖率](reports/ait-e2e-coverage.md)。
 
 - [ADR-061：App Ait E2E 与移除 relay / 插件](decisions/adr-061-app-ait-e2e-remove-relay-plugin.md)：隔离 Rust server、认证和生产 transport、旧状态迁移；[运行说明](../apps/app/e2e/README.md)。

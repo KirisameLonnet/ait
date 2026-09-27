@@ -53,12 +53,12 @@ import {
   type OpenFileDisposition,
   type WorkspaceFileOpenRequest,
 } from "@/workspace/file-open";
-import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
+import type { DaemonClient } from "@ait/client/internal/daemon-client";
 import type {
   AgentCapabilityFlags,
   AgentPermissionAction,
   AgentPermissionResponse,
-} from "@getpaseo/protocol/agent-types";
+} from "@ait/protocol/agent-types";
 import { useMutation } from "@tanstack/react-query";
 import { Check, ChevronDown, X } from "lucide-react-native";
 import React, {

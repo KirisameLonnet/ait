@@ -1,6 +1,6 @@
-import { DaemonClient } from "@getpaseo/client/internal/daemon-client";
-import { createWebSocketTransportFactory } from "@getpaseo/client/internal/daemon-client-websocket-transport";
-import * as protocolSchemas from "@getpaseo/protocol/messages";
+import { DaemonClient } from "@ait/client/internal/daemon-client";
+import { createWebSocketTransportFactory } from "@ait/client/internal/daemon-client-websocket-transport";
+import * as protocolSchemas from "@ait/protocol/messages";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";

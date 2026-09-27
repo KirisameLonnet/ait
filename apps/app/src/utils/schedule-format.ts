@@ -1,7 +1,7 @@
 import type { TFunction } from "i18next";
 import { i18n } from "@/i18n/i18next";
-import type { ScheduleCadence, ScheduleSummary } from "@getpaseo/protocol/schedule/types";
-import { validateCronExpression } from "@getpaseo/protocol/schedule/cron-expression";
+import type { ScheduleCadence, ScheduleSummary } from "@ait/protocol/schedule/types";
+import { validateCronExpression } from "@ait/protocol/schedule/cron-expression";
 
 export type IntervalUnit = "minutes" | "hours" | "days";
 type CronCadence = Extract<ScheduleCadence, { type: "cron" }>;

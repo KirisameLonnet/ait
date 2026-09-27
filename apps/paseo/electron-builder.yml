@@ -16,15 +16,15 @@ directories:
 files:
   - dist/**/*
   - "!**/*.map"
-  - "!node_modules/@getpaseo/*/src/**"
-  - "!node_modules/@getpaseo/**/*.test.*"
-  - "!node_modules/@getpaseo/**/*.spec.*"
+  - "!node_modules/@ait/*/src/**"
+  - "!node_modules/@ait/**/*.test.*"
+  - "!node_modules/@ait/**/*.spec.*"
   # Workspace packages are symlinked, so anything a dev generates inside them
   # lands in the asar. CI never has these; a local .debug run adds gigabytes.
-  - "!node_modules/@getpaseo/*/.debug/**"
-  - "!node_modules/@getpaseo/*/.tasks/**"
-  - "!node_modules/@getpaseo/*/conversations/**"
-  - "!node_modules/@getpaseo/*/test-results/**"
+  - "!node_modules/@ait/*/.debug/**"
+  - "!node_modules/@ait/*/.tasks/**"
+  - "!node_modules/@ait/*/conversations/**"
+  - "!node_modules/@ait/*/test-results/**"
 extraResources:
   - from: assets/icon.png
     to: icon.png

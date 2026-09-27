@@ -4,7 +4,7 @@ import {
   type StreamItem,
   type UserMessageItem,
 } from "@/types/stream";
-import type { AgentStreamEventPayload } from "@getpaseo/protocol/messages";
+import type { AgentStreamEventPayload } from "@ait/protocol/messages";
 import { describe, expect, it } from "vitest";
 import { buildAgentStreamRenderModel } from "./model";
 import { createStreamPresentation } from "./presentation";

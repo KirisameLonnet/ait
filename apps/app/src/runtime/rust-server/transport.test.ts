@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { DaemonClient } from "@getpaseo/client/internal/daemon-client";
+import { DaemonClient } from "@ait/client/internal/daemon-client";
 import { CHANNEL_CAPABILITIES, createRustServerTransportFactory } from "./transport";
 import { METHODS } from "./methods";
 import type { Payload, TransportFactory } from "./types";

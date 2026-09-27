@@ -12,7 +12,7 @@ if (!$env:AIT_SERVER_BIN) {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     $env:AIT_SERVER_BIN = "$RootDir\target\debug\server.exe"
 }
-npm --prefix "$RootDir" run build:paseo
+npm --prefix "$RootDir" run build:desktop-main
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 node "$PSScriptRoot\dev-runner.mjs" @args
 exit $LASTEXITCODE

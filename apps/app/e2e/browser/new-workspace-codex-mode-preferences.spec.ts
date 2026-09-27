@@ -1,5 +1,5 @@
 import type { FormPreferences } from "@/create-agent-preferences/preferences";
-import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
+import type { DaemonClient } from "@ait/client/internal/daemon-client";
 import { test } from "../support/creation-fixtures";
 import { expect, type Page } from "../support/fixtures";
 import { connectDaemonClient } from "../support/helpers/daemon-client-loader";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { FetchRecentProviderSessionEntry } from "@getpaseo/client/internal/daemon-client";
-import { parseServerInfoStatusPayload } from "@getpaseo/protocol/messages";
+import type { FetchRecentProviderSessionEntry } from "@ait/client/internal/daemon-client";
+import { parseServerInfoStatusPayload } from "@ait/protocol/messages";
 import { serverInfo } from "@/runtime/rust-server/messages";
 import { object } from "@/runtime/rust-server/types";
 import {

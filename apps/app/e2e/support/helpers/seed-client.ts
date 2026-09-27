@@ -1,4 +1,4 @@
-import type { TerminalActivity } from "@getpaseo/protocol/terminal-activity";
+import type { TerminalActivity } from "@ait/protocol/terminal-activity";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { connectDaemonClient } from "./daemon-client-loader";

@@ -1,4 +1,4 @@
-import type { DaemonClientConfig } from "@getpaseo/client/internal/daemon-client";
+import type { DaemonClientConfig } from "@ait/client/internal/daemon-client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DaemonConnectionDependencies, DaemonProbeClient } from "./test-daemon-connection";
 

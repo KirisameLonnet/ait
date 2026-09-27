@@ -8,7 +8,7 @@ import {
   serializeConnectionUri,
   serializeConnectionUriForStorage,
   type HostPortParts,
-} from "@getpaseo/protocol/daemon-endpoints";
+} from "@ait/protocol/daemon-endpoints";
 
 export type { HostPortParts };
 

@@ -22,7 +22,11 @@ export default defineConfig({
         test: {
           name: "unit",
           environment: "node",
-          include: ["src/**/*.{test,spec}.{ts,tsx}", "native-release-version.test.ts"],
+          include: [
+            "src/**/*.{test,spec}.{ts,tsx}",
+            "maestro/**/*.test.ts",
+            "native-release-version.test.ts",
+          ],
           setupFiles: [path.resolve(__dirname, "vitest.setup.ts")],
           exclude: [...configDefaults.exclude, "e2e/**", "src/**/*.browser.{test,spec}.{ts,tsx}"],
         },
@@ -107,14 +111,6 @@ export default defineConfig({
       ".json",
     ],
     alias: [
-      {
-        find: /^@getpaseo\/relay\/e2ee$/,
-        replacement: path.resolve(__dirname, "../../packages/relay/src/e2ee.ts"),
-      },
-      {
-        find: /^@getpaseo\/relay$/,
-        replacement: path.resolve(__dirname, "../../packages/relay/src/index.ts"),
-      },
       { find: "@", replacement: path.resolve(__dirname, "src") },
       // Keep keyboard-controller's imports in Vite so native aliases and platform extensions apply.
       {

@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
 import { i18n } from "@/i18n/i18next";
-import type { ScheduleCadence } from "@getpaseo/protocol/schedule/types";
+import type { ScheduleCadence } from "@ait/protocol/schedule/types";
 import { everyMsToParts } from "@/utils/schedule-format";
 
 type CronCadence = Extract<ScheduleCadence, { type: "cron" }>;

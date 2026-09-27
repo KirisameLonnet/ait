@@ -12,7 +12,7 @@ import {
   buildAgentDeepLinkRoute,
   parseAgentDeepLink,
   type AgentDeepLinkTarget,
-} from "@getpaseo/protocol/agent-deep-link";
+} from "@ait/protocol/agent-deep-link";
 import {
   BrowserWindow,
   ClipboardItem,

@@ -1,5 +1,5 @@
-import { parseHostPort } from "@getpaseo/protocol/daemon-endpoints";
-import type { WorkspaceScriptPayload } from "@getpaseo/protocol/messages";
+import { parseHostPort } from "@ait/protocol/daemon-endpoints";
+import type { WorkspaceScriptPayload } from "@ait/protocol/messages";
 import type { ActiveConnection } from "@/runtime/host-runtime";
 
 export type WorkspaceScriptLinkKind = "public" | "paseo" | "direct";

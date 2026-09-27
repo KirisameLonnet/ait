@@ -29,11 +29,6 @@ for (const directory of packages) {
   check(path, pkg.version);
   check(`package-lock.json:${directory}`, lock.packages[directory]?.version);
 }
-for (const directory of ["packages/expo-two-way-audio"]) {
-  const nested = JSON.parse(await read(`${directory}/package-lock.json`));
-  check(`${directory}/package-lock.json`, nested.version);
-  check(`${directory}/package-lock.json:root`, nested.packages[""]?.version);
-}
 if (problems.length) throw new Error(`Expected Ait ${version}:\n${problems.join("\n")}`);
 console.log(
   `Ait ${version}: release tag, Rust workspace, ${packages.length} local packages and lockfiles agree.`,

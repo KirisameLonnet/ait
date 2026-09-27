@@ -9,11 +9,8 @@ import { ensurePanelsRegistered } from "@/panels/register-panels";
 import { buildSettingsHostSectionRoute } from "@/utils/host-routes";
 import type { WorkspaceTabTarget } from "@/workspace-tabs/model";
 import type { NewTabSelection } from "@/workspace-tabs/new-tab";
-import type { TerminalProfile } from "@getpaseo/protocol/messages";
-import {
-  getTerminalProfileIcon,
-  resolveTerminalProfiles,
-} from "@getpaseo/protocol/terminal-profiles";
+import type { TerminalProfile } from "@ait/protocol/messages";
+import { getTerminalProfileIcon, resolveTerminalProfiles } from "@ait/protocol/terminal-profiles";
 import { useRouter, type Href } from "expo-router";
 import { Globe, SquarePen, SquareTerminal } from "lucide-react-native";
 import {

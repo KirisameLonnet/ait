@@ -55,7 +55,7 @@ import {
 } from "@/stores/workspace-layout-ids";
 import { normalizeWorkspaceTabTarget } from "@/workspace-tabs/identity";
 import type { WorkspaceTab, WorkspaceTabTarget } from "@/workspace-tabs/model";
-import type { JsonValue } from "@getpaseo/protocol/agent-types";
+import type { JsonValue } from "@ait/protocol/agent-types";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import type { z } from "zod";

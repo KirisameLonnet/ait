@@ -26,9 +26,9 @@ describe("desktop packaging", () => {
     const config = readFileSync(join(packageRoot, "electron-builder.yml"), "utf8");
 
     expect(config).toContain("!**/*.map");
-    expect(config).toContain("!node_modules/@getpaseo/*/src/**");
-    expect(config).toContain("!node_modules/@getpaseo/**/*.test.*");
-    expect(config).toContain("!node_modules/@getpaseo/**/*.spec.*");
+    expect(config).toContain("!node_modules/@ait/*/src/**");
+    expect(config).toContain("!node_modules/@ait/**/*.test.*");
+    expect(config).toContain("!node_modules/@ait/**/*.spec.*");
   });
 
   it("bundles the native Rust server as an external resource", () => {
@@ -53,8 +53,8 @@ describe("desktop packaging", () => {
     };
     const deps = pkg.dependencies ?? {};
 
-    expect(deps["@getpaseo/protocol"]).toBe("file:../../packages/protocol");
-    expect(deps["@getpaseo/server"]).toBeUndefined();
-    expect(deps["@getpaseo/cli"]).toBeUndefined();
+    expect(deps["@ait/protocol"]).toBe("file:../../packages/protocol");
+    expect(deps["@ait/server"]).toBeUndefined();
+    expect(deps["@ait/cli"]).toBeUndefined();
   });
 });

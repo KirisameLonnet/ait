@@ -1,5 +1,5 @@
 {
-  "name": "@getpaseo/highlight",
+  "name": "@ait/highlight",
   "version": "0.0.7",
   "files": [
     "dist",
@@ -15,9 +15,6 @@
       "source": "./src/index.ts",
       "default": "./dist/index.js"
     }
-  },
-  "publishConfig": {
-    "access": "public"
   },
   "scripts": {
     "clean": "node ../../scripts/clean-package-dist.mjs",
@@ -51,5 +48,6 @@
   "devDependencies": {
     "typescript": "^5.9.2",
     "vitest": "^4.1.6"
-  }
+  },
+  "private": true
 }

@@ -8,8 +8,8 @@ import {
 } from "@/data/push-router";
 import { checkoutDiffQueryKey } from "@/git/query-keys";
 import { buildTerminalsQueryKey } from "@/screens/workspace/terminals/state";
-import type { OwnedSubscription, SubscriptionObserver } from "@getpaseo/client";
-import type { MutableDaemonConfig, SessionOutboundMessage } from "@getpaseo/protocol/messages";
+import type { OwnedSubscription, SubscriptionObserver } from "@ait/client";
+import type { MutableDaemonConfig, SessionOutboundMessage } from "@ait/protocol/messages";
 import { QueryClient, QueryObserver, skipToken } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 

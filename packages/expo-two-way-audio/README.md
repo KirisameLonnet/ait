@@ -1,4 +1,8 @@
-# Speechmatics Two Way Audio
+# @ait/expo-two-way-audio
+
+Private Ait workspace package, maintained in `packages/expo-two-way-audio`.
+Derived from Speechmatics Two Way Audio and the Paseo fork; the original MIT
+license and native module identity (`ExpoTwoWayAudio`) are retained.
 
 Expo module for capturing and playing pcm audio data in react-native apps (iOS and Android).
 
@@ -12,10 +16,11 @@ The aim of the module is to facilitate creating real-time conversational apps. T
 
 Check out our [examples/](./examples) to see the module in action.
 
-## Installation
+## Build from the repository root
 
 ```
-npm i @speechmatics/expo-two-way-audio
+npm ci
+npm run build:app-deps
 ```
 
 ## Usage
@@ -25,7 +30,7 @@ Please check out our [examples/](./examples) to get full sample code.
 1. Request permissions for recording audio
 
    ```JSX
-   import {useMicrophonePermissions} from "@speechmatics/expo-two-way-audio";
+   import {useMicrophonePermissions} from "@ait/expo-two-way-audio";
 
    const [micPermission, requestMicPermission] = useMicrophonePermissions();
    console.log(micPermission);

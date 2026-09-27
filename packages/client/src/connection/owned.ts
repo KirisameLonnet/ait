@@ -1,4 +1,4 @@
-import type { SessionOutboundMessage } from "@getpaseo/protocol/messages";
+import type { SessionOutboundMessage } from "@ait/protocol/messages";
 
 export type SubscriptionSnapshot<T> = T & { subscriptionId: string };
 

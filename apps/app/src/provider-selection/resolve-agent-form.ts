@@ -1,9 +1,9 @@
-import type { AgentProviderDefinition } from "@getpaseo/protocol/provider-manifest";
+import type { AgentProviderDefinition } from "@ait/protocol/provider-manifest";
 import type {
   AgentModelDefinition,
   AgentProvider,
   ProviderSnapshotEntry,
-} from "@getpaseo/protocol/agent-types";
+} from "@ait/protocol/agent-types";
 import {
   mergeProviderPreferences,
   type FormPreferences,

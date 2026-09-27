@@ -1,8 +1,8 @@
 # NOTE: Render through the workspace-create shell scripts before running when
-# using ${PASEO_MAESTRO_*}. Maestro does not substitute environment vars.
-appId: ${PASEO_MAESTRO_APP_ID}
+# using ${AIT_MAESTRO_*}. Maestro does not substitute environment vars.
+appId: ${AIT_MAESTRO_APP_ID}
 ---
-# Connect to the local daemon only when the app is on the welcome screen.
+# Connect to the Ait server only when the app is on the welcome screen.
 
 - runFlow:
     when:
@@ -18,13 +18,11 @@ appId: ${PASEO_MAESTRO_APP_ID}
           timeout: 10000
 
       - tapOn:
-          id: "direct-host-input"
+          id: "direct-host-advanced-toggle"
+      - tapOn:
+          id: "direct-host-uri-input"
       - eraseText
-      - inputText: ${PASEO_MAESTRO_DIRECT_ENDPOINT}
-
-      - assertVisible:
-          id: "direct-host-input"
-          text: ${PASEO_MAESTRO_DIRECT_ENDPOINT}
+      - inputText: ${AIT_MAESTRO_CONNECTION_URI}
 
       - tapOn:
           id: "direct-host-submit"

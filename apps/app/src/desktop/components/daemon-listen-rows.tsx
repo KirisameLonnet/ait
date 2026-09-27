@@ -2,7 +2,7 @@ import React, { useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { StyleSheet } from "react-native-unistyles";
-import { formatServerListen, parseServerListen } from "@getpaseo/protocol/server-listen";
+import { formatServerListen, parseServerListen } from "@ait/protocol/server-listen";
 import { EditingTextInput } from "@/components/ui/text-input";
 import { settingsStyles } from "@/styles/settings";
 

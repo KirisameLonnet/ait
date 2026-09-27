@@ -1,4 +1,4 @@
-import type { ProjectPlacementPayload } from "@getpaseo/protocol/messages";
+import type { ProjectPlacementPayload } from "@ait/protocol/messages";
 
 export interface AgentWorkingDirectorySource {
   cwd?: string | null;

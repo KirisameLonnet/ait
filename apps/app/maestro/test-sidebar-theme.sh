@@ -6,12 +6,12 @@
 # still works. Runs N iterations to catch intermittent failures.
 #
 # Usage:
-#   bash packages/app/maestro/test-sidebar-theme.sh [iterations] [wait_seconds]
-#   bash packages/app/maestro/test-sidebar-theme.sh 6 1
+#   bash apps/app/maestro/test-sidebar-theme.sh [iterations] [wait_seconds]
+#   bash apps/app/maestro/test-sidebar-theme.sh 6 1
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
-FLOW="$REPO_ROOT/packages/app/maestro/sidebar-theme-repro.yaml"
+FLOW="$REPO_ROOT/apps/app/maestro/sidebar-theme-repro.yaml"
 OUT_DIR="/tmp/sidebar-theme-test-$(date +%s)"
 ITERATIONS="${1:-3}"
 WAIT_SECS="${2:-1}"

@@ -10,7 +10,7 @@ import {
   useExpoTwoWayAudioEventListener,
   useIsRecording,
   useMicrophonePermissions,
-} from "@speechmatics/expo-two-way-audio";
+} from "@ait/expo-two-way-audio";
 import { Button, StyleSheet, Text, View } from "react-native";
 import { Platform } from "react-native";
 

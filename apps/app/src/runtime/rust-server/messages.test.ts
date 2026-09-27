@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseServerInfoStatusPayload } from "@getpaseo/protocol/messages";
+import { parseServerInfoStatusPayload } from "@ait/protocol/messages";
 import { METHODS } from "./methods";
 import { eventMessage, responseMessage, serverInfo } from "./messages";
 import { object } from "./types";

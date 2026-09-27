@@ -3,7 +3,7 @@
 These examples use only the public SDK root:
 
 ```ts
-import { createPaseoClient, type PaseoClient } from "@getpaseo/client";
+import { createPaseoClient, type PaseoClient } from "@ait/client";
 ```
 
 Build the repository-local library first with `npm run build:sdk` from the repository

@@ -2,7 +2,7 @@ import {
   compareMatchScores,
   type MatchScore,
   scoreTextFields,
-} from "@getpaseo/protocol/search/text-match";
+} from "@ait/protocol/search/text-match";
 
 interface CommandAutocompleteEntry {
   command: {

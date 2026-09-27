@@ -1,5 +1,5 @@
 {
-  "name": "@getpaseo/app",
+  "name": "@ait/app",
   "version": "0.0.7",
   "private": true,
   "main": "index.ts",
@@ -50,10 +50,10 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@floating-ui/react-native": "^0.10.7",
-    "@getpaseo/client": "file:../../packages/client",
-    "@getpaseo/expo-two-way-audio": "*",
-    "@getpaseo/highlight": "*",
-    "@getpaseo/protocol": "file:../../packages/protocol",
+    "@ait/client": "file:../../packages/client",
+    "@ait/expo-two-way-audio": "file:../../packages/expo-two-way-audio",
+    "@ait/highlight": "file:../../packages/highlight",
+    "@ait/protocol": "file:../../packages/protocol",
     "@gorhom/bottom-sheet": "^5.2.14",
     "@gorhom/portal": "^1.0.14",
     "@marijn/find-cluster-break": "^1.0.2",
@@ -162,7 +162,8 @@
     "typescript": "~5.9.2",
     "vitest": "^4.1.6",
     "wrangler": "^4.105.0",
-    "ws": "^8.20.0"
+    "ws": "^8.20.0",
+    "tsx": "4.23.13"
   },
   "reanimated": {
     "staticFeatureFlags": {

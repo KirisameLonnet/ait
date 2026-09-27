@@ -15,7 +15,7 @@ import {
   removeSubmittedUserMessage,
   type StreamItem,
 } from "@/types/stream";
-import type { AgentAttachment, ForgeSearchItem } from "@getpaseo/protocol/messages";
+import type { AgentAttachment, ForgeSearchItem } from "@ait/protocol/messages";
 import { describe, expect, it, vi } from "vitest";
 import {
   cancelComposerAgent,

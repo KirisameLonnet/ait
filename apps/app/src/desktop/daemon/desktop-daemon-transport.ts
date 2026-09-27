@@ -1,8 +1,5 @@
-import type {
-  DaemonTransport,
-  DaemonTransportFactory,
-} from "@getpaseo/client/internal/daemon-client";
-import { validatePort, validateSshHost } from "@getpaseo/protocol/ssh-transport";
+import type { DaemonTransport, DaemonTransportFactory } from "@ait/client/internal/daemon-client";
+import { validatePort, validateSshHost } from "@ait/protocol/ssh-transport";
 import { isElectronRuntime } from "@/desktop/host";
 import type { DesktopDaemonTransportTarget } from "./desktop-daemon";
 import {

@@ -56,7 +56,7 @@ const frontend = createServer(async (request, response) => {
 try {
   const compiled = await build({
     stdin: {
-      contents: `export { DaemonClient } from '@getpaseo/client/internal/daemon-client'; export { buildRustClientConfig } from './apps/app/src/runtime/rust-server/connection';`,
+      contents: `export { DaemonClient } from '@ait/client/internal/daemon-client'; export { buildRustClientConfig } from './apps/app/src/runtime/rust-server/connection';`,
       resolveDir: root,
       loader: "ts",
     },

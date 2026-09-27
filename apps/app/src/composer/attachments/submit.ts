@@ -9,7 +9,7 @@ import {
   buildForgeAttachmentFromSearchItem,
   buildLegacyGitHubAttachmentFromSearchItem,
 } from "@/utils/review-attachments";
-import type { AgentAttachment } from "@getpaseo/protocol/messages";
+import type { AgentAttachment } from "@ait/protocol/messages";
 
 export type ComposerAttachmentSubmitFormat = "forge" | "legacy-github";
 

@@ -1,20 +1,24 @@
 {
-  "name": "@getpaseo/expo-two-way-audio",
+  "name": "@ait/expo-two-way-audio",
   "version": "0.0.7",
-  "description": "Native module for two way audio streaming",
+  "description": "Ait local Expo module for two-way audio streaming",
   "keywords": [
     "ExpoTwoWayAudio",
     "expo",
     "expo-two-way-audio",
     "react-native"
   ],
-  "homepage": "https://github.com/boudra/expo-two-way-audio",
+  "homepage": "https://github.com/necokeine/ait",
   "bugs": {
-    "url": "https://github.com/speechmatics/expo-two-way-audio/issues"
+    "url": "https://github.com/necokeine/ait/issues"
   },
   "license": "MIT",
-  "author": "Speechmatics <devrel@speechmatics.com> (https://github.com/speechmatics)",
-  "repository": "https://github.com/boudra/expo-two-way-audio",
+  "author": "Necokeine",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/necokeine/ait.git",
+    "directory": "packages/expo-two-way-audio"
+  },
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "scripts": {
@@ -40,5 +44,9 @@
     "expo": "*",
     "react": "*",
     "react-native": "*"
-  }
+  },
+  "private": true,
+  "contributors": [
+    "Speechmatics <devrel@speechmatics.com> (https://github.com/speechmatics)"
+  ]
 }
