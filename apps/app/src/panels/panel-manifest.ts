@@ -70,8 +70,8 @@ const manifests = {
   },
   plugin: {
     kind: "plugin",
-    // Plugin targets are narrowed by the target-aware plugin panel capability resolver.
-    supportedHosts: ["main", "explorer"],
+    // Retained only to recognize and discard old persisted targets.
+    supportedHosts: [],
     resourceKey: (target) =>
       target.context === "agent"
         ? `${target.pluginId}:${target.panelId}:agent:${target.agentId}`

@@ -1,8 +1,7 @@
 import { test as base, expect, type Page } from "@playwright/test";
-import { startOutdatedDaemon, type OutdatedDaemon } from "./helpers/daemon-update";
-import { startE2EWorker } from "./helpers/e2e-worker";
 import { getE2EDaemonPort } from "./helpers/daemon-port";
 import { buildCreateAgentPreferences, buildSeededHost } from "./helpers/daemon-registry";
+import { startE2EWorker } from "./helpers/e2e-worker";
 import {
   createProjectPickerFixture,
   removeProjectPickerFixture,
@@ -107,9 +106,6 @@ const daemonTest = metroTest.extend<
 
 const test = daemonTest.extend<{
   paseoE2ESetup: void;
-  outdatedDaemon: OutdatedDaemon;
-  desktopManagedOutdatedDaemon: OutdatedDaemon;
-  relayConfigOutdatedDaemon: OutdatedDaemon;
   projectPickerFixture: TrackedProjectPickerFixture;
   withWorkspace: WithWorkspace;
 }>({
@@ -125,9 +121,12 @@ const test = daemonTest.extend<{
 
       // Hard guardrail: never allow tests to hit the developer's default daemon.
       // This blocks both HTTP and WS attempts to :6767 (before any navigation).
-      await page.route(/:(6767)\b/, (route) => route.abort());
-      await page.routeWebSocket(/:(6767)\b/, async (ws) => {
-        await ws.close({ code: 1008, reason: "Blocked connection to localhost:6767 during e2e." });
+      await page.route(/:(6767|6768|7316)\b/, (route) => route.abort());
+      await page.routeWebSocket(/:(6767|6768|7316)\b/, async (ws) => {
+        await ws.close({
+          code: 1008,
+          reason: "Blocked connection to a developer server during E2E.",
+        });
       });
 
       const entries: string[] = [];
@@ -197,24 +196,6 @@ const test = daemonTest.extend<{
     },
     { auto: true },
   ],
-  outdatedDaemon: async ({}, provide) => {
-    const daemon = await startOutdatedDaemon();
-    await provide(daemon);
-    await daemon.close();
-  },
-  desktopManagedOutdatedDaemon: async ({}, provide) => {
-    const daemon = await startOutdatedDaemon({ desktopManaged: true });
-    await provide(daemon);
-    await daemon.close();
-  },
-  relayConfigOutdatedDaemon: async ({}, provide) => {
-    const daemon = await startOutdatedDaemon({
-      daemonStatusRpcCapability: false,
-      relayConfigCapability: false,
-    });
-    await provide(daemon);
-    await daemon.close();
-  },
   projectPickerFixture: async ({}, provide) => {
     const resource = await createProjectPickerFixture();
     const { fixture } = resource;
@@ -246,4 +227,4 @@ const test = daemonTest.extend<{
   },
 });
 
-export { daemonTest, test, metroTest, expect, type Page };
+export { daemonTest, expect, metroTest, test, type Page };

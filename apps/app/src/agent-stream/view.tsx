@@ -1,5 +1,66 @@
 import { ChatFind, ChatFindExpansion } from "@/agent-stream/chat-find";
+import { ChatOutlineRail } from "@/agent-stream/chat-outline/rail";
+import { useChatOutline } from "@/agent-stream/chat-outline/use-chat-outline";
+import {
+  AssistantFileLinkResolverProvider,
+  normalizeInlinePathTarget,
+} from "@/assistant-file-links";
+import { createAssistantImageOccurrenceKey } from "@/assistant-image/acquisition-cache";
+import { AssistantSelectionCopySurface } from "@/assistant-selection-copy/surface";
+import {
+  AssistantMessage,
+  CompactionMarker,
+  MessageOuterSpacingProvider,
+  Notification,
+  SpeakMessage,
+  TodoListCard,
+  ToolCall,
+  UserMessage,
+  type InlinePathTarget,
+} from "@/components/message";
+import { PlanCard } from "@/components/plan-card";
+import { QuestionFormCard } from "@/components/question-form-card";
+import { useRetainedPanelActive } from "@/components/retained-panel";
+import type { ToastApi } from "@/components/toast-host";
+import { ToolCallDetailsContent } from "@/components/tool-call-details";
+import { ToolCallSheetProvider } from "@/components/tool-call-sheet";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import type { PendingMessageSubmission } from "@/composer/submission/model";
+import { MAX_CONTENT_WIDTH, useIsCompactFormFactor } from "@/constants/layout";
+import { isWeb } from "@/constants/platform";
+import type { AgentScreenAgent } from "@/hooks/use-agent-screen-state-machine";
+import { useFileExplorerActions } from "@/hooks/use-file-explorer-actions";
+import { useForkAgent } from "@/hooks/use-fork-agent";
+import { useLoadOlderAgentHistory } from "@/hooks/use-load-older-agent-history";
+import { useRevealedText } from "@/hooks/use-revealed-text";
+import { useSettings } from "@/hooks/use-settings";
+import { useStableEvent } from "@/hooks/use-stable-event";
+import { getHostRuntimeStore } from "@/runtime/host-runtime";
+import { navigateToWorkspace } from "@/stores/navigation-active-workspace-store";
+import { useSessionStore } from "@/stores/session-store";
+import type { Theme } from "@/styles/theme";
+import { planTimelineTailFetch } from "@/timeline/timeline-sync-plan";
+import type { TurnPresentation } from "@/timeline/turn-liveness";
+import { OverviewToolCallGroupView } from "@/tool-calls/detail-level/overview/view";
+import type { PendingPermission } from "@/types/shared";
+import type { StreamItem } from "@/types/stream";
+import { recordRenderProfileReasons } from "@/utils/render-profiler";
+import { openExplorerSidebarView } from "@/workspace-tabs/explorer-sidebar";
+import { buildWorkspaceTabPersistenceKey } from "@/workspace-tabs/model";
+import {
+  createWorkspaceFileTabTarget,
+  normalizeWorkspaceFileLocation,
+  type OpenFileDisposition,
+  type WorkspaceFileOpenRequest,
+} from "@/workspace/file-open";
+import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
+import type {
+  AgentCapabilityFlags,
+  AgentPermissionAction,
+  AgentPermissionResponse,
+} from "@getpaseo/protocol/agent-types";
+import { useMutation } from "@tanstack/react-query";
+import { Check, ChevronDown, X } from "lucide-react-native";
 import React, {
   forwardRef,
   memo,
@@ -14,98 +75,36 @@ import React, {
 } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  View,
-  Text,
-  Pressable,
   Platform,
+  Pressable,
+  Text,
+  View,
   type PressableStateCallbackType,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
-import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import { MAX_CONTENT_WIDTH, useIsCompactFormFactor } from "@/constants/layout";
-import { useMutation } from "@tanstack/react-query";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
-import { Check, ChevronDown, X } from "lucide-react-native";
-import { buildWorkspaceTabPersistenceKey } from "@/workspace-tabs/model";
-import { openExplorerSidebarView } from "@/workspace-tabs/explorer-sidebar";
-import {
-  AssistantMessage,
-  SpeakMessage,
-  UserMessage,
-  Notification,
-  ToolCall,
-  TodoListCard,
-  CompactionMarker,
-  MessageOuterSpacingProvider,
-  type InlinePathTarget,
-} from "@/components/message";
-import { PlanCard } from "@/components/plan-card";
-import type { StreamItem } from "@/types/stream";
-import type { PendingMessageSubmission } from "@/composer/submission/model";
-import type { TurnPresentation } from "@/timeline/turn-liveness";
-import type { PendingPermission } from "@/types/shared";
-import type {
-  AgentCapabilityFlags,
-  AgentPermissionAction,
-  AgentPermissionResponse,
-} from "@getpaseo/protocol/agent-types";
-import type { AgentScreenAgent } from "@/hooks/use-agent-screen-state-machine";
-import { useSessionStore } from "@/stores/session-store";
-import { useRevealedText } from "@/hooks/use-revealed-text";
-import { useFileExplorerActions } from "@/hooks/use-file-explorer-actions";
-import { useLoadOlderAgentHistory } from "@/hooks/use-load-older-agent-history";
-import { useSettings } from "@/hooks/use-settings";
-import type { ToastApi } from "@/components/toast-host";
-import { returnToTimelineTail } from "./timeline-tail-navigation";
-import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
-import { ToolCallDetailsContent } from "@/components/tool-call-details";
-import { QuestionFormCard } from "@/components/question-form-card";
-import { ToolCallSheetProvider } from "@/components/tool-call-sheet";
-import { createStreamPresentation } from "./presentation";
-import { OverviewToolCallGroupView } from "@/tool-calls/detail-level/overview/view";
-import { type AgentStreamRenderModel, buildAgentStreamRenderModel } from "./model";
-import { resolveStreamRenderStrategy } from "./strategy-resolver";
-import { type StreamSegmentRenderers, type StreamViewportHandle } from "./strategy";
-import { ChatOutlineRail } from "@/agent-stream/chat-outline/rail";
-import { useChatOutline } from "@/agent-stream/chat-outline/use-chat-outline";
-import { getHostRuntimeStore } from "@/runtime/host-runtime";
-import { planTimelineTailFetch } from "@/timeline/timeline-sync-plan";
-import {
-  CompletedTurnFooterRow,
-  TurnFooter,
-  TURN_FOOTER_BOTTOM_SPACING,
-  type AssistantTurnForkHandler,
-  type InFlightTurnForkHandler,
-  type TurnContentStrategy,
-} from "./turn-footer";
-import { resolveBottomOverlayTailInset } from "./bottom-overlay-inset";
-import { layoutStream, type StreamLayoutItem } from "./layout";
+import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import {
   type BottomAnchorLocalRequest,
   type BottomAnchorRouteRequest,
 } from "./bottom-anchor-controller";
-import { createAssistantImageOccurrenceKey } from "@/assistant-image/acquisition-cache";
-import { AssistantSelectionCopySurface } from "@/assistant-selection-copy/surface";
+import { resolveBottomOverlayTailInset } from "./bottom-overlay-inset";
+import { layoutStream, type StreamLayoutItem } from "./layout";
+import { buildAgentStreamRenderModel, type AgentStreamRenderModel } from "./model";
+import { createStreamPresentation } from "./presentation";
+import { type StreamSegmentRenderers, type StreamViewportHandle } from "./strategy";
+import { resolveStreamRenderStrategy } from "./strategy-resolver";
+import { returnToTimelineTail } from "./timeline-tail-navigation";
 import {
-  AssistantFileLinkResolverProvider,
-  normalizeInlinePathTarget,
-} from "@/assistant-file-links";
-import {
-  createWorkspaceFileTabTarget,
-  normalizeWorkspaceFileLocation,
-  type OpenFileDisposition,
-  type WorkspaceFileOpenRequest,
-} from "@/workspace/file-open";
-import { navigateToWorkspace } from "@/stores/navigation-active-workspace-store";
-import { useStableEvent } from "@/hooks/use-stable-event";
-import { useForkAgent } from "@/hooks/use-fork-agent";
-import { isWeb } from "@/constants/platform";
-import type { Theme } from "@/styles/theme";
-import { recordRenderProfileReasons } from "@/utils/render-profiler";
-import { useRetainedPanelActive } from "@/components/retained-panel";
+  CompletedTurnFooterRow,
+  TURN_FOOTER_BOTTOM_SPACING,
+  TurnFooter,
+  type AssistantTurnForkHandler,
+  type InFlightTurnForkHandler,
+  type TurnContentStrategy,
+} from "./turn-footer";
 import { useStreamHistoryWindow } from "./use-stream-history-window";
-import { PluginTimelineItemView, useInstalledTimelineTransform } from "@/plugins/timeline";
 
 function renderLiveAuxiliaryNode(input: {
   pendingPermissions: ReactNode;
@@ -373,7 +372,6 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
 
     // Get serverId (fallback to agent's serverId if not provided)
     const resolvedServerId = serverId ?? context.serverId ?? "";
-    const transformTimelineItem = useInstalledTimelineTransform(resolvedServerId);
 
     const client = useSessionStore((state) => state.sessions[resolvedServerId]?.client ?? null);
     const sessionStreamHead = useSessionStore((state) =>
@@ -540,18 +538,10 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
         presentStream({
           tail: effectiveStreamItems,
           head: effectiveStreamHead ?? EMPTY_STREAM_HEAD,
-          transform: transformTimelineItem,
           level: toolCallDetailLevel,
           isTurnActive,
         }),
-      [
-        presentStream,
-        effectiveStreamItems,
-        effectiveStreamHead,
-        transformTimelineItem,
-        toolCallDetailLevel,
-        isTurnActive,
-      ],
+      [presentStream, effectiveStreamItems, effectiveStreamHead, toolCallDetailLevel, isTurnActive],
     );
     const {
       start: historyWindowStart,
@@ -885,9 +875,7 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
             );
 
           case "plugin":
-            return (
-              <PluginTimelineItemView agentId={agentId} item={item} serverId={resolvedServerId} />
-            );
+            return null;
 
           default:
             return null;

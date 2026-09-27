@@ -1,11 +1,11 @@
-import type { Href } from "expo-router";
-import { describe, expect, it } from "vitest";
-import { buildWorkspaceArchiveRedirectRoute } from "@/utils/workspace-archive-navigation";
 import type { WorkspaceDescriptor } from "@/stores/session-store";
+import { buildWorkspaceArchiveRedirectRoute } from "@/utils/workspace-archive-navigation";
 import {
   redirectIfArchivingActiveWorkspace,
   type RedirectIfArchivingActiveWorkspaceDeps,
 } from "@/utils/workspace-archive-redirect";
+import type { Href } from "expo-router";
+import { describe, expect, it } from "vitest";
 
 function workspace(
   input: Partial<WorkspaceDescriptor> & Pick<WorkspaceDescriptor, "id">,
@@ -31,13 +31,13 @@ describe("buildWorkspaceArchiveRedirectRoute", () => {
   it("redirects an archived worktree to the new workspace screen for the same project", () => {
     const workspaces = [
       workspace({ id: "/repo", workspaceKind: "checkout", name: "main" }),
-      workspace({ id: "/repo/.paseo/worktrees/feature", name: "feature" }),
+      workspace({ id: "/repo/.ait-server/worktrees/feature", name: "feature" }),
     ];
 
     expect(
       buildWorkspaceArchiveRedirectRoute({
         serverId: "server-1",
-        archivedWorkspaceId: "/repo/.paseo/worktrees/feature",
+        archivedWorkspaceId: "/repo/.ait-server/worktrees/feature",
         workspaces,
       }),
     ).toBe("/new?serverId=server-1&dir=%2Frepo&name=Project&projectId=project-1");
@@ -46,7 +46,7 @@ describe("buildWorkspaceArchiveRedirectRoute", () => {
   it("redirects to the new workspace route when no sibling workspace target exists", () => {
     const workspaces = [
       workspace({
-        id: "/repo/.paseo/worktrees/feature",
+        id: "/repo/.ait-server/worktrees/feature",
         name: "feature",
         projectRootPath: "/repo",
       }),
@@ -55,7 +55,7 @@ describe("buildWorkspaceArchiveRedirectRoute", () => {
     expect(
       buildWorkspaceArchiveRedirectRoute({
         serverId: "server-1",
-        archivedWorkspaceId: "/repo/.paseo/worktrees/feature",
+        archivedWorkspaceId: "/repo/.ait-server/worktrees/feature",
         workspaces,
       }),
     ).toBe("/new?serverId=server-1&dir=%2Frepo&name=Project&projectId=project-1");

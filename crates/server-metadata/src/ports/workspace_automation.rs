@@ -1,4 +1,4 @@
-//! Blocking process boundary for workspace setup and `paseo.json` scripts.
+//! Blocking process boundary for workspace setup and `ait.json` scripts.
 
 use std::fmt::Debug;
 
@@ -14,7 +14,7 @@ pub enum ScriptType {
 /// One configured script and its current runtime projection.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScriptSnapshot {
-    /// Exact `paseo.json` key.
+    /// Exact `ait.json` key.
     pub name: String,
     /// Plain script or service.
     pub kind: ScriptType,
@@ -84,7 +84,7 @@ pub struct SetupSnapshot {
 pub struct WorkspacePlacement {
     /// Durable workspace identity.
     pub workspace_id: String,
-    /// Directory containing `paseo.json` and used as command cwd.
+    /// Directory containing `ait.json` and used as command cwd.
     pub cwd: String,
     /// Backing worktree root.
     pub worktree_path: String,
@@ -97,11 +97,11 @@ pub struct WorkspacePlacement {
 /// Stable workspace automation failures.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum WorkspaceAutomationError {
-    /// `paseo.json` is malformed, unsafe, or too large.
+    /// `ait.json` is malformed, unsafe, or too large.
     #[error("{0}")]
     InvalidConfig(String),
     /// The named script is absent or malformed.
-    #[error("Script '{0}' is not configured in paseo.json")]
+    #[error("Script '{0}' is not configured in ait.json")]
     UnknownScript(String),
     /// A process with the same workspace/script key is already running.
     #[error("Script '{0}' is already running")]

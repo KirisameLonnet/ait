@@ -1,7 +1,5 @@
-import { useCallback, useMemo } from "react";
 import { useAppSettings } from "@/hooks/use-settings";
-import { useInstalledPlugins } from "@/plugins/registry";
-import { groupPluginSidebarContributions } from "@/plugins/sidebar-groups";
+import { useCallback, useMemo } from "react";
 import {
   moveSidebarNavItem,
   resolveSidebarNavItems,
@@ -17,25 +15,22 @@ export interface UseSidebarNavItemsReturn {
 }
 
 export function useSidebarNavItems(): UseSidebarNavItemsReturn {
-  const plugins = useInstalledPlugins();
   const { settings, updateSettings } = useAppSettings();
   const preferences = settings.sidebarNavItems;
-  const pluginGroups = useMemo(() => groupPluginSidebarContributions(plugins), [plugins]);
 
   const items = useMemo(
     () =>
       resolveSidebarNavItems({
-        pluginGroups,
         preferences,
       }),
-    [pluginGroups, preferences],
+    [preferences],
   );
 
   const setVisible = useCallback(
     (key: string, visible: boolean) => {
       void updateSettings((current) => {
         const previous = current.sidebarNavItems;
-        const currentItems = resolveSidebarNavItems({ pluginGroups, preferences: previous });
+        const currentItems = resolveSidebarNavItems({ preferences: previous });
         return {
           sidebarNavItems: setSidebarNavItemVisible({
             items: currentItems,
@@ -46,14 +41,14 @@ export function useSidebarNavItems(): UseSidebarNavItemsReturn {
         };
       });
     },
-    [pluginGroups, updateSettings],
+    [updateSettings],
   );
 
   const move = useCallback(
     (key: string, direction: "up" | "down") => {
       void updateSettings((current) => {
         const previous = current.sidebarNavItems;
-        const currentItems = resolveSidebarNavItems({ pluginGroups, preferences: previous });
+        const currentItems = resolveSidebarNavItems({ preferences: previous });
         return {
           sidebarNavItems: moveSidebarNavItem({
             items: currentItems,
@@ -64,7 +59,7 @@ export function useSidebarNavItems(): UseSidebarNavItemsReturn {
         };
       });
     },
-    [pluginGroups, updateSettings],
+    [updateSettings],
   );
 
   return { items, setVisible, move };

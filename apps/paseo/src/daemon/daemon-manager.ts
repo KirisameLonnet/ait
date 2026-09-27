@@ -1,7 +1,6 @@
+import { app, ipcMain, powerMonitor } from "electron";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { app, ipcMain, powerMonitor } from "electron";
-import { RustServerManager, resolveDesktopServerHome } from "./rust-server.js";
 import {
   copyAttachmentFileToManagedStorage,
   deleteManagedAttachmentFile,
@@ -13,31 +12,32 @@ import {
 import {
   checkForAppUpdate,
   downloadAndInstallUpdate,
-  type AppUpdateCheckIntent,
   type AppReleaseChannel,
+  type AppUpdateCheckIntent,
 } from "../features/auto-updater.js";
+import { RustServerManager, resolveDesktopServerHome } from "./rust-server.js";
 
 import {
+  closeLocalTransportSession,
   openLocalTransportSession,
   sendLocalTransportMessage,
-  closeLocalTransportSession,
 } from "./local-transport.js";
 
-import {
-  createDesktopSettingsCommandHandlers,
-  type DesktopCommandHandler,
-} from "../settings/desktop-settings-commands.js";
-import type { DesktopSettings } from "../settings/desktop-settings.js";
-import { getDesktopSettingsStore } from "../settings/desktop-settings-electron.js";
-import { isRunningUnderARM64Translation } from "../system/arm64-translation.js";
-import { describeSandbox } from "../diagnostics/sandbox.js";
 import { getDesktopAppLogs } from "../diagnostics/app-logs.js";
+import { describeSandbox } from "../diagnostics/sandbox.js";
+import { tailFile } from "../diagnostics/tail-file.js";
 import { getDesktopUpdaterDiagnostics } from "../diagnostics/updater.js";
 import {
   deleteLegacySkillSelection,
   readLegacySkillSelection,
 } from "../integrations/legacy-skill-selection.js";
-import { tailFile } from "../diagnostics/tail-file.js";
+import {
+  createDesktopSettingsCommandHandlers,
+  type DesktopCommandHandler,
+} from "../settings/desktop-settings-commands.js";
+import { getDesktopSettingsStore } from "../settings/desktop-settings-electron.js";
+import type { DesktopSettings } from "../settings/desktop-settings.js";
+import { isRunningUnderARM64Translation } from "../system/arm64-translation.js";
 
 const DAEMON_LOG_FILENAME = "daemon.log";
 let manager: RustServerManager | null = null;
@@ -313,10 +313,6 @@ export function createDaemonCommandHandlers(): Record<string, DesktopCommandHand
       );
     },
     get_local_daemon_version: () => getLocalDaemonVersion(),
-    install_cli: () => {
-      throw new Error("The Ait Node CLI is not bundled with the Rust desktop server.");
-    },
-    get_cli_install_status: () => ({ installed: false }),
     read_legacy_skill_selection: () => readLegacySkillSelection(),
     delete_legacy_skill_selection: () => deleteLegacySkillSelection(),
   };

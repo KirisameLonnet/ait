@@ -2676,13 +2676,13 @@ export const ru: TranslationResources = {
         savedToast: "Проект обновлён",
       },
       readFailures: {
-        invalidTitle: "Не удалось разобрать paseo.json",
+        invalidTitle: "Не удалось разобрать ait.json",
         invalidDescription: "Исправьте файл на диске, затем загрузите его заново.",
         missingTitle: "У этого хоста нет этого проекта",
         missingSingleHost: "У выбранного хоста нет записей об этом проекте.",
-        transportTitle: "Не удалось загрузить paseo.json.",
+        transportTitle: "Не удалось загрузить ait.json.",
         transportFallback: "Хост не ответил.",
-        failedTitle: "Не удалось загрузить paseo.json.",
+        failedTitle: "Не удалось загрузить ait.json.",
         failedDescription: "Загрузите данные заново, чтобы повторить попытку.",
       },
       worktree: {
@@ -2693,7 +2693,7 @@ export const ru: TranslationResources = {
           "Дополнительную информацию и переменные среды, доступные для этих команд, см. в документации.",
         setup: "Настройка",
         setupAccessibility: "Команды настройки worktree",
-        uncommittedTitle: "Закоммитьте изменения в paseo.json",
+        uncommittedTitle: "Закоммитьте изменения в ait.json",
         uncommittedDescription:
           "Новые worktree используют скрипт настройки из выбранной базовой ветки.",
         teardown: "Удаление",
@@ -2739,9 +2739,9 @@ export const ru: TranslationResources = {
       },
       writeFailures: {
         staleTitle: "Конфигурация изменена на диске",
-        staleDescription: "Перед сохранением загрузите с диска последнюю версию paseo.json.",
-        failedTitle: "Не удалось сохранить paseo.json.",
-        failedDescription: "Повторите попытку или загрузите с диска последнюю версию paseo.json.",
+        staleDescription: "Перед сохранением загрузите с диска последнюю версию ait.json.",
+        failedTitle: "Не удалось сохранить ait.json.",
+        failedDescription: "Повторите попытку или загрузите с диска последнюю версию ait.json.",
       },
       actions: {
         reload: "Загрузить заново",

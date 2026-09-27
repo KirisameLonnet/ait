@@ -10,7 +10,8 @@ const HIDDEN: &[&str] = &[
     ".codex",
     ".github",
     ".opencode",
-    ".paseo",
+    ".ait",
+    ".ait-server",
     ".vscode",
 ];
 const IGNORED: &[&str] = &[

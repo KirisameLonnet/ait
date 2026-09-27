@@ -25,7 +25,7 @@ pub struct WorkspaceSetupRequest {
 pub struct WorkspaceScriptRequest {
     /// Durable workspace identity.
     pub workspace_id: String,
-    /// Exact key under `scripts` in `paseo.json`.
+    /// Exact key under `scripts` in `ait.json`.
     pub script_name: String,
 }
 
@@ -47,7 +47,7 @@ pub enum WorkspaceSetupCommandStatus {
 pub struct WorkspaceSetupCommand {
     /// One-based command position.
     pub index: usize,
-    /// Shell command from `paseo.json`.
+    /// Shell command from `ait.json`.
     pub command: String,
     /// Directory in which the command runs.
     pub cwd: String,
@@ -152,7 +152,7 @@ pub struct WorkspaceSetupRunResult {
     pub error: Option<String>,
 }
 
-/// Script classification from `paseo.json`.
+/// Script classification from `ait.json`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WorkspaceScriptType {

@@ -15,18 +15,14 @@ vi.mock("@react-native-async-storage/async-storage", () => {
   };
 });
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createViewedTimelineSync } from "@/timeline/viewed-timeline-sync";
-import { buildWorkspaceTabPersistenceKey, type WorkspaceTab } from "@/workspace-tabs/model";
 import { defaultChangesState, type ChangesState } from "@/panels/changes/state";
 import { defaultFileState, type FileState } from "@/panels/file/state";
 import {
   canDismissPaneInLayout,
   collectAllPanes,
   collectAllTabs,
-  createWorkspaceLayoutStore,
-  observeOpenWorkspaceAgentIds,
   createDefaultLayout,
+  createWorkspaceLayoutStore,
   createWorkspaceLayoutWithExplorerSidebar,
   findPaneById,
   findPaneContainingTab,
@@ -35,12 +31,16 @@ import {
   getTreeDepth,
   insertSplit,
   normalizeLayout,
+  observeOpenWorkspaceAgentIds,
   removePaneFromTree,
   removeTabFromTree,
   stripEphemeralTabsFromLayout,
   type SplitNode,
   type SplitPane,
 } from "@/stores/workspace-layout-store";
+import { createViewedTimelineSync } from "@/timeline/viewed-timeline-sync";
+import { buildWorkspaceTabPersistenceKey, type WorkspaceTab } from "@/workspace-tabs/model";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const SERVER_ID = "server-1";
 const WORKSPACE_ID = "ws-main";
@@ -1911,7 +1911,7 @@ describe("workspace-layout-store actions", () => {
     expect(findPaneById(layout.root, paneId)?.focusedTabId).toBe(tabId);
   });
 
-  it("restores workspace and agent plugin panel targets", async () => {
+  it("drops removed plugin panels while retaining built-in tabs", async () => {
     const workspaceTarget = {
       kind: "plugin",
       pluginId: "review",
@@ -1935,9 +1935,10 @@ describe("workspace-layout-store actions", () => {
                 kind: "pane",
                 pane: {
                   id: "main",
-                  tabIds: ["workspace-panel", "agent-panel"],
+                  tabIds: ["workspace-panel", "agent-panel", "files"],
                   focusedTabId: "agent-panel",
                   tabs: [
+                    { tabId: "files", target: { kind: "files" }, createdAt: 0 },
                     { tabId: "workspace-panel", target: workspaceTarget, createdAt: 1 },
                     { tabId: "agent-panel", target: agentTarget, createdAt: 2 },
                   ],
@@ -1956,10 +1957,9 @@ describe("workspace-layout-store actions", () => {
     await restored.persist.rehydrate();
 
     const layout = restored.getState().layoutByWorkspace.workspace;
-    expect(layout && collectContentTabs(layout.root).map((tab) => tab.target)).toEqual([
-      workspaceTarget,
-      agentTarget,
-    ]);
+    const tabs = collectAllTabs(layout!.root);
+    expect(tabs.find((tab) => tab.tabId === "files")?.target).toEqual({ kind: "files" });
+    expect(tabs.some((tab) => tab.target.kind === "plugin")).toBe(false);
   });
 
   it("opens tabs into the focused pane and focuses duplicate opens instead of creating them", () => {

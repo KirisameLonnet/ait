@@ -1,5 +1,5 @@
-import { normalizeWorkspaceFileLocation, workspaceFileLocationsEqual } from "@/workspace/file-open";
 import type { WorkspaceDraftTabSetup, WorkspaceTabTarget } from "@/workspace-tabs/model";
+import { normalizeWorkspaceFileLocation, workspaceFileLocationsEqual } from "@/workspace/file-open";
 
 export function normalizeWorkspaceTabTarget(
   value: WorkspaceTabTarget | null | undefined,
@@ -36,7 +36,7 @@ export function normalizeWorkspaceTabTarget(
     return normalizeWorkingDiffTabTarget(value);
   }
   if (value.kind === "plugin") {
-    return normalizePluginTabTarget(value);
+    return null;
   }
   return normalizeSimpleWorkspaceTabTarget(value);
 }
@@ -229,19 +229,6 @@ export function buildDeterministicWorkspaceTabId(target: WorkspaceTabTarget): st
       : `plugin_agent_${identity}_${target.agentId.length}_${target.agentId}`;
   }
   return `file_${target.path}`;
-}
-
-function normalizePluginTabTarget(
-  value: Extract<WorkspaceTabTarget, { kind: "plugin" }>,
-): WorkspaceTabTarget | null {
-  const pluginId = trimNonEmpty(value.pluginId);
-  const panelId = trimNonEmpty(value.panelId);
-  if (!pluginId || !panelId) return null;
-  if (value.context === "workspace") {
-    return { kind: "plugin", pluginId, panelId, context: "workspace" };
-  }
-  const agentId = trimNonEmpty(value.agentId);
-  return agentId ? { kind: "plugin", pluginId, panelId, context: "agent", agentId } : null;
 }
 
 function trimNonEmpty(value: string | null | undefined): string | null {

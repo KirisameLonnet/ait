@@ -1,12 +1,12 @@
-import { expect, type BrowserContext, type Page } from "@playwright/test";
-import type { CreateAgentRequestMessage, SessionInboundMessage } from "@getpaseo/protocol/messages";
-import type { DaemonClient as InternalDaemonClient } from "@getpaseo/client/internal/daemon-client";
 import { decodeWorkspaceIdFromPathSegment } from "@/utils/host-routes";
+import type { DaemonClient as InternalDaemonClient } from "@getpaseo/client/internal/daemon-client";
+import type { CreateAgentRequestMessage, SessionInboundMessage } from "@getpaseo/protocol/messages";
+import { expect, type BrowserContext, type Page } from "@playwright/test";
 import { connectDaemonClient, loadProtocolSchemas } from "./daemon-client-loader";
 import { daemonWsRoutePattern } from "./daemon-port";
+import { withProjectOwnership } from "./project-ownership";
 import { projectEquivalenceViewKey } from "./project-view-key";
 import { expectWorkspaceHeader } from "./workspace-ui";
-import { withProjectOwnership } from "./project-ownership";
 
 type NewWorkspaceDaemonClient = Pick<
   InternalDaemonClient,
@@ -21,7 +21,6 @@ type NewWorkspaceDaemonClient = Pick<
   | "fetchWorkspaces"
   | "getPaseoWorktreeList"
   | "getDaemonConfig"
-  | "installDirectoryPlugin"
   | "installPluginSource"
   | "disablePlugin"
   | "enablePlugin"
@@ -31,7 +30,6 @@ type NewWorkspaceDaemonClient = Pick<
   | "on"
   | "patchDaemonConfig"
   | "removeProject"
-  | "removePlugin"
   | "reloadPlugin"
   | "setWorkspaceTitle"
 >;

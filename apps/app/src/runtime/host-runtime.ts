@@ -1,73 +1,38 @@
-import { useSyncExternalStore, useMemo } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import equal from "fast-deep-equal/es6";
-import {
-  DaemonClient,
-  type DaemonClientConfig,
-  type ConnectionState,
-  type FetchAgentsOptions,
-} from "@getpaseo/client/internal/daemon-client";
-import {
-  connectionFromListen,
-  createRemoteSshHostConnection,
-  normalizeStoredHostProfile,
-  upsertHostConnectionInProfiles,
-  registryHasConnection,
-  StoredHostRegistrySchema,
-  type HostConnection,
-  type HostProfile,
-} from "@/types/host-connection";
-import { defaultHostAppearance, type HostBadgeDisplay, type HostColor } from "@/hosts/appearance";
-import {
-  buildRelayWebSocketUrl,
-  decodeOfferFragmentPayload,
-  normalizeHostPort,
-  shouldUseTlsForDefaultHostedRelay,
-} from "@/utils/daemon-endpoints";
-import { resolveAppVersion } from "@/utils/app-version";
-import { ConnectionOfferSchema, type ConnectionOffer } from "@getpaseo/protocol/connection-offer";
-import { shouldUseDesktopDaemon } from "@/desktop/daemon/desktop-daemon";
+import { dispatchComposerAgentMessage, sendQueuedComposerMessageNow } from "@/composer/actions";
+import { resolveComposerAttachmentSubmitFormat } from "@/composer/attachments/submit";
+import { createMessageSubmissionWriter } from "@/composer/submission/writer";
 import { isWeb } from "@/constants/platform";
-import { connectToDaemon } from "@/utils/test-daemon-connection";
-import { getOrCreateClientId } from "@/utils/client-id";
-import { z } from "zod";
-import { readValidatedJson, readValidatedString } from "@/storage/validated-storage";
 import {
-  selectBestConnection,
-  type ConnectionCandidate,
-  type ConnectionProbeState,
-} from "@/utils/connection-selection";
+  invalidateServerDataQueriesAfterReconnect,
+  mountServerDataPushRouter,
+} from "@/data/push-router";
+import { queryClient } from "@/data/query-client";
+import { mountBrowserAutomationDaemonClientHandler } from "@/desktop/browser/automation/handler";
+import { shouldUseDesktopDaemon } from "@/desktop/daemon/desktop-daemon";
 import {
   buildDesktopDaemonTransportUrl,
   createDesktopDaemonTransportFactory,
 } from "@/desktop/daemon/desktop-daemon-transport";
 import { getDesktopHost } from "@/desktop/host";
-import { CLIENT_CAPS } from "@getpaseo/protocol/client-capabilities";
-import { BROWSER_AUTOMATION_COMMAND_NAMES } from "@getpaseo/protocol/browser-automation/rpc-schemas";
-import {
-  useSessionStore,
-  type Agent,
-  type WorkspaceDescriptor,
-  type ProjectDescriptor,
-} from "@/stores/session-store";
-import type { TurnLivenessTransition } from "@/timeline/turn-liveness";
-import { useWorkspaceSetupStore } from "@/stores/workspace-setup-store";
 import { invalidateCheckoutGitQueriesForServer } from "@/git/query-keys";
-import { queryClient } from "@/data/query-client";
-import {
-  invalidateServerDataQueriesAfterReconnect,
-  mountServerDataPushRouter,
-} from "@/data/push-router";
-import { mountBrowserAutomationDaemonClientHandler } from "@/desktop/browser/automation/handler";
-import { schedulesQueryBaseKey } from "@/schedules/aggregated-schedules";
-import { dispatchComposerAgentMessage, sendQueuedComposerMessageNow } from "@/composer/actions";
-import { createMessageSubmissionWriter } from "@/composer/submission/writer";
-import { resolveComposerAttachmentSubmitFormat } from "@/composer/attachments/submit";
-import { encodeImages } from "@/utils/encode-images";
+import { defaultHostAppearance, type HostBadgeDisplay, type HostColor } from "@/hosts/appearance";
+import { nativePerformanceTrace } from "@/performance/native-trace";
+import { projectIconCache } from "@/projects/icon-cache";
+import { revokePushNotifications } from "@/push-notifications";
 import { DirectorySync, type RefreshAgentDirectoryResult } from "@/runtime/directory-sync";
 import { ReplicaCache } from "@/runtime/replica-cache";
 import type { ReplicaRowStore } from "@/runtime/replica-cache/row-store";
 import { createReplicaRowStore } from "@/runtime/replica-cache/row-store-factory";
+import { schedulesQueryBaseKey } from "@/schedules/aggregated-schedules";
+import { readValidatedJson, readValidatedString } from "@/storage/validated-storage";
+import {
+  useSessionStore,
+  type Agent,
+  type ProjectDescriptor,
+  type WorkspaceDescriptor,
+} from "@/stores/session-store";
+import { useWorkspaceSetupStore } from "@/stores/workspace-setup-store";
+import type { TurnLivenessTransition } from "@/timeline/turn-liveness";
 import {
   createTimelineReplica,
   createViewedTimelineOwner,
@@ -75,10 +40,38 @@ import {
   type ViewedTimelineOwner,
   type ViewedTimelineOwnerPorts,
 } from "@/timeline/viewed-timeline-sync";
-import { projectIconCache } from "@/projects/icon-cache";
-import { nativePerformanceTrace } from "@/performance/native-trace";
-import { revokePushNotifications } from "@/push-notifications";
-import { createAppWebSocketFactory } from "./websocket-factory";
+import {
+  connectionFromListen,
+  createRemoteSshHostConnection,
+  normalizeStoredHostProfile,
+  registryHasConnection,
+  StoredHostRegistrySchema,
+  upsertHostConnectionInProfiles,
+  type HostConnection,
+  type HostProfile,
+} from "@/types/host-connection";
+import { resolveAppVersion } from "@/utils/app-version";
+import { getOrCreateClientId } from "@/utils/client-id";
+import {
+  selectBestConnection,
+  type ConnectionCandidate,
+  type ConnectionProbeState,
+} from "@/utils/connection-selection";
+import { normalizeHostPort } from "@/utils/daemon-endpoints";
+import { encodeImages } from "@/utils/encode-images";
+import { connectToDaemon } from "@/utils/test-daemon-connection";
+import {
+  DaemonClient,
+  type ConnectionState,
+  type DaemonClientConfig,
+  type FetchAgentsOptions,
+} from "@getpaseo/client/internal/daemon-client";
+import { BROWSER_AUTOMATION_COMMAND_NAMES } from "@getpaseo/protocol/browser-automation/rpc-schemas";
+import { CLIENT_CAPS } from "@getpaseo/protocol/client-capabilities";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import equal from "fast-deep-equal/es6";
+import { useMemo, useSyncExternalStore } from "react";
+import { z } from "zod";
 import { buildRustClientConfig, buildRustSshClientConfig } from "./rust-server/connection";
 
 export type HostRuntimeConnectionStatus = "idle" | "connecting" | "online" | "offline" | "error";
@@ -88,8 +81,7 @@ export type ActiveConnection =
   | { type: "directTcp"; endpoint: string; display: string }
   | { type: "directSocket"; endpoint: string; display: "socket" }
   | { type: "directPipe"; endpoint: string; display: "pipe" }
-  | { type: "remoteSsh"; endpoint: string; display: string }
-  | { type: "relay"; endpoint: string; display: "relay" };
+  | { type: "remoteSsh"; endpoint: string; display: string };
 
 export type HostRuntimeAgentDirectoryStatus =
   | "idle"
@@ -233,11 +225,7 @@ function toActiveConnection(connection: HostConnection): ActiveConnection {
       display: connection.endpoint,
     };
   }
-  return {
-    type: "relay",
-    endpoint: connection.relayEndpoint,
-    display: "relay",
-  };
+  throw new Error("Unsupported host connection");
 }
 
 type HostRuntimeConnectionMachineState =
@@ -505,9 +493,8 @@ function createDefaultDeps(): HostRuntimeControllerDeps {
   };
 
   return {
-    createClient: ({ host, connection, clientId, runtimeGeneration }) => {
+    createClient: ({ connection, clientId, runtimeGeneration }) => {
       const desktopTransportFactory = createDesktopDaemonTransportFactory();
-      const webSocketConfig = { webSocketFactory: createAppWebSocketFactory() };
       const base = {
         suppressSendErrors: true,
         clientId,
@@ -540,19 +527,7 @@ function createDefaultDeps(): HostRuntimeControllerDeps {
           ...buildRustClientConfig(connection, desktopTransportFactory),
         });
       }
-      return new DaemonClient({
-        ...base,
-        ...webSocketConfig,
-        url: buildRelayWebSocketUrl({
-          endpoint: connection.relayEndpoint,
-          useTls: connection.useTls ?? shouldUseTlsForDefaultHostedRelay(connection.relayEndpoint),
-          serverId: host.serverId,
-        }),
-        e2ee: {
-          enabled: true,
-          daemonPublicKeyB64: connection.daemonPublicKeyB64,
-        },
-      });
+      throw new Error("Unsupported host connection");
     },
     connectToDaemon: ({ host, connection, timeoutMs }) =>
       connectToDaemon(connection, {
@@ -1724,9 +1699,6 @@ export class HostRuntimeStore {
     label?: string;
     timeoutMs?: number;
   }): Promise<{ profile: HostProfile; serverId: string; hostname: string | null }> {
-    if (input.connection.type === "relay") {
-      throw new Error("Cannot probe a relay connection without a server id.");
-    }
     const probeHost: HostProfile = {
       serverId: "",
       label: input.label ?? input.connection.id,
@@ -1782,63 +1754,6 @@ export class HostRuntimeStore {
       label: input.label,
       connection: createRemoteSshHostConnection(input),
     });
-  }
-
-  async upsertRelayConnection(input: {
-    serverId: string;
-    relayEndpoint: string;
-    useTls?: boolean;
-    daemonPublicKeyB64: string;
-    label?: string;
-  }): Promise<HostProfile> {
-    const relayEndpoint = normalizeHostPort(input.relayEndpoint);
-    const useTls = input.useTls ?? false;
-    const daemonPublicKeyB64 = input.daemonPublicKeyB64.trim();
-    if (!daemonPublicKeyB64) {
-      throw new Error("daemonPublicKeyB64 is required");
-    }
-    const explicitUseTls = input.useTls !== undefined;
-    return this.upsertHostConnection({
-      serverId: input.serverId,
-      label: input.label,
-      connection: {
-        id: useTls ? `relay:wss:${relayEndpoint}` : `relay:${relayEndpoint}`,
-        type: "relay",
-        relayEndpoint,
-        ...(explicitUseTls ? { useTls } : {}),
-        daemonPublicKeyB64,
-      },
-    });
-  }
-
-  async upsertConnectionFromOffer(offer: ConnectionOffer, label?: string): Promise<HostProfile> {
-    // COMPAT(oldRelayOfferTls): added in v0.1.73, remove after 2026-11-10.
-    const useTls = offer.relay.useTls ?? shouldUseTlsForDefaultHostedRelay(offer.relay.endpoint);
-    return this.upsertRelayConnection({
-      serverId: offer.serverId,
-      relayEndpoint: offer.relay.endpoint,
-      useTls,
-      daemonPublicKeyB64: offer.daemonPublicKeyB64,
-      label,
-    });
-  }
-
-  async upsertConnectionFromOfferUrl(
-    offerUrlOrFragment: string,
-    label?: string,
-  ): Promise<HostProfile> {
-    const marker = "#offer=";
-    const idx = offerUrlOrFragment.indexOf(marker);
-    if (idx === -1) {
-      throw new Error("Missing #offer= fragment");
-    }
-    const encoded = offerUrlOrFragment.slice(idx + marker.length).trim();
-    if (!encoded) {
-      throw new Error("Offer payload is empty");
-    }
-    const payload = decodeOfferFragmentPayload(encoded);
-    const offer = ConnectionOfferSchema.parse(payload);
-    return this.upsertConnectionFromOffer(offer, label);
   }
 
   async upsertConnectionFromListen(input: {
@@ -2595,18 +2510,6 @@ export interface HostMutations {
     label?: string;
     password?: string;
   }) => Promise<{ profile: HostProfile; serverId: string; hostname: string | null }>;
-  upsertRelayConnection: (input: {
-    serverId: string;
-    relayEndpoint: string;
-    useTls?: boolean;
-    daemonPublicKeyB64: string;
-    label?: string;
-  }) => Promise<HostProfile>;
-  upsertConnectionFromOffer: (offer: ConnectionOffer, label?: string) => Promise<HostProfile>;
-  upsertConnectionFromOfferUrl: (
-    offerUrlOrFragment: string,
-    label?: string,
-  ) => Promise<HostProfile>;
   renameHost: (serverId: string, label: string) => Promise<void>;
   setHostColor: (serverId: string, color: HostColor) => Promise<void>;
   setHostBadgeDisplay: (serverId: string, badgeDisplay: HostBadgeDisplay) => Promise<void>;
@@ -2621,9 +2524,6 @@ export function useHostMutations(): HostMutations {
       upsertDirectConnection: (input) => store.upsertDirectConnection(input),
       probeAndUpsertDirectConnection: (input) => store.probeAndUpsertDirectConnection(input),
       probeAndUpsertRemoteSshConnection: (input) => store.probeAndUpsertRemoteSshConnection(input),
-      upsertRelayConnection: (input) => store.upsertRelayConnection(input),
-      upsertConnectionFromOffer: (offer, label) => store.upsertConnectionFromOffer(offer, label),
-      upsertConnectionFromOfferUrl: (url, label) => store.upsertConnectionFromOfferUrl(url, label),
       renameHost: (serverId, label) => store.renameHost(serverId, label),
       setHostColor: (serverId, color) => store.setHostColor(serverId, color),
       setHostBadgeDisplay: (serverId, badgeDisplay) =>

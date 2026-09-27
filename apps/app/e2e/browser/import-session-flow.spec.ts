@@ -1,9 +1,9 @@
+import type { TestInfo } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync } from "node:fs";
 import { copyFile, mkdir, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import type { TestInfo } from "@playwright/test";
 import { test, type Page } from "../support/fixtures";
 import { ImportSessionFlow } from "../support/helpers/import-session";
 import {
@@ -15,7 +15,7 @@ import { createTempDirectory, createTempGitRepo } from "../support/helpers/works
 
 const SCREENSHOT_DIRECTORY = path.join(
   process.env.HOME ?? tmpdir(),
-  ".paseo/plans/import-session-ux",
+  ".ait-server/plans/import-session-ux",
 );
 const claudeConfigDirectory = mkdtempSync(path.join(tmpdir(), "paseo-import-flow-claude-"));
 const brokenProvider = "broken-acp";

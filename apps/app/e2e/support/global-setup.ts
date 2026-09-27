@@ -1,11 +1,12 @@
+import dotenv from "dotenv";
+import { spawn, type ChildProcess } from "node:child_process";
+import { existsSync } from "node:fs";
+import net from "node:net";
+import path from "node:path";
+import { prepareAitE2E } from "./helpers/ait-server";
+import { killProcessTree } from "./helpers/spawn-node";
 import { warmMetro } from "./metro-warmup.mjs";
 export { warmMetro } from "./metro-warmup.mjs";
-import { spawn, type ChildProcess } from "node:child_process";
-import { killProcessTree } from "./helpers/spawn-node";
-import { existsSync } from "node:fs";
-import path from "node:path";
-import net from "node:net";
-import dotenv from "dotenv";
 
 export interface WaitForServerOptions {
   host?: string;
@@ -20,6 +21,7 @@ type ServerProbe = (host: string, port: number) => Promise<void>;
 const RESERVED_LOCAL_PORTS = new Set([
   6767, // Installed daemon.
   6768, // Developer daemon.
+  7316, // Ait server.
   61680, // OpenCode's default local server.
 ]);
 
@@ -164,6 +166,7 @@ export default async function globalSetup() {
   }
   const repoRoot = path.resolve(__dirname, "../../../..");
   await loadHarnessEnvironment(repoRoot);
+  await prepareAitE2E();
 
   const metroPort = await getAvailableE2EPort();
   const metroOutput = createLineBuffer();

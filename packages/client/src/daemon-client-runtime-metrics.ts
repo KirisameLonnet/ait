@@ -21,7 +21,7 @@ interface RuntimeMetricsBucket {
 }
 
 interface RuntimeMetricsContext {
-  connectionPath: "direct" | "relay";
+  connectionPath: "direct";
   serverId: string | null;
   getConnectionStatus: () => string;
 }

@@ -1,5 +1,123 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { openChangelog } from "@/changelog";
+import { AddHostMethodModal } from "@/components/add-host-method-modal";
+import { AddHostModal } from "@/components/add-host-modal";
+import { AddRemoteSshHostModal } from "@/components/add-remote-ssh-host-modal";
+import { CommunityLinks } from "@/components/community-links";
+import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
+import { BackHeader } from "@/components/headers/back-header";
+import { HeaderIconBadge } from "@/components/headers/header-icon-badge";
+import { ScreenHeader } from "@/components/headers/screen-header";
+import { ScreenTitle } from "@/components/headers/screen-title";
+import { HostStatusDot } from "@/components/host-status-dot";
+import { HostPicker as SharedHostPicker } from "@/components/hosts/host-picker";
+import { SettingsSection } from "@/components/settings/headings/settings-section";
+import { SidebarHeaderRow } from "@/components/sidebar/sidebar-header-row";
+import { SidebarSeparator } from "@/components/sidebar/sidebar-separator";
+import { Button } from "@/components/ui/button";
+import { ComboboxTrigger } from "@/components/ui/combobox-trigger";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { DropdownTrigger } from "@/components/ui/dropdown-trigger";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { Switch } from "@/components/ui/switch";
+import { EditingTextInput as TextInput } from "@/components/ui/text-input";
+import { SETTINGS_DESKTOP_SIDEBAR_WIDTH, useIsCompactFormFactor } from "@/constants/layout";
+import { isNative, isWeb } from "@/constants/platform";
+import { useVoiceAudioEngineOptional } from "@/contexts/voice-context";
+import { BrowserDataSection } from "@/desktop/browser/settings/browser-data-section";
+import { DesktopNotificationsSection } from "@/desktop/components/desktop-notifications-section";
+import { DesktopPermissionsSection } from "@/desktop/components/desktop-permissions-section";
+import {
+  useEnableBuiltInDaemonOption,
+  type EnableBuiltInDaemonOption,
+} from "@/desktop/hooks/use-enable-built-in-daemon-option";
+import { isElectronRuntime } from "@/desktop/host";
+import { formatVersionWithPrefix } from "@/desktop/updates/desktop-updates";
+import { useDesktopAppUpdater } from "@/desktop/updates/use-desktop-app-updater";
+import { useAppDiagnosticStore } from "@/diagnostics/store";
+import { useLocalDaemonServerId } from "@/hooks/use-is-local-daemon";
+import {
+  parseTerminalScrollbackLines,
+  useAppSettings,
+  useSettings,
+  type AppSettings,
+  type Settings as EffectiveSettings,
+  type SendBehavior,
+  type ServiceUrlBehavior,
+} from "@/hooks/use-settings";
+import {
+  LANGUAGE_OPTIONS,
+  formatLanguageOptionLabel,
+  parseAppLanguage,
+  type AppLanguage,
+  type SupportedLocale,
+} from "@/i18n/locales";
+import { returnFromSettings, type SettingsView } from "@/navigation/settings-navigation";
+import { useHostRuntimeIsConnected, useHosts } from "@/runtime/host-runtime";
+import ProjectSettingsScreen from "@/screens/project-settings-screen";
+import ProjectsScreen from "@/screens/projects-screen";
+import { AppearanceSection } from "@/screens/settings/appearance/appearance-section";
+import { EditorSection } from "@/screens/settings/editor-section";
+import {
+  HostAgentsPage,
+  HostConnectionsPage,
+  HostPairDevicePage,
+  HostProvidersPage,
+  HostSettingsPage,
+  HostTerminalsPage,
+  HostUsagePage,
+  HostWorkspacesPage,
+} from "@/screens/settings/host-page";
+import { KeyboardShortcutsSection } from "@/screens/settings/keyboard-shortcuts-section";
+import { LayoutSection } from "@/screens/settings/layout/layout-section";
+import { MetadataGenerationPage } from "@/screens/settings/metadata-generation-page";
+import { useLastWorkspaceSelection } from "@/stores/navigation-active-workspace-store";
+import { useSessionStore } from "@/stores/session-store";
+import { settingsStyles } from "@/styles/settings";
+import {
+  orderHostsLocalFirst,
+  resolveActiveHostServerId,
+  type HostProfile,
+} from "@/types/host-connection";
+import { resolveAppVersion } from "@/utils/app-version";
+import { confirmDialog } from "@/utils/confirm-dialog";
+import { WindowChromeRegion, WindowChromeSafeArea } from "@/utils/desktop-window";
+import {
+  buildSettingsHostSectionRoute,
+  buildSettingsSectionRoute,
+  type HostSectionSlug,
+  type SettingsSectionSlug,
+} from "@/utils/host-routes";
+import { THINKING_TONE_NATIVE_PCM_BASE64 } from "@/utils/thinking-tone.native-pcm";
+import { useFocusEffect } from "@react-navigation/native";
+import { Buffer } from "buffer";
+import { useRouter } from "expo-router";
+import type { TFunction } from "i18next";
+import {
+  ArrowLeft,
+  Bell,
+  Bot,
+  Boxes,
+  ChevronRight,
+  Code2,
+  FolderGit2,
+  Gauge,
+  Info,
+  Keyboard,
+  Network,
+  Palette,
+  PanelsTopLeft,
+  Plus,
+  Server,
+  Settings,
+  Shield,
+  Smartphone,
+  Sparkles,
+  SquareTerminal,
+  Stethoscope,
+} from "lucide-react-native";
 import type { ComponentType, ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Alert,
   Pressable,
@@ -8,129 +126,8 @@ import {
   View,
   type PressableStateCallbackType,
 } from "react-native";
-import { EditingTextInput as TextInput } from "@/components/ui/text-input";
-import { useRouter } from "expo-router";
-import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
-import { Buffer } from "buffer";
-import {
-  ArrowLeft,
-  Settings,
-  Palette,
-  Server,
-  Network,
-  Bot,
-  Boxes,
-  Gauge,
-  Keyboard,
-  Stethoscope,
-  Info,
-  Bell,
-  Shield,
-  Puzzle,
-  Plus,
-  FolderGit2,
-  SquareTerminal,
-  Code2,
-  Smartphone,
-  Sparkles,
-  PanelsTopLeft,
-  ChevronRight,
-} from "lucide-react-native";
-import { DropdownTrigger } from "@/components/ui/dropdown-trigger";
-import { ComboboxTrigger } from "@/components/ui/combobox-trigger";
-import { SidebarHeaderRow } from "@/components/sidebar/sidebar-header-row";
-import { SidebarSeparator } from "@/components/sidebar/sidebar-separator";
-import { HostPicker as SharedHostPicker } from "@/components/hosts/host-picker";
-import { HostStatusDot } from "@/components/host-status-dot";
-import { ScreenTitle } from "@/components/headers/screen-title";
-import { HeaderIconBadge } from "@/components/headers/header-icon-badge";
-import { SettingsSection } from "@/components/settings/headings/settings-section";
-import { AppearanceSection } from "@/screens/settings/appearance/appearance-section";
-import { LayoutSection } from "@/screens/settings/layout/layout-section";
-import {
-  useAppSettings,
-  useSettings,
-  parseTerminalScrollbackLines,
-  type AppSettings,
-  type SendBehavior,
-  type ServiceUrlBehavior,
-  type Settings as EffectiveSettings,
-} from "@/hooks/use-settings";
-import { useHostRuntimeIsConnected, useHosts } from "@/runtime/host-runtime";
-import { useSessionStore } from "@/stores/session-store";
-import {
-  orderHostsLocalFirst,
-  resolveActiveHostServerId,
-  type HostProfile,
-} from "@/types/host-connection";
-import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
-import { WindowChromeRegion, WindowChromeSafeArea } from "@/utils/desktop-window";
-import { confirmDialog } from "@/utils/confirm-dialog";
-import { BackHeader } from "@/components/headers/back-header";
-import { ScreenHeader } from "@/components/headers/screen-header";
-import { AddHostMethodModal } from "@/components/add-host-method-modal";
-import { AddHostModal } from "@/components/add-host-modal";
-import { AddRemoteSshHostModal } from "@/components/add-remote-ssh-host-modal";
-import { PairLinkModal } from "@/components/pair-link-modal";
-import { KeyboardShortcutsSection } from "@/screens/settings/keyboard-shortcuts-section";
-import { EditorSection } from "@/screens/settings/editor-section";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { CommunityLinks } from "@/components/community-links";
-import { SegmentedControl } from "@/components/ui/segmented-control";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { DesktopPermissionsSection } from "@/desktop/components/desktop-permissions-section";
-import { DesktopNotificationsSection } from "@/desktop/components/desktop-notifications-section";
-import { BrowserDataSection } from "@/desktop/browser/settings/browser-data-section";
-import { IntegrationsSection } from "@/desktop/components/integrations-section";
-import { isElectronRuntime } from "@/desktop/host";
-import { useDesktopAppUpdater } from "@/desktop/updates/use-desktop-app-updater";
-import { formatVersionWithPrefix } from "@/desktop/updates/desktop-updates";
-import { resolveAppVersion } from "@/utils/app-version";
-import { openChangelog } from "@/changelog";
-import { useAppDiagnosticStore } from "@/diagnostics/store";
-import { settingsStyles } from "@/styles/settings";
-import { THINKING_TONE_NATIVE_PCM_BASE64 } from "@/utils/thinking-tone.native-pcm";
-import { useVoiceAudioEngineOptional } from "@/contexts/voice-context";
-import {
-  LANGUAGE_OPTIONS,
-  formatLanguageOptionLabel,
-  parseAppLanguage,
-  type AppLanguage,
-  type SupportedLocale,
-} from "@/i18n/locales";
-import {
-  HostConnectionsPage,
-  HostPairDevicePage,
-  HostAgentsPage,
-  HostSettingsPage,
-  HostProvidersPage,
-  HostUsagePage,
-  HostWorkspacesPage,
-  HostTerminalsPage,
-} from "@/screens/settings/host-page";
-import { MetadataGenerationPage } from "@/screens/settings/metadata-generation-page";
-import ProjectsScreen from "@/screens/projects-screen";
-import ProjectSettingsScreen from "@/screens/project-settings-screen";
-import { SETTINGS_DESKTOP_SIDEBAR_WIDTH, useIsCompactFormFactor } from "@/constants/layout";
-import { useLocalDaemonServerId } from "@/hooks/use-is-local-daemon";
-import {
-  type EnableBuiltInDaemonOption,
-  useEnableBuiltInDaemonOption,
-} from "@/desktop/hooks/use-enable-built-in-daemon-option";
-import {
-  buildSettingsHostSectionRoute,
-  buildSettingsSectionRoute,
-  type HostSectionSlug,
-  type SettingsSectionSlug,
-} from "@/utils/host-routes";
-import { useLastWorkspaceSelection } from "@/stores/navigation-active-workspace-store";
-import { returnFromSettings, type SettingsView } from "@/navigation/settings-navigation";
-import { isNative, isWeb } from "@/constants/platform";
 
 // ---------------------------------------------------------------------------
 // View model
@@ -155,12 +152,6 @@ const SIDEBAR_SECTION_ITEMS: SidebarSectionItem[] = [
   },
   { id: "editor", labelKey: "settings.sections.editor", icon: Code2, webOnly: true },
   { id: "shortcuts", labelKey: "settings.sections.shortcuts", icon: Keyboard, desktopOnly: true },
-  {
-    id: "integrations",
-    labelKey: "settings.sections.integrations",
-    icon: Puzzle,
-    desktopOnly: true,
-  },
   {
     id: "notifications",
     labelKey: "settings.sections.notifications",
@@ -1214,7 +1205,6 @@ export default function SettingsScreen({ view, openAddHostIntent = null }: Setti
   const [isAddHostMethodVisible, setIsAddHostMethodVisible] = useState(false);
   const [isDirectHostVisible, setIsDirectHostVisible] = useState(false);
   const [isRemoteSshVisible, setIsRemoteSshVisible] = useState(false);
-  const [isPasteLinkVisible, setIsPasteLinkVisible] = useState(false);
   const [isPlaybackTestRunning, setIsPlaybackTestRunning] = useState(false);
   const [playbackTestResult, setPlaybackTestResult] = useState<string | null>(null);
   const lastOpenedAddHostIntentRef = useRef<string | null>(null);
@@ -1321,13 +1311,11 @@ export default function SettingsScreen({ view, openAddHostIntent = null }: Setti
     setIsAddHostMethodVisible(false);
     setIsDirectHostVisible(false);
     setIsRemoteSshVisible(false);
-    setIsPasteLinkVisible(false);
   }, []);
 
   const goBackToAddConnectionMethods = useCallback(() => {
     setIsDirectHostVisible(false);
     setIsRemoteSshVisible(false);
-    setIsPasteLinkVisible(false);
     setIsAddHostMethodVisible(true);
   }, []);
 
@@ -1351,11 +1339,6 @@ export default function SettingsScreen({ view, openAddHostIntent = null }: Setti
   const handleSelectRemoteSsh = useCallback(() => {
     setIsAddHostMethodVisible(false);
     setIsRemoteSshVisible(true);
-  }, []);
-
-  const handleSelectPasteLink = useCallback(() => {
-    setIsAddHostMethodVisible(false);
-    setIsPasteLinkVisible(true);
   }, []);
 
   const handleHostAdded = useCallback(
@@ -1424,14 +1407,6 @@ export default function SettingsScreen({ view, openAddHostIntent = null }: Setti
     },
     [activeHostServerId, handleAddHost, isCompactLayout, router],
   );
-
-  const handleScanQr = useCallback(() => {
-    closeAddConnectionFlow();
-    router.push({
-      pathname: "/pair-scan",
-      params: { source: "settings" },
-    });
-  }, [closeAddConnectionFlow, router]);
 
   const handleHostRemoved = useCallback(() => {
     const fallback = buildSettingsSectionRoute("general");
@@ -1511,8 +1486,6 @@ export default function SettingsScreen({ view, openAddHostIntent = null }: Setti
             return isWeb ? <EditorSection /> : null;
           case "shortcuts":
             return isDesktopApp ? <KeyboardShortcutsSection /> : null;
-          case "integrations":
-            return isDesktopApp ? <IntegrationsSection /> : null;
           case "notifications":
             return isDesktopApp ? <DesktopNotificationsSection /> : null;
           case "permissions":
@@ -1567,8 +1540,6 @@ export default function SettingsScreen({ view, openAddHostIntent = null }: Setti
         onClose={closeAddConnectionFlow}
         onDirectConnection={handleSelectDirectConnection}
         onRemoteSsh={handleSelectRemoteSsh}
-        onPasteLink={handleSelectPasteLink}
-        onScanQr={handleScanQr}
       />
       <AddHostModal
         visible={isDirectHostVisible}
@@ -1578,12 +1549,6 @@ export default function SettingsScreen({ view, openAddHostIntent = null }: Setti
       />
       <AddRemoteSshHostModal
         visible={isRemoteSshVisible}
-        onClose={closeAddConnectionFlow}
-        onCancel={goBackToAddConnectionMethods}
-        onSaved={handleHostAdded}
-      />
-      <PairLinkModal
-        visible={isPasteLinkVisible}
         onClose={closeAddConnectionFlow}
         onCancel={goBackToAddConnectionMethods}
         onSaved={handleHostAdded}

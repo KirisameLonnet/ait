@@ -1,7 +1,119 @@
+import { legacyFavoriteProfileMigration } from "@/agent-profiles/migration";
+import { LegacyAgentSkillsMigration } from "@/agent-skills/legacy-migration";
+import { AppearanceProvider } from "@/appearance/provider";
+import { ChangelogHost } from "@/changelog";
+import { CommandCenter } from "@/command-center/command-center";
+import { CommandCenterProvider } from "@/command-center/provider";
+import { CommandCenterRootActions } from "@/command-center/root-registration";
+import { CommandCenterWorkspaceActions } from "@/command-center/workspace-registration";
+import { AddProjectFlowHost } from "@/components/add-project-flow-host";
+import { AppDiagnosticHost } from "@/components/app-diagnostic-host";
+import { AppearanceStyleBoundary } from "@/components/appearance-style-boundary";
+import { CompactExplorerSidebarHost } from "@/components/compact-explorer-sidebar-host";
+import {
+  canDesktopAppSidebarShare,
+  resolveDesktopAppChromeLayout,
+  resolveDesktopAppContentMinimum,
+  resolveDesktopSidebarVisibility,
+} from "@/components/desktop-sidebar-layout";
+import { DesktopWindowControls } from "@/components/desktop/window-controls";
+import { DownloadToast } from "@/components/download-toast";
+import { WindowSidebarMenuToggle } from "@/components/headers/menu-header";
+import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog";
+import { LeftSidebar } from "@/components/left-sidebar";
+import { ProviderSettingsHost } from "@/components/provider-settings-host";
+import { QuittingOverlay } from "@/components/quitting-overlay";
+import { SidebarModelProvider } from "@/components/sidebar/sidebar-model";
+import { FloatingPanelPortalHost } from "@/components/ui/floating-panel-portal";
+import { WorkspacePinShortcutHandler } from "@/components/workspace-pin-shortcut-handler";
+import { WorkspaceRenameHost } from "@/components/workspace-rename-host";
+import { WorkspaceSetupDialog } from "@/components/workspace-setup-dialog";
+import { WorkspaceShortcutTargetsSubscriber } from "@/components/workspace-shortcut-targets-subscriber";
+import { WorktreeSetupCalloutSource } from "@/components/worktree-setup-callout-source";
+import {
+  getIsElectronRuntime,
+  HEADER_INNER_HEIGHT,
+  useIsCompactFormFactor,
+} from "@/constants/layout";
+import { isNative, isWeb } from "@/constants/platform";
+import { HorizontalScrollProvider } from "@/contexts/horizontal-scroll-context";
+import { SessionProvider } from "@/contexts/session-context";
+import { SidebarCalloutProvider } from "@/contexts/sidebar-callout-context";
+import { ToastProvider } from "@/contexts/toast-context";
+import { VoiceProvider } from "@/contexts/voice-context";
+import { AgentNavigationListener } from "@/desktop/agent-navigation";
+import { shouldUseDesktopDaemon } from "@/desktop/daemon/desktop-daemon";
+import { listenToDesktopEvent } from "@/desktop/electron/events";
+import { updateDesktopWindowChrome } from "@/desktop/electron/window";
+import { getDesktopHost } from "@/desktop/host";
+import { loadDesktopSettings } from "@/desktop/settings/desktop-settings";
+import { RosettaCalloutSource } from "@/desktop/updates/rosetta-callout-source";
+import { UpdateCalloutSource } from "@/desktop/updates/update-callout-source";
+import { useActiveWorktreeNewAction } from "@/hooks/use-active-worktree-new-action";
+import { useCompactWebViewportZoomLock } from "@/hooks/use-compact-web-viewport-zoom-lock";
+import { useFaviconStatus } from "@/hooks/use-favicon-status";
+import { useGlobalNewWorkspaceAction } from "@/hooks/use-global-new-workspace-action";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useLatchedBoolean } from "@/hooks/use-latched-boolean";
+import { useOpenProject } from "@/hooks/use-open-project";
+import { useAppSettings } from "@/hooks/use-settings";
+import { useStableEvent } from "@/hooks/use-stable-event";
+import { HostChooserModal, useHostChooser } from "@/hosts/host-chooser";
+import {
+  KeyboardActionDispatcherProvider,
+  useKeyboardActionDispatcher,
+} from "@/keyboard/keyboard-action-dispatcher-context";
+import { KeyboardShiftProvider } from "@/keyboard/shift";
+import { useOpenAgentListGesture } from "@/mobile-panels/gestures";
+import { MobilePanelsProvider, useIsMobilePanelActive } from "@/mobile-panels/provider";
+import {
+  bindHostRuntimeAppState,
+  resolveStartupBlocker,
+  resolveStartupNavigationReady,
+  shouldRunStartupGiveUpTimer,
+  startHostRuntimeBootstrap,
+  type StartupBlocker,
+} from "@/navigation/host-runtime-bootstrap";
+import { ThemedStack } from "@/navigation/themed-stack";
+import { registerWorkspaceRouteNavigationRef } from "@/navigation/workspace-route-navigation";
+import { polyfillCrypto } from "@/polyfills/crypto";
+import { polyfillNavigator } from "@/polyfills/navigator";
+import { getDaemonStartService } from "@/runtime/daemon-start-service";
+import {
+  getHostRuntimeStore,
+  hasConfiguredLocalDaemonOverride,
+  useHostRegistryLoaded,
+  useHostRuntimeClient,
+  useHostRuntimeIsConnected,
+  useHosts,
+} from "@/runtime/host-runtime";
+import { flushDraftPersistStorage } from "@/stores/draft-store";
+import { usePanelStore } from "@/stores/panel-store";
+import { useSessionStore } from "@/stores/session-store";
+import { installWebScrollbarStyles } from "@/styles/install-web-scrollbar-styles";
+import { getNextThemePreference } from "@/styles/theme";
 import "@/styles/unistyles";
+import type { HostProfile } from "@/types/host-connection";
+import {
+  useHasWindowChromeObstruction,
+  WindowChromeProvider,
+  WindowChromeRegion,
+  WindowChromeSafeArea,
+} from "@/utils/desktop-window";
+import {
+  parseHostWorkspaceRouteFromPathname,
+  parseServerIdFromPathname,
+} from "@/utils/host-routes";
+import { navigateToAgent } from "@/utils/navigate-to-agent";
+import { buildNotificationRoute, resolveNotificationTarget } from "@/utils/notification-routing";
+import {
+  ensureOsNotificationPermission,
+  WEB_NOTIFICATION_CLICK_EVENT,
+  type WebNotificationClickDetail,
+} from "@/utils/os-notifications";
+import { resolveExplorerSidebarPresentation } from "@/workspace-tabs/explorer-sidebar";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { PortalProvider } from "@gorhom/portal";
-import * as Linking from "expo-linking";
 import * as Notifications from "expo-notifications";
 import { Stack, useNavigationContainerRef, usePathname, useRouter } from "expo-router";
 import {
@@ -19,123 +131,6 @@ import { AppState, useWindowDimensions, View } from "react-native";
 import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { AppearanceProvider } from "@/appearance/provider";
-import { CommandCenter } from "@/command-center/command-center";
-import { CommandCenterRootActions } from "@/command-center/root-registration";
-import { CommandCenterProvider } from "@/command-center/provider";
-import { CommandCenterWorkspaceActions } from "@/command-center/workspace-registration";
-import { PluginCommandCenterActions } from "@/plugins/command-center/registration";
-import { AddProjectFlowHost } from "@/components/add-project-flow-host";
-import { WorktreeSetupCalloutSource } from "@/components/worktree-setup-callout-source";
-import { DownloadToast } from "@/components/download-toast";
-import { QuittingOverlay } from "@/components/quitting-overlay";
-import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog";
-import { ChangelogHost } from "@/changelog";
-import { AppDiagnosticHost } from "@/components/app-diagnostic-host";
-import { AppearanceStyleBoundary } from "@/components/appearance-style-boundary";
-import { LeftSidebar } from "@/components/left-sidebar";
-import { WindowSidebarMenuToggle } from "@/components/headers/menu-header";
-import { DesktopWindowControls } from "@/components/desktop/window-controls";
-import { SidebarModelProvider } from "@/components/sidebar/sidebar-model";
-import { WorkspacePinShortcutHandler } from "@/components/workspace-pin-shortcut-handler";
-import { WorkspaceRenameHost } from "@/components/workspace-rename-host";
-import { CompactExplorerSidebarHost } from "@/components/compact-explorer-sidebar-host";
-import { ProviderSettingsHost } from "@/components/provider-settings-host";
-import { WorkspaceSetupDialog } from "@/components/workspace-setup-dialog";
-import { WorkspaceShortcutTargetsSubscriber } from "@/components/workspace-shortcut-targets-subscriber";
-import { FloatingPanelPortalHost } from "@/components/ui/floating-panel-portal";
-import { HostChooserModal, useHostChooser } from "@/hosts/host-chooser";
-import {
-  getIsElectronRuntime,
-  HEADER_INNER_HEIGHT,
-  useIsCompactFormFactor,
-} from "@/constants/layout";
-import {
-  canDesktopAppSidebarShare,
-  resolveDesktopAppChromeLayout,
-  resolveDesktopAppContentMinimum,
-  resolveDesktopSidebarVisibility,
-} from "@/components/desktop-sidebar-layout";
-import { isNative, isWeb } from "@/constants/platform";
-import { HorizontalScrollProvider } from "@/contexts/horizontal-scroll-context";
-import { SessionProvider } from "@/contexts/session-context";
-import { SidebarCalloutProvider } from "@/contexts/sidebar-callout-context";
-import { ToastProvider } from "@/contexts/toast-context";
-import { VoiceProvider } from "@/contexts/voice-context";
-import {
-  resolveStartupBlocker,
-  resolveStartupNavigationReady,
-  shouldRunStartupGiveUpTimer,
-  startHostRuntimeBootstrap,
-  bindHostRuntimeAppState,
-  type StartupBlocker,
-} from "@/navigation/host-runtime-bootstrap";
-import { registerWorkspaceRouteNavigationRef } from "@/navigation/workspace-route-navigation";
-import { ThemedStack } from "@/navigation/themed-stack";
-import { shouldUseDesktopDaemon } from "@/desktop/daemon/desktop-daemon";
-import { AgentNavigationListener } from "@/desktop/agent-navigation";
-import { LegacyAgentSkillsMigration } from "@/agent-skills/legacy-migration";
-import { legacyFavoriteProfileMigration } from "@/agent-profiles/migration";
-import { listenToDesktopEvent } from "@/desktop/electron/events";
-import { updateDesktopWindowChrome } from "@/desktop/electron/window";
-import { getDesktopHost } from "@/desktop/host";
-import { loadDesktopSettings } from "@/desktop/settings/desktop-settings";
-import { RosettaCalloutSource } from "@/desktop/updates/rosetta-callout-source";
-import { UpdateCalloutSource } from "@/desktop/updates/update-callout-source";
-import { useActiveWorktreeNewAction } from "@/hooks/use-active-worktree-new-action";
-import { useGlobalNewWorkspaceAction } from "@/hooks/use-global-new-workspace-action";
-import { useLatchedBoolean } from "@/hooks/use-latched-boolean";
-import { useFaviconStatus } from "@/hooks/use-favicon-status";
-import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
-import { resolveExplorerSidebarPresentation } from "@/workspace-tabs/explorer-sidebar";
-import { KeyboardShiftProvider } from "@/keyboard/shift";
-import { useCompactWebViewportZoomLock } from "@/hooks/use-compact-web-viewport-zoom-lock";
-import { useOpenProject } from "@/hooks/use-open-project";
-import { useAppSettings } from "@/hooks/use-settings";
-import { useStableEvent } from "@/hooks/use-stable-event";
-import { useOpenAgentListGesture } from "@/mobile-panels/gestures";
-import { MobilePanelsProvider, useIsMobilePanelActive } from "@/mobile-panels/provider";
-import {
-  KeyboardActionDispatcherProvider,
-  useKeyboardActionDispatcher,
-} from "@/keyboard/keyboard-action-dispatcher-context";
-import { polyfillCrypto } from "@/polyfills/crypto";
-import { polyfillNavigator } from "@/polyfills/navigator";
-import {
-  getHostRuntimeStore,
-  hasConfiguredLocalDaemonOverride,
-  useHostRegistryLoaded,
-  useHostMutations,
-  useHostRuntimeClient,
-  useHostRuntimeIsConnected,
-  useHosts,
-} from "@/runtime/host-runtime";
-import { getDaemonStartService } from "@/runtime/daemon-start-service";
-import { usePanelStore } from "@/stores/panel-store";
-import { flushDraftPersistStorage } from "@/stores/draft-store";
-import { getNextThemePreference } from "@/styles/theme";
-import { useSessionStore } from "@/stores/session-store";
-import { installWebScrollbarStyles } from "@/styles/install-web-scrollbar-styles";
-import type { HostProfile } from "@/types/host-connection";
-import {
-  useHasWindowChromeObstruction,
-  WindowChromeProvider,
-  WindowChromeRegion,
-  WindowChromeSafeArea,
-} from "@/utils/desktop-window";
-import {
-  buildOpenProjectRoute,
-  parseHostWorkspaceRouteFromPathname,
-  parseServerIdFromPathname,
-} from "@/utils/host-routes";
-import { buildNotificationRoute, resolveNotificationTarget } from "@/utils/notification-routing";
-import { navigateToAgent } from "@/utils/navigate-to-agent";
-import { PluginCatalogSync } from "@/plugins";
-import {
-  ensureOsNotificationPermission,
-  WEB_NOTIFICATION_CLICK_EVENT,
-  type WebNotificationClickDetail,
-} from "@/utils/os-notifications";
 
 polyfillNavigator();
 polyfillCrypto();
@@ -274,7 +269,6 @@ function ManagedDaemonSession({ daemon }: { daemon: HostProfile }) {
   return (
     <SessionProvider key={daemon.serverId} serverId={daemon.serverId} client={client}>
       <LegacyFavoriteProfileMigrationBootstrap serverId={daemon.serverId} client={client} />
-      <PluginCatalogSync serverId={daemon.serverId} client={client} />
     </SessionProvider>
   );
 }
@@ -601,7 +595,7 @@ function AppContainer({ children, chromeEnabled: chromeEnabledOverride }: AppCon
         <WorktreeSetupCalloutSource />
         <CommandCenterRootActions />
         <CommandCenterWorkspaceActions />
-        <PluginCommandCenterActions />
+
         <WorkspacePinShortcutHandler />
         <WorkspaceRenameHost />
         <CommandCenter />
@@ -666,13 +660,11 @@ function MobileGestureWrapper({
 }
 
 function ProvidersWrapper({ children }: { children: ReactNode }) {
-  const { upsertConnectionFromOfferUrl } = useHostMutations();
-
   return (
     <AppearanceProvider>
       <VoiceProvider>
         <DesktopWindowControlsSync />
-        <OfferLinkListener upsertDaemonFromOfferUrl={upsertConnectionFromOfferUrl} />
+
         <HostSessionManager />
         <FaviconStatusSync />
         {children}
@@ -695,49 +687,6 @@ function DesktopWindowControlsSync() {
       console.warn("[DesktopWindow] Failed to update window controls overlay", error);
     });
   }, [isLoading, surface0]);
-
-  return null;
-}
-
-function OfferLinkListener({
-  upsertDaemonFromOfferUrl,
-}: {
-  upsertDaemonFromOfferUrl: (offerUrlOrFragment: string) => Promise<unknown>;
-}) {
-  const router = useRouter();
-
-  useEffect(() => {
-    let cancelled = false;
-    const handleUrl = (url: string | null) => {
-      if (!url) return;
-      if (!url.includes("#offer=")) return;
-      void upsertDaemonFromOfferUrl(url)
-        .then((profile) => {
-          if (cancelled) return;
-          const serverId = (profile as { serverId?: unknown } | null)?.serverId;
-          if (typeof serverId !== "string" || !serverId) return;
-          router.replace(buildOpenProjectRoute());
-          return;
-        })
-        .catch((error) => {
-          if (cancelled) return;
-          console.warn("[Linking] Failed to import pairing offer", error);
-        });
-    };
-
-    void Linking.getInitialURL()
-      .then(handleUrl)
-      .catch(() => undefined);
-
-    const subscription = Linking.addEventListener("url", (event) => {
-      handleUrl(event.url);
-    });
-
-    return () => {
-      cancelled = true;
-      subscription.remove();
-    };
-  }, [router, upsertDaemonFromOfferUrl]);
 
   return null;
 }
@@ -904,12 +853,10 @@ function RootStack() {
         <Stack.Screen name="open-project" />
         <Stack.Screen name="sessions" />
         <Stack.Screen name="schedules" />
-        <Stack.Screen name="pair-scan" />
       </Stack.Protected>
       <Stack.Screen name="h/[serverId]" />
       <Stack.Screen name="settings/hosts/[serverId]/index" />
       <Stack.Screen name="settings/hosts/[serverId]/[hostSection]" />
-      <Stack.Screen name="settings/hosts/[serverId]/plugins/[pluginId]/[screenId]" />
       <Stack.Screen name="settings/hosts/[serverId]/projects/index" />
       <Stack.Screen name="settings/hosts/[serverId]/projects/[projectId]" />
     </ThemedStack>

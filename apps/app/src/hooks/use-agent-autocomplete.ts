@@ -1,20 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import type { TFunction } from "i18next";
-import { useTranslation } from "react-i18next";
-import type { AutocompleteOption } from "@/components/ui/autocomplete";
-import {
-  useAgentCommandsQuery,
-  type AgentSlashCommand,
-  type DraftCommandConfig,
-} from "./use-agent-commands-query";
-import { orderAutocompleteOptions } from "@/components/ui/autocomplete-utils";
-import { useAutocomplete } from "./use-autocomplete";
-import { useSessionStore } from "@/stores/session-store";
-import { useHostRuntimeClient, useHostRuntimeIsConnected } from "@/runtime/host-runtime";
 import { CLIENT_SLASH_COMMANDS, type ClientSlashCommand } from "@/client-slash-commands";
-import type { PluginClientSlashCommand } from "@/plugins/client-slash-commands";
-import { mergeSlashCommandSources } from "@/plugins/client-slash-commands/model";
+import type { AutocompleteOption } from "@/components/ui/autocomplete";
+import { orderAutocompleteOptions } from "@/components/ui/autocomplete-utils";
+import { useHostRuntimeClient, useHostRuntimeIsConnected } from "@/runtime/host-runtime";
+import { useSessionStore } from "@/stores/session-store";
 import {
   applySlashCommandReplacement,
   filterAndRankCommandAutocompleteEntries,
@@ -27,6 +15,16 @@ import {
   findActiveFileMention,
   type FileMentionRange,
 } from "@/utils/file-mention-autocomplete";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  useAgentCommandsQuery,
+  type AgentSlashCommand,
+  type DraftCommandConfig,
+} from "./use-agent-commands-query";
+import { useAutocomplete } from "./use-autocomplete";
 
 interface UseAgentAutocompleteInput {
   userInput: string;
@@ -38,7 +36,6 @@ interface UseAgentAutocompleteInput {
   onAutocompleteApplied?: () => void;
   onClientSlashCommand?: (command: ClientSlashCommand) => void;
   canExecuteClientSlashCommand?: boolean;
-  pluginClientSlashCommands?: readonly PluginClientSlashCommand[];
 }
 
 interface AgentAutocompleteKeyPressEvent {
@@ -54,10 +51,6 @@ interface AgentAutocompleteInputSnapshot {
 
 type AgentAutocompleteOption =
   | (AutocompleteOption & { type: "client_command"; command: ClientSlashCommand })
-  | (AutocompleteOption & {
-      type: "plugin_command";
-      command: PluginClientSlashCommand;
-    })
   | (AutocompleteOption & { type: "provider_command" })
   | (AutocompleteOption & {
       type: "workspace_entry";
@@ -114,7 +107,6 @@ interface DirectorySuggestionEntry {
 
 type AvailableCommand =
   | { source: "client"; command: ClientSlashCommand }
-  | { source: "plugin"; command: PluginClientSlashCommand }
   | { source: "provider"; command: AgentSlashCommand };
 
 function normalizeDraftCommandConfig(
@@ -183,9 +175,6 @@ function mapCommandToOption(entry: AvailableCommand, t: TFunction): AgentAutocom
       command: entry.command,
     };
   }
-  if (entry.source === "plugin") {
-    return { ...base, type: "plugin_command", command: entry.command };
-  }
   return {
     ...base,
     type: "provider_command",
@@ -198,7 +187,6 @@ interface BuildAutocompleteOptionsInput {
   isVisible: boolean;
   mode: AutocompleteMode;
   commands: AgentSlashCommand[];
-  pluginCommands: readonly PluginClientSlashCommand[];
   isDraftContext: boolean;
   commandFilterQuery: string;
   activeSlashCommand: SlashCommandRange | null;
@@ -217,21 +205,15 @@ function buildCommandAutocompleteOptions(input: BuildAutocompleteOptionsInput) {
       source: "provider" as const,
       command,
     }));
-    const rootCommands: AvailableCommand[] = mergeSlashCommandSources({
-      builtIn: CLIENT_SLASH_COMMANDS,
-      plugins: input.pluginCommands,
-      provider: input.commands,
-      onPluginCollision(command, winner) {
-        console.warn(
-          `[Plugins] Client slash command /${command.name} from ${command.pluginId} ignored; ${winner} command wins`,
-        );
-      },
-    })
-      .filter((entry) => !input.isDraftContext || entry.source !== "built-in")
-      .map((entry): AvailableCommand => {
-        if (entry.source === "built-in") return { source: "client", command: entry.command };
-        return entry;
-      });
+    const builtinNames = new Set(
+      CLIENT_SLASH_COMMANDS.flatMap((command) => [command.name, ...(command.aliases ?? [])]),
+    );
+    const rootCommands: AvailableCommand[] = [
+      ...(!input.isDraftContext
+        ? CLIENT_SLASH_COMMANDS.map((command) => ({ source: "client" as const, command }))
+        : []),
+      ...providerCommands.filter(({ command }) => !builtinNames.has(command.name)),
+    ];
     const availableCommands: AvailableCommand[] =
       input.activeSlashCommand?.position === "inline"
         ? filterInlineSkillCommandEntries(providerCommands)
@@ -349,7 +331,6 @@ export function useAgentAutocomplete(input: UseAgentAutocompleteInput): AgentAut
     onAutocompleteApplied,
     onClientSlashCommand,
     canExecuteClientSlashCommand,
-    pluginClientSlashCommands = [],
   } = input;
 
   const activeSlashCommand = useMemo(
@@ -466,7 +447,6 @@ export function useAgentAutocomplete(input: UseAgentAutocompleteInput): AgentAut
         activeFileMention,
         commandFilterQuery,
         commands,
-        pluginCommands: pluginClientSlashCommands,
         activeSlashCommand,
         fileSuggestions: fileSuggestionsQuery.data ?? [],
         isDraftContext,
@@ -479,7 +459,6 @@ export function useAgentAutocomplete(input: UseAgentAutocompleteInput): AgentAut
       activeSlashCommand,
       commandFilterQuery,
       commands,
-      pluginClientSlashCommands,
       fileSuggestionsQuery.data,
       isDraftContext,
       isVisible,
@@ -499,9 +478,7 @@ export function useAgentAutocomplete(input: UseAgentAutocompleteInput): AgentAut
         activeFileMention,
       });
       const selectedIsCommand =
-        selected.type === "client_command" ||
-        selected.type === "plugin_command" ||
-        selected.type === "provider_command";
+        selected.type === "client_command" || selected.type === "provider_command";
       if (snapshot && selectedIsCommand && !current.slashCommand) return;
       if (
         selected.type === "client_command" &&

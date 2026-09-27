@@ -2693,13 +2693,13 @@ export const fr: TranslationResources = {
         savedToast: "Projet mis à jour",
       },
       readFailures: {
-        invalidTitle: "paseo.json n'a pas pu être analysé",
+        invalidTitle: "ait.json n'a pas pu être analysé",
         invalidDescription: "Corrigez le fichier sur le disque, puis rechargez.",
         missingTitle: "Cet hôte n'a pas ce projet",
         missingSingleHost: "L'hôte sélectionné n'a aucune trace de ce projet.",
-        transportTitle: "Impossible de charger paseo.json",
+        transportTitle: "Impossible de charger ait.json",
         transportFallback: "L'hôte n'a pas répondu.",
-        failedTitle: "Impossible de charger paseo.json",
+        failedTitle: "Impossible de charger ait.json",
         failedDescription: "Rechargez pour réessayer.",
       },
       worktree: {
@@ -2710,7 +2710,7 @@ export const fr: TranslationResources = {
           "Voir la documentation pour plus de détails et les variables d'environnement disponibles pour ces commandes",
         setup: "Installation",
         setupAccessibility: "Commandes de configuration de Worktree",
-        uncommittedTitle: "Validez les modifications de paseo.json",
+        uncommittedTitle: "Validez les modifications de ait.json",
         uncommittedDescription:
           "Les nouveaux worktrees utilisent le script de configuration de la branche de base sélectionnée.",
         teardown: "Démolir",
@@ -2756,8 +2756,8 @@ export const fr: TranslationResources = {
       },
       writeFailures: {
         staleTitle: "Configuration modifiée sur le disque",
-        staleDescription: "Rechargez pour récupérer le dernier paseo.json avant de sauvegarder.",
-        failedTitle: "Impossible d'enregistrer paseo.json",
+        staleDescription: "Rechargez pour récupérer le dernier ait.json avant de sauvegarder.",
+        failedTitle: "Impossible d'enregistrer ait.json",
         failedDescription: "Réessayez ou rechargez la dernière version à partir du disque.",
       },
       actions: {

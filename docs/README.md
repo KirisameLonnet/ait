@@ -1,5 +1,9 @@
 # 概念与架构文档
 
+- [ADR-062：Ait 运行路径与项目配置](decisions/adr-062-ait-runtime-paths.md)：工作区归属采用 server 元数据，`ait.json` 及旧文件读取兼容，清理旧 CLI 与测试启动器，更新项目版权署名；[验证报告](reports/ait-e2e-migration.md)与[提交准备覆盖率](reports/ait-e2e-coverage.md)。
+
+- [ADR-061：App Ait E2E 与移除 relay / 插件](decisions/adr-061-app-ait-e2e-remove-relay-plugin.md)：隔离 Rust server、认证和生产 transport、旧状态迁移；[运行说明](../apps/app/e2e/README.md)。
+
 - [Codex 大图片事件修复](reports/codex-large-image-frames.md)：对照 Paseo 原版，移除原生输出的 2 MiB 限制；包含故障复现、限额对照和定向验证。
 
 - [ADR-060：统一 Workspace 创建入口支持 Worktree](decisions/adr-060-workspace-create-worktree.md)：Paseo 来源参数、共享 Git 服务、预留身份、幂等回执与 setup；[验证报告](reports/workspace-create-worktree.md)。

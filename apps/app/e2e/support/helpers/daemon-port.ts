@@ -1,3 +1,4 @@
+import { reservedServerPorts } from "./ait-server";
 import { escapeRegex } from "./regex";
 
 /**
@@ -15,8 +16,13 @@ export function getE2EDaemonPort(): string {
   if (!port) {
     throw new Error("E2E_DAEMON_PORT is not set (expected from the Playwright worker fixture).");
   }
-  if (port === "6767") {
-    throw new Error("E2E_DAEMON_PORT must not point at the developer daemon (6767).");
+  if (
+    !/^\d+$/.test(port) ||
+    Number(port) < 1 ||
+    Number(port) > 65535 ||
+    reservedServerPorts.has(Number(port))
+  ) {
+    throw new Error("E2E_DAEMON_PORT must be an isolated test port");
   }
   return port;
 }

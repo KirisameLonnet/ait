@@ -1,12 +1,12 @@
+import { defaultHostAppearance } from "@/hosts/appearance";
+import type { HostRuntimeSnapshot } from "@/runtime/host-runtime";
+import type { HostProfile } from "@/types/host-connection";
 import { describe, expect, test } from "vitest";
 import {
   formatHostRuntimeSection,
   formatServerInfoSection,
   redactAppDiagnosticReport,
 } from "./app-diagnostic-report";
-import type { HostRuntimeSnapshot } from "@/runtime/host-runtime";
-import type { HostProfile } from "@/types/host-connection";
-import { defaultHostAppearance } from "@/hosts/appearance";
 
 function makeHost(): HostProfile {
   return {
@@ -33,10 +33,10 @@ function makeHost(): HostProfile {
       },
       {
         id: "relay:relay.secret.test:443",
-        type: "relay",
-        relayEndpoint: "relay.secret.test:443",
+        type: "directTcp",
+        endpoint: "relay.secret.test:443",
         useTls: true,
-        daemonPublicKeyB64: "daemon-public-key-secret",
+        password: "daemon-public-key-secret",
       },
       {
         id: "socket:/tmp/paseo-secret.sock",
@@ -71,9 +71,9 @@ describe("app diagnostics report", () => {
       serverId: host.serverId,
       activeConnectionId: "relay:relay.secret.test:443",
       activeConnection: {
-        type: "relay",
+        type: "directTcp",
         endpoint: "relay.secret.test:443",
-        display: "relay",
+        display: "remote",
       },
       connectionStatus: "online",
       client: null,
@@ -93,7 +93,6 @@ describe("app diagnostics report", () => {
     const report = formatHostRuntimeSection({ host, snapshot });
 
     expect(report).toContain("direct TCP");
-    expect(report).toContain("relay");
     expect(report).toContain("remote SSH");
     expect(report).not.toContain("ssh-server-token");
     expect(report).not.toContain("deploy@private-host");

@@ -14,12 +14,15 @@ export function normalizeTransportPayload(
   return copyArrayBufferViewToBuffer(data);
 }
 
-export interface RelayTransportMessage {
+export interface WebSocketTransportMessage {
   data: string | ArrayBuffer;
   isBinary: boolean;
 }
 
-export function extractRelayMessage(event: unknown, nodeIsBinary?: boolean): RelayTransportMessage {
+export function extractWebSocketMessage(
+  event: unknown,
+  nodeIsBinary?: boolean,
+): WebSocketTransportMessage {
   const raw =
     event && typeof event === "object" && "data" in event
       ? (event as { data: unknown }).data

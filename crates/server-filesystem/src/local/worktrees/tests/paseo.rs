@@ -201,15 +201,15 @@ fn worktree_sources_distinguish_checkout_root_from_shared_git_directory() {
 fn tracked_project_configuration_wins_over_uncommitted_source_edits() {
     let fixture = Fixture::new();
     std::fs::write(
-        fixture.repository.join("paseo.json"),
+        fixture.repository.join("ait.json"),
         "{\"committed\":true}\n",
     )
     .unwrap();
     commit(&fixture.repository, "configuration");
-    std::fs::write(fixture.repository.join("paseo.json"), "{\"local\":true}\n").unwrap();
+    std::fs::write(fixture.repository.join("ait.json"), "{\"local\":true}\n").unwrap();
     let created = create(&fixture, "clean");
     assert_eq!(
-        std::fs::read_to_string(Path::new(&created.worktree_path).join("paseo.json")).unwrap(),
+        std::fs::read_to_string(Path::new(&created.worktree_path).join("ait.json")).unwrap(),
         "{\"committed\":true}\n"
     );
     let status = Command::new("git")
@@ -279,7 +279,7 @@ fn untracked_symlink_configuration_fails_without_retaining_a_partial_worktree() 
     let fixture = Fixture::new();
     let external = fixture.root.path().join("outside.json");
     std::fs::write(&external, "external").unwrap();
-    std::os::unix::fs::symlink(&external, fixture.repository.join("paseo.json")).unwrap();
+    std::os::unix::fs::symlink(&external, fixture.repository.join("ait.json")).unwrap();
     assert!(matches!(
         fixture.adapter().create(&create_input(&fixture, "symlink")),
         Err(WorktreeError::Io(_))
@@ -298,13 +298,13 @@ fn untracked_symlink_configuration_fails_without_retaining_a_partial_worktree() 
 #[test]
 fn selected_ref_dangling_configuration_symlink_is_never_overwritten() {
     let fixture = Fixture::new();
-    let config = fixture.repository.join("paseo.json");
+    let config = fixture.repository.join("ait.json");
     std::os::unix::fs::symlink("missing-config.json", &config).unwrap();
     commit(&fixture.repository, "symlink in selected ref");
     std::fs::remove_file(&config).unwrap();
     std::fs::write(&config, "local source config").unwrap();
     let created = create(&fixture, "preserved");
-    let target = Path::new(&created.worktree_path).join("paseo.json");
+    let target = Path::new(&created.worktree_path).join("ait.json");
     assert!(target.symlink_metadata().unwrap().file_type().is_symlink());
     assert_eq!(
         std::fs::read_link(target).unwrap(),

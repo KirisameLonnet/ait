@@ -1,4 +1,4 @@
-//! Local `paseo.json` setup and script process runtime.
+//! Local `ait.json` setup and script process runtime.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Write as _;
@@ -275,7 +275,8 @@ impl ScriptProcess {
 }
 
 fn read_config(root: &Path) -> Result<PaseoConfig, WorkspaceAutomationError> {
-    let path = root.join("paseo.json");
+    let path = crate::storage::project_config::read_path(root)
+        .map_err(|error| config_error(root, &error))?;
     let metadata = match path.symlink_metadata() {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -285,7 +286,7 @@ fn read_config(root: &Path) -> Result<PaseoConfig, WorkspaceAutomationError> {
     };
     if !metadata.is_file() || metadata.file_type().is_symlink() {
         return Err(WorkspaceAutomationError::InvalidConfig(format!(
-            "Failed to parse paseo.json at {}: expected a regular file",
+            "Failed to parse ait.json at {}: expected a regular file",
             path.display()
         )));
     }
@@ -295,7 +296,7 @@ fn read_config(root: &Path) -> Result<PaseoConfig, WorkspaceAutomationError> {
         .map_err(|error| config_error(&path, &error))?;
     if bytes.len() > CONFIG_BYTES {
         return Err(WorkspaceAutomationError::InvalidConfig(format!(
-            "Failed to parse paseo.json at {}: file exceeds {CONFIG_BYTES} bytes",
+            "Failed to parse ait.json at {}: file exceeds {CONFIG_BYTES} bytes",
             path.display()
         )));
     }
@@ -303,7 +304,7 @@ fn read_config(root: &Path) -> Result<PaseoConfig, WorkspaceAutomationError> {
         serde_json::from_slice(&bytes).map_err(|error| config_error(&path, &error))?;
     let object = value.as_object().ok_or_else(|| {
         WorkspaceAutomationError::InvalidConfig(format!(
-            "Failed to parse paseo.json at {}: expected an object",
+            "Failed to parse ait.json at {}: expected an object",
             path.display()
         ))
     })?;
@@ -368,7 +369,7 @@ fn nonempty(value: &str) -> Option<String> {
 
 fn config_error(path: &Path, error: &impl std::fmt::Display) -> WorkspaceAutomationError {
     WorkspaceAutomationError::InvalidConfig(format!(
-        "Failed to parse paseo.json at {}: {error}",
+        "Failed to parse ait.json at {}: {error}",
         path.display()
     ))
 }

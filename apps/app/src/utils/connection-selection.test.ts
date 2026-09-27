@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import type { HostConnection } from "@/types/host-connection";
+import { describe, expect, it } from "vitest";
 import {
   selectBestConnection,
   type ConnectionCandidate,
@@ -10,8 +10,8 @@ function makeDirect(id: string, endpoint: string): HostConnection {
   return { id, type: "directTcp", endpoint };
 }
 
-function makeRelay(id: string, relayEndpoint: string, daemonPublicKeyB64 = "abc"): HostConnection {
-  return { id, type: "relay", relayEndpoint, daemonPublicKeyB64 };
+function makeRelay(id: string, endpoint: string, daemonPublicKeyB64 = "abc"): HostConnection {
+  return { id, type: "directTcp", endpoint, password: daemonPublicKeyB64 };
 }
 
 function probes(input: Record<string, ConnectionProbeState>): Map<string, ConnectionProbeState> {

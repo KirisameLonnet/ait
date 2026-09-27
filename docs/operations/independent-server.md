@@ -201,7 +201,7 @@ worktree 固定创建在 `<data-dir>/worktrees/<repo-hash>/<slug>`，不会把 r
 worktree 认作服务所有。`branch-off` 从 `refName` 或 default branch 创建新分支；`checkout` 使用
 现有 local branch，必要时从 origin 获取。同名 branch 或目录采用 `-1`、`-2` 后缀。source cwd
 可以位于 repository 子目录，返回的 `workspaceDirectory` 保留相对位置；source cwd 中未跟踪的
-`paseo.json` 会以 create-new 方式复制到对应目录，不覆盖 checkout 已有文件。
+`ait.json` 会以 create-new 方式复制到对应目录，不覆盖 checkout 已有文件。
 
 `scope` 缺省为 `workspace`：只归档目标 Workspace，且只在没有其他 active Workspace 引用时删除
 managed worktree。`scope:"worktree"` 归档该 worktree 内全部 active Workspace 后删除目录；外部
@@ -209,7 +209,7 @@ managed worktree。`scope:"worktree"` 归档该 worktree 内全部 active Worksp
 ownership 共同决定。成功创建后，响应之后会收到
 `{"type":"event","method":"workspace.update",...}` upsert event。
 
-当前 create 会在 registry 提交后异步执行 `paseo.json` setup，但不创建 PTY setup terminal；archive
+当前 create 会在 registry 提交后异步执行 `ait.json` setup，但不创建 PTY setup terminal；archive
 不执行 teardown 或 Agent 清理，因此 `removedAgents` 为空；真实 PTY 由 Terminal reconciliation
 在 Workspace/Project 归档或移除后关闭。`checkoutSource` 与
 `githubPrNumber` 在 Forge 服务接通前返回明确失败。这些限制不会返回伪成功，完整差异见第四、
@@ -227,7 +227,7 @@ ownership 共同决定。成功创建后，响应之后会收到
 | `workspace.script.start.request` | `workspaceId`、`scriptName` | 启动后的 `script` 或 inline `error`        |
 | `workspace.script.stop.request`  | `workspaceId`、`scriptName` | 停止后的 `script` 或 inline `error`        |
 
-配置读取 Workspace cwd 下的 `paseo.json`。文件必须是不超过 1 MiB 的普通文件；symlink、非 JSON 或
+配置读取 Workspace cwd 下的 `ait.json`；仅在该文件不存在时兼容读取旧 `paseo.json`，保存总是写入 `ait.json` 并保留旧文件。文件必须是不超过 1 MiB 的普通文件；symlink、非 JSON 或
 非 object 会返回明确 parse error。`worktree.setup` 接受一条字符串或字符串数组，trim 后按顺序执行；
 `scripts` 只采纳 object 中带非空 `command` 的条目，`type:"service"` 识别为 service，其他 type 按
 Paseo 规则视为普通 script。list 以 script name 做不区分大小写的稳定排序。

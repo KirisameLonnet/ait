@@ -2,6 +2,10 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { test as base } from "../support/fixtures";
 import {
+  type IsolatedHostDaemon,
+  startIsolatedHostDaemon,
+} from "../support/helpers/isolated-host-daemon";
+import {
   beginWorkspaceFromProject,
   createWorkspaceWithoutAgent,
   expectProjectContainsWorkspaces,
@@ -9,16 +13,12 @@ import {
   expectProjectWorkspaceCountForHost,
   expectSeparateProjects,
   openGroupedProjectSettings,
-  openProjectsForSettingsHost,
   openProjectDirectory,
   openProjectDirectoryWithHosts,
+  openProjectsForSettingsHost,
   renameProject,
   selectWorkspaceHost,
 } from "../support/helpers/project-grouping";
-import {
-  type IsolatedHostDaemon,
-  startIsolatedHostDaemon,
-} from "../support/helpers/isolated-host-daemon";
 import { connectSeedClient, type SeedDaemonClient } from "../support/helpers/seed-client";
 import { getServerId } from "../support/helpers/server-id";
 import { createTempGitRepo } from "../support/helpers/workspace";
@@ -70,7 +70,7 @@ async function createProject(
 }
 
 async function removePersistedProjectKeys(host: IsolatedHostDaemon): Promise<void> {
-  const projectsPath = path.join(host.paseoHome, "projects", "projects.json");
+  const projectsPath = path.join(host.dataDir, "projects", "projects.json");
   const projects = JSON.parse(await readFile(projectsPath, "utf8")) as Array<
     Record<string, unknown>
   >;

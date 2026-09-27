@@ -2,6 +2,7 @@ interface WorkerStatus {
   pid: number;
   serverId: string;
   version: string | null;
+  startedAt?: string | null;
 }
 interface StatusReader {
   getStatus: () => Promise<WorkerStatus>;
@@ -11,7 +12,7 @@ export interface SettingsDaemonRestartDeps extends StatusReader {
   restartServer: (reason: string) => Promise<unknown>;
 }
 
-/** Acknowledgment starts the wait; only a different ready worker completes it. */
+/** Confirm a fresh service instance, including Ait's restart within the same process. */
 export async function restartDaemonFromSettings(
   hostServerId: string,
   reason: string,
@@ -75,7 +76,11 @@ async function observeReplacement(
   while (Date.now() < deadline) {
     try {
       const current = await readSelectedWorker(previous.serverId, deps);
-      if (current.pid !== previous.pid) return current;
+      if (
+        current.pid !== previous.pid ||
+        (previous.startedAt && current.startedAt && current.startedAt !== previous.startedAt)
+      )
+        return current;
     } catch (error) {
       if (!isReconnectFailure(error)) throw error;
     }

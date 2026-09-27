@@ -2,6 +2,7 @@ import type {
   FormPreferences,
   ProviderPreferences,
 } from "../../../src/create-agent-preferences/preferences";
+import { findAitServer } from "./ait-server";
 
 export const TEST_HOST_LABEL = "localhost";
 
@@ -14,11 +15,14 @@ export function buildDirectTcpConnection(endpoint: string): {
   id: string;
   type: "directTcp";
   endpoint: string;
+  password?: string;
 } {
+  const connection = findAitServer(Number(new URL(`http://${endpoint}`).port));
   return {
     id: `direct:${endpoint}`,
     type: "directTcp",
     endpoint,
+    ...(connection ? { password: connection.token } : {}),
   };
 }
 
@@ -30,7 +34,8 @@ export function buildSeededHost(input: {
 }) {
   const connection = buildDirectTcpConnection(input.endpoint);
   return {
-    serverId: input.serverId,
+    serverId:
+      findAitServer(Number(new URL(`http://${input.endpoint}`).port))?.serverId ?? input.serverId,
     label: input.label ?? TEST_HOST_LABEL,
     connections: [connection],
     preferredConnectionId: connection.id,
@@ -46,7 +51,10 @@ export const TEST_MOCK_PROVIDER_PREFERENCES = {
 
 export function buildCreateAgentPreferences() {
   return {
-    provider: "mock",
-    providerPreferences: TEST_MOCK_PROVIDER_PREFERENCES,
+    provider: "codex",
+    providerPreferences:
+      process.env.E2E_REAL_PROVIDERS === "1"
+        ? TEST_PROVIDER_PREFERENCES
+        : { codex: { model: "offline-model" } },
   } satisfies FormPreferences;
 }

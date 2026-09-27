@@ -242,13 +242,22 @@ fn deletes_entries_but_rejects_root_outside_and_missing() {
 #[test]
 fn search_filters_and_exact_retrieval_bypasses_discovery_filters() {
     let (_temp, files, cwd) = fixture();
-    for directory in ["src", "src/nested", "node_modules", ".github"] {
+    for directory in [
+        "src",
+        "src/nested",
+        "node_modules",
+        ".github",
+        ".ait",
+        ".ait-server",
+    ] {
         fs::create_dir_all(Path::new(&cwd).join(directory)).unwrap();
     }
     for file in [
         "src/lib.rs",
         "node_modules/hidden.rs",
         ".github/workflow.yml",
+        ".ait/settings.json",
+        ".ait-server/config.json",
         ".hidden",
     ] {
         fs::write(Path::new(&cwd).join(file), "content").unwrap();
@@ -272,6 +281,13 @@ fn search_filters_and_exact_retrieval_bypasses_discovery_filters() {
     );
     request.query = "workflow".to_owned();
     assert_eq!(files.search(&request).unwrap()[0].0, ".github/workflow.yml");
+    request.query = "settings".to_owned();
+    assert_eq!(files.search(&request).unwrap()[0].0, ".ait/settings.json");
+    request.query = "config".to_owned();
+    assert_eq!(
+        files.search(&request).unwrap()[0].0,
+        ".ait-server/config.json"
+    );
     request.query = "node_modules/hidden.rs".to_owned();
     request.suffix = true;
     request.limit = 1;

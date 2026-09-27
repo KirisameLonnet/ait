@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { test, expect } from "../support/fixtures";
+import { expect, test } from "../support/fixtures";
 import {
   addProjectFlow,
   addProjectFlowBack,
@@ -29,7 +29,7 @@ import { expectOpenedProject } from "../support/helpers/project-picker-ui";
 import { connectSeedClient } from "../support/helpers/seed-client";
 import { getServerId } from "../support/helpers/server-id";
 
-const SECONDARY_HOST_ID = "add-project-flow-secondary";
+let secondaryHostId = "";
 const SECONDARY_HOST_LABEL = "Secondary Host";
 
 async function expectProjectDirectory(pathname: string): Promise<void> {
@@ -98,7 +98,8 @@ test.describe("Add Project command-center flow", () => {
     let secondaryHost: IsolatedHostDaemon;
 
     test.beforeAll(async () => {
-      secondaryHost = await startIsolatedHostDaemon(SECONDARY_HOST_ID);
+      secondaryHost = await startIsolatedHostDaemon("add-project-flow-secondary");
+      secondaryHostId = secondaryHost.serverId;
     });
 
     test.afterAll(async () => {
@@ -113,7 +114,7 @@ test.describe("Add Project command-center flow", () => {
         port: secondaryHost.port,
       });
       await waitForConnectedHost(page, {
-        serverId: SECONDARY_HOST_ID,
+        serverId: secondaryHostId,
         endpoint: `localhost:${secondaryHost.port}`,
       });
       await openAddProjectHostSelection(page);
@@ -135,7 +136,7 @@ test.describe("Add Project command-center flow", () => {
         port: secondaryHost.port,
       });
       await waitForConnectedHost(page, {
-        serverId: SECONDARY_HOST_ID,
+        serverId: secondaryHostId,
         endpoint: `localhost:${secondaryHost.port}`,
       });
       await openAddProjectHostSelection(page);
@@ -170,7 +171,7 @@ test.describe("Add Project command-center flow", () => {
     });
 
     test("New directory creates a Project on the selected remote host", async ({ page }) => {
-      const parentDirectory = await mkdtemp(path.join(tmpdir(), "paseo-e2e-remote-project-"));
+      const parentDirectory = await mkdtemp(path.join(tmpdir(), "ait-e2e-remote-project-"));
       const directoryName = `remote-${randomUUID().slice(0, 8)}`;
       const directoryPath = path.join(parentDirectory, directoryName);
 
@@ -182,11 +183,11 @@ test.describe("Add Project command-center flow", () => {
           port: secondaryHost.port,
         });
         await waitForConnectedHost(page, {
-          serverId: SECONDARY_HOST_ID,
+          serverId: secondaryHostId,
           endpoint: `localhost:${secondaryHost.port}`,
         });
         await openAddProjectHostSelection(page);
-        await addProjectFlowHost(page, SECONDARY_HOST_ID).click();
+        await addProjectFlowHost(page, secondaryHostId).click();
         await expectAddProjectPage(page, "method");
 
         await expect(addProjectFlowMethod(page, "new-directory")).toContainText(
@@ -201,7 +202,7 @@ test.describe("Add Project command-center flow", () => {
 
         const projectId = await expectOpenedProject(page, directoryName);
         await expectNewWorkspaceForAddedProject(page, {
-          serverId: SECONDARY_HOST_ID,
+          serverId: secondaryHostId,
           projectId,
           projectName: directoryName,
           projectPath: directoryPath,
@@ -264,7 +265,7 @@ test.describe("Add Project command-center flow", () => {
   test("New directory validates the name, restores parent and name state, then creates a Project", async ({
     page,
   }) => {
-    const parentDirectory = await mkdtemp(path.join(tmpdir(), "paseo-e2e-new-project-"));
+    const parentDirectory = await mkdtemp(path.join(tmpdir(), "ait-e2e-new-project-"));
     const directoryName = `created-${randomUUID().slice(0, 8)}`;
     const directoryPath = path.join(parentDirectory, directoryName);
     let projectId: string | null = null;

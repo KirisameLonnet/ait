@@ -2897,13 +2897,13 @@ export const zhCN: TranslationResources = {
         savedToast: "Project 已更新",
       },
       readFailures: {
-        invalidTitle: "无法解析 paseo.json",
+        invalidTitle: "无法解析 ait.json",
         invalidDescription: "修复磁盘上的文件，然后重新加载。",
         missingTitle: "这个 Host 没有这个 Project",
         missingSingleHost: "所选 Host 没有这个 Project 的记录。",
-        transportTitle: "无法加载 paseo.json",
+        transportTitle: "无法加载 ait.json",
         transportFallback: "Host 没有响应。",
-        failedTitle: "无法加载 paseo.json",
+        failedTitle: "无法加载 ait.json",
         failedDescription: "重新加载以重试。",
       },
       worktree: {
@@ -2913,7 +2913,7 @@ export const zhCN: TranslationResources = {
         docsTooltip: "查看命令可用的环境变量和更多细节",
         setup: "Setup",
         setupAccessibility: "Worktree setup 命令",
-        uncommittedTitle: "提交 paseo.json 更改",
+        uncommittedTitle: "提交 ait.json 更改",
         uncommittedDescription: "新工作树使用所选基础分支中的设置脚本。",
         teardown: "Teardown",
         teardownAccessibility: "Worktree teardown 命令",
@@ -2956,8 +2956,8 @@ export const zhCN: TranslationResources = {
       },
       writeFailures: {
         staleTitle: "磁盘上的配置已变更",
-        staleDescription: "保存前请重新加载最新的 paseo.json。",
-        failedTitle: "无法保存 paseo.json",
+        staleDescription: "保存前请重新加载最新的 ait.json。",
+        failedTitle: "无法保存 ait.json",
         failedDescription: "重试，或从磁盘重新加载最新版本。",
       },
       actions: {

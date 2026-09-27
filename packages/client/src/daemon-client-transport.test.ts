@@ -1,55 +1,24 @@
+import { DaemonClient } from "./daemon-client.js";
 import { EventEmitter } from "node:events";
 import { describe, expect, test, vi } from "vitest";
 import {
-  createEncryptedTransport,
   createWebSocketTransportFactory,
   decodeMessageData,
   describeTransportClose,
   describeTransportError,
   encodeUtf8String,
-  extractRelayMessage,
+  extractWebSocketMessage,
 } from "./daemon-client-transport.js";
 
-const createClientChannelMock = vi.hoisted(() => vi.fn());
-
-vi.mock("@getpaseo/relay/e2ee", () => ({
-  createClientChannel: createClientChannelMock,
-}));
-
 describe("daemon-client transport helpers", () => {
-  test("createEncryptedTransport closes handshake failures with browser-safe code", async () => {
-    createClientChannelMock.mockReset();
-    createClientChannelMock.mockRejectedValueOnce(new Error("handshake failed"));
-
-    const connection: { open: (() => void) | null } = { open: null };
-    const close = vi.fn();
-
-    createEncryptedTransport(
-      {
-        send: vi.fn(),
-        close,
-        onOpen: (handler) => {
-          connection.open = handler;
-          return () => {
-            if (connection.open === handler) {
-              connection.open = null;
-            }
-          };
-        },
-        onClose: () => () => {},
-        onError: () => () => {},
-        onMessage: () => () => {},
-      },
-      "daemon-public-key",
-      { warn: vi.fn() },
-    );
-
-    expect(connection.open).not.toBeNull();
-    connection.open?.();
-
-    await vi.waitFor(() => {
-      expect(close).toHaveBeenCalledWith(4001, "E2EE handshake failed");
-    });
+  test("rejects retired relay connections before opening a transport", () => {
+    expect(
+      () =>
+        new DaemonClient({
+          url: "wss://relay.example/relay/ws?serverId=test&role=client",
+          clientId: "relay-removal-test",
+        }),
+    ).toThrow("Relay connections are no longer supported");
   });
 
   test("createWebSocketTransportFactory forwards sends when socket is open", () => {
@@ -165,15 +134,15 @@ describe("daemon-client transport helpers", () => {
     expect(describeTransportError()).toBe("Transport error");
   });
 
-  test("extractRelayMessage preserves browser and Node WebSocket frame kind", () => {
-    expect(extractRelayMessage({ data: "hello" })).toEqual({ data: "hello", isBinary: false });
+  test("extractWebSocketMessage preserves browser and Node WebSocket frame kind", () => {
+    expect(extractWebSocketMessage({ data: "hello" })).toEqual({ data: "hello", isBinary: false });
 
     const view = new Uint8Array([1, 2, 3]);
-    const binary = extractRelayMessage(view, true);
+    const binary = extractWebSocketMessage(view, true);
     expect(binary.isBinary).toBe(true);
     expect(Array.from(new Uint8Array(binary.data as ArrayBuffer))).toEqual([1, 2, 3]);
 
-    const text = extractRelayMessage(view, false);
+    const text = extractWebSocketMessage(view, false);
     expect(text).toEqual({ data: "\u0001\u0002\u0003", isBinary: false });
   });
 

@@ -1,6 +1,193 @@
+import { SidebarMenuToggle } from "@/components/headers/menu-header";
+import { ScreenHeader } from "@/components/headers/screen-header";
+import { ScreenTitle } from "@/components/headers/screen-title";
+import { ImportSessionSheet } from "@/components/import-session-sheet";
+import { RetainedPanel } from "@/components/retained-panel";
+import { SplitContainer } from "@/components/split-container";
+import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
+import {
+  FloatingPanelPortalHost,
+  FloatingPanelPortalHostNameProvider,
+} from "@/components/ui/floating-panel-portal";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import type { JsonValue } from "@getpaseo/protocol/agent-types";
+import { supportsDesktopPaneSplits, useIsCompactFormFactor } from "@/constants/layout";
+import { getIsElectron, isNative, isWeb } from "@/constants/platform";
+import { useToast } from "@/contexts/toast-context";
+import { useDesktopBrowserNewTabRequests } from "@/desktop/browser/new-tab-requests";
+import { removeResidentBrowserWebview } from "@/desktop/browser/resident-webviews";
+import { createWorkspaceBrowser, useBrowserStore } from "@/desktop/browser/store";
+import { getDesktopHost } from "@/desktop/host";
+import { DiffDocumentWorkspaceCacheProvider } from "@/git/diff-document/workspace-cache";
+import type { CheckoutStatusPayload } from "@/git/use-status-query";
+import { WorkspaceActions } from "@/git/workspace-actions";
+import { useArchiveAgent } from "@/hooks/use-archive-agent";
+import { useNavigateToImportedAgent } from "@/hooks/use-import-session";
+import { useKeyboardActionHandler } from "@/hooks/use-keyboard-action-handler";
+import { prefetchProvidersSnapshot } from "@/hooks/use-providers-snapshot";
+import { useSettings } from "@/hooks/use-settings";
+import { useStableEvent } from "@/hooks/use-stable-event";
+import { HostBadge } from "@/hosts/host-badge";
+import { useHostBadges } from "@/hosts/use-host-badges";
+import { buildWorkspaceKeyboardHandlerId } from "@/keyboard/handler-id";
+import type {
+  KeyboardActionDefinition,
+  WorkspacePanelTarget,
+} from "@/keyboard/keyboard-action-dispatcher";
+import {
+  getPanelInstanceAttributes,
+  useModifiedPanelTabIds,
+} from "@/panels/panel-instance-attributes";
+import { useHasPullRequest, usePullRequestAutoAdd } from "@/panels/pull-request";
+import { traceInstant } from "@/performance/native-trace";
+import {
+  getHostRuntimeStore,
+  useHostRuntimeClient,
+  useHostRuntimeIsConnected,
+  useHostRuntimeSnapshot,
+  useHosts,
+} from "@/runtime/host-runtime";
+import type { TerminalTabDestination } from "@/screens/workspace/terminals/use-workspace-terminals";
+import { useWorkspaceTerminals } from "@/screens/workspace/terminals/use-workspace-terminals";
+import { useMountedTabSet } from "@/screens/workspace/use-mounted-tab-set";
+import { useWorkspaceCheckoutStatus } from "@/screens/workspace/use-workspace-checkout-status";
+import {
+  useWorkspaceTabRename,
+  WorkspaceTabRenameModal,
+} from "@/screens/workspace/use-workspace-tab-rename";
+import {
+  buildBulkCloseConfirmationMessage,
+  classifyBulkClosableTabs,
+  closeBulkWorkspaceTabs,
+  type BulkCloseConfirmationLabels,
+} from "@/screens/workspace/workspace-bulk-close";
+import {
+  WorkspaceDesktopTabsRow,
+  type WorkspaceDesktopTabRowItem,
+} from "@/screens/workspace/workspace-desktop-tabs-row";
+import {
+  resolveWorkspaceExplorerToggleOwner,
+  WorkspaceExplorerSidebarToggle,
+  WorkspaceExplorerToggle,
+  WorkspaceHeaderExplorerToggle,
+} from "@/screens/workspace/workspace-explorer-toggle";
+import {
+  WorkspaceHeaderMenuDesktop,
+  WorkspaceHeaderMenuMobile,
+} from "@/screens/workspace/workspace-header-menu";
+import {
+  resolveWorkspaceHeaderRenderState,
+  type WorkspaceHeaderCheckoutState,
+} from "@/screens/workspace/workspace-header-source";
+import {
+  buildWorkspacePaneContentModel,
+  WorkspacePaneContent,
+  type WorkspacePaneContentModel,
+} from "@/screens/workspace/workspace-pane-content";
+import { deriveWorkspacePaneState } from "@/screens/workspace/workspace-pane-state";
+import {
+  resolveWorkspaceRouteState,
+  type WorkspaceRouteState,
+} from "@/screens/workspace/workspace-route-state";
+import { renderWorkspaceRouteGate } from "@/screens/workspace/workspace-route-state-views";
+import { WorkspaceScriptsButton } from "@/screens/workspace/workspace-scripts-button";
+import {
+  buildWorkspaceTabMenuEntries,
+  type WorkspaceTabMenuLabels,
+} from "@/screens/workspace/workspace-tab-menu";
+import {
+  WorkspaceTabIcon,
+  WorkspaceTabOptionRow,
+  WorkspaceTabPresentationResolver,
+  type WorkspaceTabPresentation,
+} from "@/screens/workspace/workspace-tab-presentation";
+import { MobileTabTrailingAccessory } from "@/screens/workspace/workspace-tab-trailing-accessory";
+import type { WorkspaceTabDescriptor } from "@/screens/workspace/workspace-tabs-types";
+import { useCreateFlowStore } from "@/stores/create-flow-store";
+import { generateDraftId } from "@/stores/draft-keys";
+import { type ExplorerCheckoutContext } from "@/stores/explorer-checkout-context";
+import { selectIsAgentListOpen, usePanelStore } from "@/stores/panel-store";
+import { useSessionStore, type WorkspaceDescriptor } from "@/stores/session-store";
+import { useWorkspace } from "@/stores/session-store-hooks";
+import {
+  canDismissPaneInLayout,
+  collectAllTabs,
+  DEFAULT_PANE_ID,
+  findPaneById,
+  FOCUSED_PANE_PLACEMENT,
+  getFocusedBrowserId,
+  selectExplorerSidebarPaneId,
+  useWorkspaceLayoutStore,
+  useWorkspaceLayoutStoreHydrated,
+  type WorkspaceLayout,
+  type WorkspaceTabPlacement,
+} from "@/stores/workspace-layout-store";
+import {
+  shouldSeedWorkspaceSetupTab,
+  shouldShowWorkspaceSetup,
+  useWorkspaceSetupStore,
+} from "@/stores/workspace-setup-store";
+import type { SurfaceBackdrop } from "@/styles/surface-backdrop";
+import type { Theme } from "@/styles/theme";
+import { resolveCloseAgentTabPolicy } from "@/subagents";
+import { useOpenAgentTabLabels } from "@/subagents/use-open-agent-tab-labels";
+import { useWorkspaceTerminalSessionRetention } from "@/terminal/hooks/use-workspace-terminal-session-retention";
+import { getOrCreateClientId } from "@/utils/client-id";
+import { confirmDialog } from "@/utils/confirm-dialog";
+import { toggleDesktopSidebarsWithCheckoutIntent } from "@/utils/desktop-sidebar-toggle";
+import { useHasWindowChromeObstruction } from "@/utils/desktop-window";
+import type { ShortcutKey } from "@/utils/format-shortcut";
+import { buildHostRootRoute, buildSettingsHostRoute } from "@/utils/host-routes";
+import { buildProviderCommand } from "@/utils/provider-command-templates";
+import { RenderProfile } from "@/utils/render-profiler";
+import { findAdjacentPane } from "@/utils/split-navigation";
+import { resolveWorkspaceRouteId } from "@/utils/workspace-identity";
+import type { WorkspaceRecoveryModel } from "@/workspace-recovery/model";
+import { useWorkspaceRecovery } from "@/workspace-recovery/use-workspace-recovery";
+import {
+  buildWorkspaceTabSnapshot,
+  deriveWorkspaceAgentVisibility,
+  workspaceAgentVisibilityEqual,
+} from "@/workspace-tabs/agent-visibility";
+import {
+  isExplorerSidebarOpen,
+  openExplorerSidebarView,
+  toggleExplorerSidebar,
+  useIsExplorerSidebarOpen,
+} from "@/workspace-tabs/explorer-sidebar";
+import { normalizeWorkspaceTabTarget, workspaceTabTargetsEqual } from "@/workspace-tabs/identity";
+import {
+  NewTabLauncherProvider,
+  type NewTabLauncher,
+  type WorkspaceTabLaunchDestination,
+} from "@/workspace-tabs/launcher";
+import {
+  buildWorkspaceTabPersistenceKey,
+  type WorkspaceTab,
+  type WorkspaceTabTarget,
+} from "@/workspace-tabs/model";
+import type { NewTabSelection } from "@/workspace-tabs/new-tab";
+import {
+  openPreferredWorkspacePreview,
+  openPreferredWorkspaceTarget,
+  openWorkspaceTargetBeside,
+} from "@/workspace-tabs/open-beside";
+import { openWorkspacePullRequest } from "@/workspace-tabs/open-supporting-view";
+import {
+  createWorkspaceFileTabTarget,
+  normalizeWorkspaceFileLocation,
+  type WorkspaceFileLocation,
+  type WorkspaceFileOpenRequest,
+} from "@/workspace/file-open";
+import { WorkspaceFocusProvider } from "@/workspace/focus";
+import { WorkspaceOpenInEditorButton } from "@/workspace/open-in-editor/button";
 import { getOpenAgentTabLabel } from "@getpaseo/protocol/agent-labels";
+import type { JsonValue } from "@getpaseo/protocol/agent-types";
+import type { TerminalProfile } from "@getpaseo/protocol/messages";
+import { useIsFocused } from "@react-navigation/native";
+import { useQueryClient } from "@tanstack/react-query";
+import * as Clipboard from "expo-clipboard";
+import { useRouter, type Href } from "expo-router";
+import { ChevronDown } from "lucide-react-native";
 import {
   memo,
   useCallback,
@@ -12,201 +199,13 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
-import { useStoreWithEqualityFn } from "zustand/traditional";
-import { useIsFocused } from "@react-navigation/native";
-import { BackHandler, Keyboard, Pressable, Text, View } from "react-native";
-import { useQueryClient } from "@tanstack/react-query";
-import { useRouter, type Href } from "expo-router";
-import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
-import { ChevronDown } from "lucide-react-native";
+import { BackHandler, Keyboard, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import type { Theme } from "@/styles/theme";
 import invariant from "tiny-invariant";
-import { SidebarMenuToggle } from "@/components/headers/menu-header";
-import { ScreenHeader } from "@/components/headers/screen-header";
-import { ScreenTitle } from "@/components/headers/screen-title";
-import { HostBadge } from "@/hosts/host-badge";
-import { useHostBadges } from "@/hosts/use-host-badges";
-import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
-import type { ShortcutKey } from "@/utils/format-shortcut";
-import {
-  FloatingPanelPortalHost,
-  FloatingPanelPortalHostNameProvider,
-} from "@/components/ui/floating-panel-portal";
-import { SplitContainer } from "@/components/split-container";
-import { RetainedPanel } from "@/components/retained-panel";
-import { WorkspaceActions } from "@/git/workspace-actions";
-import { WorkspaceOpenInEditorButton } from "@/workspace/open-in-editor/button";
-import { WorkspaceScriptsButton } from "@/screens/workspace/workspace-scripts-button";
-import { ImportSessionSheet } from "@/components/import-session-sheet";
-import { useNavigateToImportedAgent } from "@/hooks/use-import-session";
-import { useToast } from "@/contexts/toast-context";
-import { getOrCreateClientId } from "@/utils/client-id";
-import { selectIsAgentListOpen, usePanelStore } from "@/stores/panel-store";
-import { toggleDesktopSidebarsWithCheckoutIntent } from "@/utils/desktop-sidebar-toggle";
-import {
-  isExplorerSidebarOpen,
-  openExplorerSidebarView,
-  toggleExplorerSidebar,
-  useIsExplorerSidebarOpen,
-} from "@/workspace-tabs/explorer-sidebar";
-import {
-  openPreferredWorkspacePreview,
-  openPreferredWorkspaceTarget,
-  openWorkspaceTargetBeside,
-} from "@/workspace-tabs/open-beside";
-import { openWorkspacePullRequest } from "@/workspace-tabs/open-supporting-view";
-import { type ExplorerCheckoutContext } from "@/stores/explorer-checkout-context";
-import { traceInstant } from "@/performance/native-trace";
-import { useSessionStore, type WorkspaceDescriptor } from "@/stores/session-store";
-import {
-  canDismissPaneInLayout,
-  collectAllTabs,
-  DEFAULT_PANE_ID,
-  findPaneById,
-  getFocusedBrowserId,
-  FOCUSED_PANE_PLACEMENT,
-  selectExplorerSidebarPaneId,
-  type WorkspaceLayout,
-  type WorkspaceTabPlacement,
-  useWorkspaceLayoutStore,
-  useWorkspaceLayoutStoreHydrated,
-} from "@/stores/workspace-layout-store";
-import {
-  buildWorkspaceTabPersistenceKey,
-  type WorkspaceTab,
-  type WorkspaceTabTarget,
-} from "@/workspace-tabs/model";
-import { useSettings } from "@/hooks/use-settings";
-import { useKeyboardActionHandler } from "@/hooks/use-keyboard-action-handler";
-import { buildWorkspaceKeyboardHandlerId } from "@/keyboard/handler-id";
-import type {
-  KeyboardActionDefinition,
-  WorkspacePanelTarget,
-} from "@/keyboard/keyboard-action-dispatcher";
-import { useCreateFlowStore } from "@/stores/create-flow-store";
-import { normalizeWorkspaceTabTarget, workspaceTabTargetsEqual } from "@/workspace-tabs/identity";
+import { useStoreWithEqualityFn } from "zustand/traditional";
 import { useVisibleAgentIds } from "./visible-agent-ids";
-import {
-  getHostRuntimeStore,
-  useHostRuntimeClient,
-  useHostRuntimeIsConnected,
-  useHostRuntimeSnapshot,
-  useHosts,
-} from "@/runtime/host-runtime";
-import { prefetchProvidersSnapshot } from "@/hooks/use-providers-snapshot";
-import {
-  shouldSeedWorkspaceSetupTab,
-  shouldShowWorkspaceSetup,
-  useWorkspaceSetupStore,
-} from "@/stores/workspace-setup-store";
-import { useWorkspace } from "@/stores/session-store-hooks";
-import { useWorkspaceTerminalSessionRetention } from "@/terminal/hooks/use-workspace-terminal-session-retention";
-import type { CheckoutStatusPayload } from "@/git/use-status-query";
-import { confirmDialog } from "@/utils/confirm-dialog";
-import { useArchiveAgent } from "@/hooks/use-archive-agent";
-import { useStableEvent } from "@/hooks/use-stable-event";
-import { removeResidentBrowserWebview } from "@/desktop/browser/resident-webviews";
-import { createWorkspaceBrowser, useBrowserStore } from "@/desktop/browser/store";
-import { getDesktopHost } from "@/desktop/host";
-import { buildProviderCommand } from "@/utils/provider-command-templates";
-import { generateDraftId } from "@/stores/draft-keys";
-import { resolveWorkspaceRouteId } from "@/utils/workspace-identity";
-import { useOpenAgentTabLabels } from "@/subagents/use-open-agent-tab-labels";
-import {
-  WorkspaceTabPresentationResolver,
-  WorkspaceTabIcon,
-  WorkspaceTabOptionRow,
-  type WorkspaceTabPresentation,
-} from "@/screens/workspace/workspace-tab-presentation";
-import {
-  useWorkspaceTabRename,
-  WorkspaceTabRenameModal,
-} from "@/screens/workspace/use-workspace-tab-rename";
-import { MobileTabTrailingAccessory } from "@/screens/workspace/workspace-tab-trailing-accessory";
-import {
-  WorkspaceDesktopTabsRow,
-  type WorkspaceDesktopTabRowItem,
-} from "@/screens/workspace/workspace-desktop-tabs-row";
-import {
-  buildWorkspaceTabMenuEntries,
-  type WorkspaceTabMenuLabels,
-} from "@/screens/workspace/workspace-tab-menu";
-import { useDesktopBrowserNewTabRequests } from "@/desktop/browser/new-tab-requests";
-import type { WorkspaceTabDescriptor } from "@/screens/workspace/workspace-tabs-types";
-import {
-  resolveWorkspaceExplorerToggleOwner,
-  WorkspaceExplorerToggle,
-  WorkspaceExplorerSidebarToggle,
-  WorkspaceHeaderExplorerToggle,
-} from "@/screens/workspace/workspace-explorer-toggle";
-import { useHasWindowChromeObstruction } from "@/utils/desktop-window";
-import {
-  resolveWorkspaceHeaderRenderState,
-  type WorkspaceHeaderCheckoutState,
-} from "@/screens/workspace/workspace-header-source";
-import {
-  resolveWorkspaceRouteState,
-  type WorkspaceRouteState,
-} from "@/screens/workspace/workspace-route-state";
-import { renderWorkspaceRouteGate } from "@/screens/workspace/workspace-route-state-views";
-import { useWorkspaceRecovery } from "@/workspace-recovery/use-workspace-recovery";
-import type { WorkspaceRecoveryModel } from "@/workspace-recovery/model";
-import {
-  buildWorkspaceTabSnapshot,
-  deriveWorkspaceAgentVisibility,
-  workspaceAgentVisibilityEqual,
-} from "@/workspace-tabs/agent-visibility";
-import { deriveWorkspacePaneState } from "@/screens/workspace/workspace-pane-state";
-import {
-  buildWorkspacePaneContentModel,
-  WorkspacePaneContent,
-  type WorkspacePaneContentModel,
-} from "@/screens/workspace/workspace-pane-content";
-import { useMountedTabSet } from "@/screens/workspace/use-mounted-tab-set";
-import { WorkspaceFocusProvider } from "@/workspace/focus";
-import { DiffDocumentWorkspaceCacheProvider } from "@/git/diff-document/workspace-cache";
-import type { NewTabSelection } from "@/workspace-tabs/new-tab";
-import {
-  NewTabLauncherProvider,
-  type NewTabLauncher,
-  type WorkspaceTabLaunchDestination,
-} from "@/workspace-tabs/launcher";
-import type { TerminalTabDestination } from "@/screens/workspace/terminals/use-workspace-terminals";
-import {
-  buildBulkCloseConfirmationMessage,
-  type BulkCloseConfirmationLabels,
-  classifyBulkClosableTabs,
-  closeBulkWorkspaceTabs,
-} from "@/screens/workspace/workspace-bulk-close";
-import { resolveCloseAgentTabPolicy } from "@/subagents";
-import {
-  getPanelInstanceAttributes,
-  useModifiedPanelTabIds,
-} from "@/panels/panel-instance-attributes";
-import { findAdjacentPane } from "@/utils/split-navigation";
-import { supportsDesktopPaneSplits, useIsCompactFormFactor } from "@/constants/layout";
-import { getIsElectron, isNative, isWeb } from "@/constants/platform";
-import type { SurfaceBackdrop } from "@/styles/surface-backdrop";
-import { buildHostRootRoute, buildSettingsHostRoute } from "@/utils/host-routes";
-import { useWorkspaceTerminals } from "@/screens/workspace/terminals/use-workspace-terminals";
-import type { TerminalProfile } from "@getpaseo/protocol/messages";
-import {
-  WorkspaceHeaderMenuDesktop,
-  WorkspaceHeaderMenuMobile,
-} from "@/screens/workspace/workspace-header-menu";
-import { PluginHeaderButtons } from "@/plugins";
-import {
-  createWorkspaceFileTabTarget,
-  normalizeWorkspaceFileLocation,
-  type WorkspaceFileLocation,
-  type WorkspaceFileOpenRequest,
-} from "@/workspace/file-open";
-import { RenderProfile } from "@/utils/render-profiler";
-import { useWorkspaceCheckoutStatus } from "@/screens/workspace/use-workspace-checkout-status";
-import { useHasPullRequest, usePullRequestAutoAdd } from "@/panels/pull-request";
 
 const WORKSPACE_FLOATING_PANEL_PORTAL_HOST_PREFIX = "workspace-floating-panels";
 const EMPTY_UI_TABS: WorkspaceTab[] = [];
@@ -3758,7 +3757,6 @@ function WorkspaceScreenContent({
   const headerRight = useMemo(
     () => (
       <View style={styles.headerRight}>
-        <PluginHeaderButtons serverId={normalizedServerId} workspaceId={normalizedWorkspaceId} />
         {!isMobile && workspaceDescriptor && workspaceDescriptor.scripts.length > 0 ? (
           <WorkspaceScriptsButton
             serverId={normalizedServerId}
