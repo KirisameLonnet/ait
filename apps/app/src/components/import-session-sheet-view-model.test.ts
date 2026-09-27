@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { FetchRecentProviderSessionEntry } from "@getpaseo/client/internal/daemon-client";
+import { parseServerInfoStatusPayload } from "@getpaseo/protocol/messages";
+import { serverInfo } from "@/runtime/rust-server/messages";
+import { object } from "@/runtime/rust-server/types";
 import {
   aggregateSessionEntries,
   ALL_FILTER_VALUE,
@@ -78,6 +81,21 @@ describe("resolveProvidersToFetch", () => {
 });
 
 describe("requiresImportSessionsHostUpgrade", () => {
+  it("allows workspace imports using the Rust adapter's negotiated capabilities", () => {
+    const status = serverInfo(
+      { server_id: "rust-host" },
+      new Set(["provider.snapshot.get.request", "agent.import.request"]),
+    );
+    const features = parseServerInfoStatusPayload(object(object(status.message).payload))?.features;
+    expect(
+      requiresImportSessionsHostUpgrade({
+        supportsSnapshot: features?.providersSnapshot === true,
+        workspaceId: "ws-new-session",
+        supportsWorkspaceTarget: features?.importSessionWorkspaceTarget === true,
+      }),
+    ).toBe(false);
+  });
+
   it("allows home imports on hosts without workspace targeting", () => {
     expect(
       requiresImportSessionsHostUpgrade({

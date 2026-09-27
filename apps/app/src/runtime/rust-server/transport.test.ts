@@ -169,6 +169,44 @@ describe("Rust protocol adapter", () => {
     }
   });
 
+  it("preserves native session search and workspace import targets", () => {
+    const h = harness();
+    try {
+      h.ready();
+      h.send({
+        type: "fetch_recent_provider_sessions_request",
+        requestId: "recent-sessions",
+        cwd: "/repo",
+        providers: ["codex"],
+        query: "session title",
+        limit: 15,
+      });
+      expect(h.last(METHODS.fetch_recent_provider_sessions_request.channel)).toMatchObject({
+        method: "provider.sessions.recent.list.request",
+        params: { cwd: "/repo", providers: ["codex"], query: "session title", limit: 15 },
+      });
+      h.send({
+        type: "import_agent_request",
+        requestId: "import-session",
+        providerId: "codex",
+        providerHandleId: "native-session",
+        cwd: "/repo",
+        workspaceId: "wks_0123456789abcdef",
+      });
+      expect(h.last(METHODS.import_agent_request.channel)).toMatchObject({
+        method: "agent.import.request",
+        params: {
+          providerId: "codex",
+          providerHandleId: "native-session",
+          cwd: "/repo",
+          workspaceId: "wks_0123456789abcdef",
+        },
+      });
+    } finally {
+      h.transport.close();
+    }
+  });
+
   it("correlates concurrent replies and sends params without envelope fields", () => {
     const h = harness();
     try {

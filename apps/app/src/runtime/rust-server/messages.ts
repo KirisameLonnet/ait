@@ -36,6 +36,8 @@ export function serverInfo(info: Payload, implemented: Set<string>): Payload {
       ownedSubscriptions: has("subscription.release.request"),
       explicitEventSubscriptions: has("session.events.set_subscription.request"),
       providersSnapshot: has("provider.snapshot.get.request"),
+      importSessionWorkspaceTarget: has("agent.import.request"),
+      importSessionSearch: has("provider.sessions.recent.list.request"),
       workspaceLabels: has("workspace.label.list.request"),
       agentConfigApply: has("agent.config.apply.request"),
       daemonConfigReload: has("daemon.config.reload.request"),
