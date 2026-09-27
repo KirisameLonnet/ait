@@ -1,5 +1,7 @@
 # 概念与架构文档
 
+- [Ait 0.0.7 同版本重建发布（2026-09-28）](reports/release-0.0.7-rebuild-2026-09-28.md)：最新 main 的更新内容、安装说明、构建来源与发布校验记录。
+
 - [ADR-060：统一 Workspace 创建入口支持 Worktree](decisions/adr-060-workspace-create-worktree.md)：Paseo 来源参数、共享 Git 服务、预留身份、幂等回执与 setup；[验证报告](reports/workspace-create-worktree.md)。
 
 - [ADR-059：移除旧 Rust 运行时](decisions/adr-059-remove-legacy-rust-runtime.md)：删除 daemon、worker、CLI 和 16 个专用 crate；Cargo workspace 统一为 `bins/server` 与 11 个 `server-*` crate；[验证报告](reports/remove-legacy-rust-runtime.md)。
