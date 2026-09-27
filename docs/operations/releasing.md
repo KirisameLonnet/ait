@@ -1,7 +1,8 @@
 # Ait 发布操作指南
 
 从 0.0.7 起，GitHub Release 构建 `apps/paseo` Electron 桌面、`apps/app` 的 Web 导出和
-Rust `server`。`apps/desktop` 是旧实现，不再发布。决策见 [ADR-053](../decisions/adr-053-paseo-desktop-release.md)。
+Rust `server`。发布边界见 [ADR-053](../decisions/adr-053-paseo-desktop-release.md)，
+旧桌面源码的移除见 [ADR-057](../decisions/adr-057-remove-legacy-desktop.md)。
 
 ## 发布产物
 
@@ -31,7 +32,7 @@ npm run build:paseo
 npm run typecheck --workspace=@getpaseo/desktop --workspace=@getpaseo/app
 ```
 
-`apps/desktop` 的独立 manifest/lockfile 不参与新发布校验。更新根 CHANGELOG.md：该文件
+更新根 CHANGELOG.md：该文件
 会打入应用，供“新功能”页面读取。把版本与发布变更经 PR 合并到 `main` 后，再创建标签。
 
 ## 创建 Release

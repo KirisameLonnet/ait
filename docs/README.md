@@ -1,5 +1,7 @@
 # 概念与架构文档
 
+- [ADR-057：移除旧版桌面实现](decisions/adr-057-remove-legacy-desktop.md)：删除旧桌面源码、测试与构建配置，桌面入口统一为 `apps/paseo` 和 `apps/app`；旧 Rust daemon/worker/CLI 保留。
+
 - [main CI 进程与文件订阅修复](reports/main-ci-process-subscriptions.md)：同步轮询许可竞争回归、Claude 固定测试替身，以及 rebase 后的完整验证。
 
 - [Server 会话空标题修复](reports/server-session-titles.md)：新会话首条消息命名、原生导入/刷新标题回退、旧记录补齐，以及自动 AI metadata 尚未接入的限制。
@@ -253,7 +255,7 @@
 
 - `decisions/NEC-294/adr-001-project-editing-and-sidebar.md`：Project 名称与默认 Agent 原子编辑、独立展开状态及按 Project 读取的 Session 导航摘要；修订 NEC-233 的侧栏展示限制。
 
-- `decisions/NEC-290/adr-001-api-tool-approval-grants.md`：API Provider 的交互升级、固定 Run 基线与一次性 grant、持久化/worker fencing、Session 和 Cron 审批入口；使用与离线 GUI 演示见 `operations/api-tool-approvals.md`。
+- `decisions/NEC-290/adr-001-api-tool-approval-grants.md`：API Provider 的交互升级、固定 Run 基线与一次性 grant、持久化/worker fencing、Session 和 Cron 审批入口；历史界面流程与后端离线验收见 `operations/api-tool-approvals.md`。
 
 - `decisions/NEC-269/adr-001-composer-permission-default.md`：Prompt 移除无功能加号、权限选择器置首，新建/重置设置默认 Workspace Write，保留已存权限与 Run 快照。
 

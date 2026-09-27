@@ -4,6 +4,7 @@
 - 日期：2026-09-27
 - 关联：ADR-001 v4、ADR-048、ADR-051
 - 修订：链接协议和桌面数据隔离以 [ADR-055](adr-055-desktop-profile-isolation.md) 为准。
+- 修订：保留旧桌面源码与独立版本的条款由 [ADR-057](adr-057-remove-legacy-desktop.md) 取代。
 
 ## 背景
 

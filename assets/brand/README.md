@@ -15,19 +15,18 @@ npm run check:icons
 
 生成依赖固定版本的 `sharp`，无需字体、图像生成服务或额外图标转换程序。
 `check:icons` 在相同依赖环境下重新生成并逐字节检查 38 份产物，缺失或过期时返回失败。
-`apps/desktop` 中原有的 `npm run generate:icons` 也调用同一脚本。
 
-| 资产 | 用途 |
-| --- | --- |
-| `ait-mark.svg` | 双色独立飞鸟，透明底 |
-| `ait-mark-mono.svg` | 深炭色单色轮廓 |
-| `ait-mark-small.svg` | 小尺寸单色轮廓，16–32 px favicon |
-| `ait-lockup-horizontal.svg` | 横向图形与路径化 AIT 字标 |
-| `ait-lockup-stacked.svg` | 纵向组合，欢迎与启动场景 |
-| 根目录 `logo.svg` / `logo.png` | 浅色圆角桌面图标、README 与旧桌面壳 |
-| `apps/paseo/assets/` | Electron 开发/发行 PNG、Windows ICO、macOS ICNS、Linux 尺寸集 |
-| `apps/app/assets/images/` | Expo 图标、自适应前景、通知、启动及 favicon 状态资源 |
-| `apps/app/public/` | Apple touch 与 PWA 安装图标 |
+| 资产                           | 用途                                                          |
+| ------------------------------ | ------------------------------------------------------------- |
+| `ait-mark.svg`                 | 双色独立飞鸟，透明底                                          |
+| `ait-mark-mono.svg`            | 深炭色单色轮廓                                                |
+| `ait-mark-small.svg`           | 小尺寸单色轮廓，16–32 px favicon                              |
+| `ait-lockup-horizontal.svg`    | 横向图形与路径化 AIT 字标                                     |
+| `ait-lockup-stacked.svg`       | 纵向组合，欢迎与启动场景                                      |
+| 根目录 `logo.svg` / `logo.png` | 浅色圆角桌面图标与 README                                     |
+| `apps/paseo/assets/`           | Electron 开发/发行 PNG、Windows ICO、macOS ICNS、Linux 尺寸集 |
+| `apps/app/assets/images/`      | Expo 图标、自适应前景、通知、启动及 favicon 状态资源          |
+| `apps/app/public/`             | Apple touch 与 PWA 安装图标                                   |
 
 iOS 图标和 PWA 图标是不透明方图；系统负责遮罩。Android 前景和通知图标保留透明背景，
 通知图标为纯白轮廓。PWA 与 Android 的飞鸟比例分别服从各自安全圆；桌面圆角不用于移动端母图。
