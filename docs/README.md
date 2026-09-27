@@ -1,5 +1,9 @@
 # 概念与架构文档
 
+- [ADR-062：Ait 运行路径与项目配置](decisions/adr-062-ait-runtime-paths.md)：工作区归属采用 server 元数据，`ait.json` 及旧文件读取兼容，清理旧 CLI 与测试启动器，更新项目版权署名；[验证报告](reports/ait-e2e-migration.md)。
+
+- [ADR-061：App Ait E2E 与移除 relay / 插件](decisions/adr-061-app-ait-e2e-remove-relay-plugin.md)：隔离 Rust server、认证和生产 transport、旧状态迁移；[运行说明](../apps/app/e2e/README.md)。
+
 - [ADR-060：统一 Workspace 创建入口支持 Worktree](decisions/adr-060-workspace-create-worktree.md)：Paseo 来源参数、共享 Git 服务、预留身份、幂等回执与 setup；[验证报告](reports/workspace-create-worktree.md)。
 
 - [ADR-059：移除旧 Rust 运行时](decisions/adr-059-remove-legacy-rust-runtime.md)：删除 daemon、worker、CLI 和 16 个专用 crate；Cargo workspace 统一为 `bins/server` 与 11 个 `server-*` crate；[验证报告](reports/remove-legacy-rust-runtime.md)。

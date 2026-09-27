@@ -1,3 +1,11 @@
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { DropdownTrigger } from "@/components/ui/dropdown-trigger";
+import { FormTextInput } from "@/components/ui/form-field";
+import { Switch } from "@/components/ui/switch";
+import type { EditingTextInputHandle } from "@/components/ui/text-input";
+import { useIsCompactFormFactor } from "@/constants/layout";
+import { settingsStyles } from "@/styles/settings";
 import {
   Children,
   isValidElement,
@@ -10,20 +18,12 @@ import {
 import { Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import type {
-  SettingsRowProps,
-  SettingsSwitchProps,
-  SettingsSelectProps,
-  SettingsInputProps,
   SettingsActionProps,
-} from "@getpaseo/plugin/client/ui";
-import type { EditingTextInputHandle } from "@/components/ui/text-input";
-import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
-import { FormTextInput } from "@/components/ui/form-field";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { DropdownTrigger } from "@/components/ui/dropdown-trigger";
-import { useIsCompactFormFactor } from "@/constants/layout";
-import { settingsStyles } from "@/styles/settings";
+  SettingsInputProps,
+  SettingsRowProps,
+  SettingsSelectProps,
+  SettingsSwitchProps,
+} from "./types";
 export { SettingsGroup } from "./headings/settings-group";
 export { SettingsSection } from "./headings/settings-section";
 

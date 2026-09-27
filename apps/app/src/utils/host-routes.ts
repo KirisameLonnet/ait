@@ -1,5 +1,5 @@
-import { Buffer } from "buffer";
 import { buildAgentDeepLinkRoute } from "@getpaseo/protocol/agent-deep-link";
+import { Buffer } from "buffer";
 
 type NullableString = string | null | undefined;
 const BASE64_WORKSPACE_ID_PREFIX = "b64_";
@@ -495,7 +495,6 @@ export const SETTINGS_SECTION_SLUGS = [
   "layout",
   "editor",
   "shortcuts",
-  "integrations",
   "notifications",
   "permissions",
   "diagnostics",

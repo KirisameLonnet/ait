@@ -1,9 +1,9 @@
-//! Paseo project configuration RPC payloads and raw `paseo.json` schema.
+//! Paseo project configuration RPC payloads and raw `ait.json` schema.
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Map, Value};
 
-/// Methods for editing a registered project's `paseo.json`.
+/// Methods for editing a registered project's `ait.json`.
 pub const CAPABILITIES: &[&str] = &[
     "project.config.read.request",
     "project.config.write.request",
@@ -47,7 +47,7 @@ impl Serialize for PaseoConfigRaw {
     }
 }
 
-/// Optimistic concurrency revision for `paseo.json`.
+/// Optimistic concurrency revision for `ait.json`.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaseoConfigRevision {

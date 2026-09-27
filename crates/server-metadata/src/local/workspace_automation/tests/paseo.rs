@@ -5,7 +5,7 @@ use serde_json::json;
 use super::*;
 
 fn config(root: &Path, value: &Value) {
-    fs::write(root.join("paseo.json"), serde_json::to_vec(value).unwrap()).unwrap();
+    fs::write(root.join("ait.json"), serde_json::to_vec(value).unwrap()).unwrap();
 }
 
 fn wait_script(
@@ -36,7 +36,7 @@ fn missing_config_returns_no_scripts_without_creating_a_file() {
             .unwrap()
             .is_empty()
     );
-    assert!(!root.path().join("paseo.json").exists());
+    assert!(!root.path().join("ait.json").exists());
 }
 
 #[test]

@@ -11,12 +11,12 @@ describe("project-placement", () => {
     expect(placement.checkout.isGit).toBe(false);
   });
 
-  it("normalizes paseo worktree paths into the parent repo key", () => {
-    const placement = deriveProjectPlacementFromCwd("/Users/test/repo/.paseo/worktrees/feature-x");
-
-    expect(placement.projectKey).toBe("/Users/test/repo");
-    expect(placement.projectName).toBe("repo");
-    expect(placement.checkout.cwd).toBe("/Users/test/repo/.paseo/worktrees/feature-x");
+  it("keeps the current directory when server placement is unavailable", () => {
+    const cwd = "/custom/data/worktrees/hash/feature";
+    const placement = deriveProjectPlacementFromCwd(cwd);
+    expect(placement.projectKey).toBe(cwd);
+    expect(placement.projectName).toBe("feature");
+    expect(placement.checkout.cwd).toBe(cwd);
   });
 
   it("prefers an existing placement when present", () => {

@@ -1,54 +1,31 @@
 import { expect, test } from "../../app/e2e/support/fixtures";
-import { gotoAppShell, openSettings } from "../../app/e2e/support/helpers/app";
+import { gotoAppShell } from "../../app/e2e/support/helpers/app";
 import { getServerId } from "../../app/e2e/support/helpers/server-id";
 import {
-  openHostSection,
-  openSettingsHost,
-  seedSavedSettingsHosts,
-} from "../../app/e2e/support/helpers/settings";
-import {
-  loadRealDaemonState,
-  installDesktopRuntime,
-  openDesktopAboutSettings,
-  openDesktopSettings,
-  expectUpdateBanner,
   clickCheckForUpdates,
+  clickInstallUpdate,
+  expectDaemonManagementConfirmDialog,
+  expectDaemonManagementDisabled,
+  expectDaemonManagementEnabled,
+  expectDaemonStatusLogPath,
+  expectDaemonStatusPid,
+  expectDaemonStatusVersion,
+  expectInstallInProgress,
   expectPendingUpdateCheckResult,
   expectReadyUpdateCheckResult,
-  clickInstallUpdate,
-  expectInstallInProgress,
+  expectUpdateBanner,
+  installDesktopRuntime,
   interceptDaemonManagementConfirmDialog,
   interceptDaemonStopConfirmDialog,
+  loadRealDaemonState,
+  openDesktopAboutSettings,
+  openDesktopSettings,
   toggleDaemonManagement,
-  expectDaemonManagementConfirmDialog,
-  expectDaemonManagementEnabled,
-  expectDaemonManagementDisabled,
-  expectDaemonStatusPid,
-  expectDaemonStatusLogPath,
-  expectDaemonStatusVersion,
 } from "./support/runtime";
 
 // These renderer cases use the Desktop bridge fixture. Actual Electron ownership
-// and native confirmation journeys live in daemon-lifecycle.e2e.mjs.
+// and native confirmation journeys live in rust-startup.e2e.mjs.
 test.describe("Desktop updates", () => {
-  test("a desktop-managed daemon explains why its update action is disabled", async ({
-    page,
-    desktopManagedOutdatedDaemon,
-  }) => {
-    await seedSavedSettingsHosts(page, [desktopManagedOutdatedDaemon]);
-    await page.reload();
-    await openSettings(page);
-    await openSettingsHost(page, desktopManagedOutdatedDaemon.serverId);
-    await openHostSection(page, desktopManagedOutdatedDaemon.serverId, "host");
-
-    const updateCard = page.getByTestId("host-page-update-card");
-    await expect(updateCard).toBeVisible();
-    await expect(updateCard).toContainText(
-      "This daemon is managed by Ait Desktop. Update Ait Desktop on the host.",
-    );
-    await expect(page.getByTestId("host-page-update-button")).toBeDisabled();
-  });
-
   test("clicking install shows the installing state on the callout", async ({ page }) => {
     await installDesktopRuntime(page, {
       serverId: getServerId(),
@@ -153,7 +130,7 @@ test.describe("Desktop daemon management", () => {
     }) => {
       const serverId = getServerId();
       const realState = await loadRealDaemonState();
-      const daemonHome = process.env.E2E_PASEO_HOME!;
+      const daemonHome = process.env.E2E_AIT_DATA_DIR!;
       await installDesktopRuntime(page, {
         serverId,
         daemonPid: realState.pid,

@@ -1,15 +1,10 @@
-import { useCallback, useMemo, useState, type ComponentType, type ReactNode } from "react";
-import { Text, View } from "react-native";
-import { ArrowLeftToLine, Plus, X } from "lucide-react-native";
-import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import { useTranslation } from "react-i18next";
-import Animated from "react-native-reanimated";
-import { SortableInlineList } from "@/components/sortable-inline-list";
-import { EXPLORER_TAB_RAIL_INSET } from "@/components/explorer-sidebar-layout";
+import { titlebarDragSurfaceStyle } from "@/components/desktop/titlebar-drag-region";
 import type {
   DraggableListDragHandleProps,
   DraggableRenderItemInfo,
 } from "@/components/draggable-list.types";
+import { EXPLORER_TAB_RAIL_INSET } from "@/components/explorer-sidebar-layout";
+import { SortableInlineList } from "@/components/sortable-inline-list";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -17,31 +12,36 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { titlebarDragSurfaceStyle } from "@/components/desktop/titlebar-drag-region";
-import { WORKSPACE_SECONDARY_HEADER_HEIGHT } from "@/constants/layout";
-import { iconButtonChromeGlyphSize } from "@/components/ui/icon-button-chrome";
 import { HEADER_CONTROL_HEIGHT } from "@/components/ui/control-geometry";
+import {
+  HorizontalScrollBoundaryShades,
+  useHorizontalScrollBoundary,
+} from "@/components/ui/horizontal-scroll-boundary";
+import { iconButtonChromeGlyphSize } from "@/components/ui/icon-button-chrome";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { WORKSPACE_SECONDARY_HEADER_HEIGHT } from "@/constants/layout";
+import type { PanelIconProps } from "@/panels/panel-registry";
+import { panelTargetSupportsHost } from "@/panels/target-host";
+import type { WorkspaceDesktopTabRowItem } from "@/screens/workspace/workspace-desktop-tabs-row";
 import {
   WorkspaceTabIcon,
   WorkspaceTabPresentationResolver,
   type WorkspaceTabPresentation,
 } from "@/screens/workspace/workspace-tab-presentation";
-import type { WorkspaceDesktopTabRowItem } from "@/screens/workspace/workspace-desktop-tabs-row";
 import type { WorkspaceTabDescriptor } from "@/screens/workspace/workspace-tabs-types";
+import type { SurfaceBackdrop } from "@/styles/surface-backdrop";
+import type { Theme } from "@/styles/theme";
+import { workspaceTabTargetsEqual } from "@/workspace-tabs/identity";
 import {
   useWorkspaceTabLaunchCatalog,
   type WorkspaceTabLaunchItem,
 } from "@/workspace-tabs/launcher";
-import { workspaceTabTargetsEqual } from "@/workspace-tabs/identity";
-import type { PanelIconProps } from "@/panels/panel-registry";
-import { panelTargetSupportsHost } from "@/plugins/workspace-panels/locations";
-import type { Theme } from "@/styles/theme";
-import type { SurfaceBackdrop } from "@/styles/surface-backdrop";
-import {
-  HorizontalScrollBoundaryShades,
-  useHorizontalScrollBoundary,
-} from "@/components/ui/horizontal-scroll-boundary";
+import { ArrowLeftToLine, Plus, X } from "lucide-react-native";
+import { useCallback, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import { Text, View } from "react-native";
+import Animated from "react-native-reanimated";
+import { StyleSheet, withUnistyles } from "react-native-unistyles";
 
 const TAB_GAP = 4;
 const TAB_DROP_INDICATOR_WIDTH = 4;

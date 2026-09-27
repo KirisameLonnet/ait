@@ -1,10 +1,11 @@
+import type { ProjectPlacementPayload } from "@getpaseo/protocol/messages";
+
 export interface AgentWorkingDirectorySource {
   cwd?: string | null;
+  projectPlacement?: ProjectPlacementPayload | null;
   createdAt?: Date | null;
   lastActivityAt?: Date | null;
 }
-
-const PASEO_WORKTREE_PATH_PATTERN = /(^|\/)\.paseo\/worktrees(\/|$)/;
 
 export function collectAgentWorkingDirectorySuggestions(
   sources: Iterable<AgentWorkingDirectorySource>,
@@ -16,7 +17,7 @@ export function collectAgentWorkingDirectorySuggestions(
     if (!cwd) {
       continue;
     }
-    if (isPaseoOwnedWorktreePath(cwd)) {
+    if (source.projectPlacement?.checkout.isPaseoOwnedWorktree) {
       continue;
     }
 
@@ -36,10 +37,6 @@ export function collectAgentWorkingDirectorySuggestions(
       return left[0].localeCompare(right[0]);
     })
     .map(([cwd]) => cwd);
-}
-
-function isPaseoOwnedWorktreePath(cwd: string): boolean {
-  return PASEO_WORKTREE_PATH_PATTERN.test(cwd.replace(/\\/g, "/"));
 }
 
 function toEpochMs(date: Date | null | undefined): number {

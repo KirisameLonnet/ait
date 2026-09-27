@@ -19,7 +19,6 @@ const buildProfile = isFdroidBuild
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
       ],
-      cameraPlugins: [],
       fdroidPlugins: [withFdroidAutolinking],
       notificationPlugins: [],
     }
@@ -28,17 +27,6 @@ const buildProfile = isFdroidBuild
         "RECORD_AUDIO",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
-        "CAMERA",
-        "android.permission.CAMERA",
-      ],
-      cameraPlugins: [
-        [
-          "expo-camera",
-          {
-            cameraPermission:
-              "Allow $(PRODUCT_NAME) to access your camera to scan pairing QR codes.",
-          },
-        ],
       ],
       fdroidPlugins: [],
       notificationPlugins: [
@@ -146,7 +134,6 @@ export default {
       withPasteInput,
       withAndroidScroll,
       [withAndroidAsyncStorageSize, 64],
-      ...buildProfile.cameraPlugins,
       [
         "expo-splash-screen",
         {

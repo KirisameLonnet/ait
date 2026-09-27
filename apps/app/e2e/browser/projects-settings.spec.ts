@@ -1,7 +1,17 @@
+import {
+  buildOpenProjectRoute,
+  buildProjectsSettingsRoute,
+  buildSettingsRoute,
+} from "@/utils/host-routes";
 import { chmod, readFile } from "node:fs/promises";
 import path from "node:path";
-import { expect, test as base, type Page } from "../support/fixtures";
-import { connectSeedClient, seedWorkspace } from "../support/helpers/seed-client";
+import { test as base, expect, type Page } from "../support/fixtures";
+import {
+  addProjectFlowInput,
+  chooseAddProjectMethod,
+  openAddProjectFlow,
+} from "../support/helpers/add-project-flow";
+import { gotoAppShell } from "../support/helpers/app";
 import {
   blockPaseoConfigWrites,
   bumpPaseoConfigOnDisk,
@@ -13,7 +23,6 @@ import {
   corruptPaseoConfig,
   editWorktreeSetup,
   expectEmptyScriptList,
-  expectProjectHostContextHidden,
   expectNoEditableTarget,
   expectNoProjectSettingsError,
   expectNoUncommittedSetupWarning,
@@ -21,15 +30,16 @@ import {
   expectProjectEditName,
   expectProjectEditSaved,
   expectProjectEditsSaveDisabled,
+  expectProjectHostContextHidden,
   expectProjectSettingsError,
   expectProjectSettingsFormHidden,
   expectProjectSettingsFormVisible,
-  expectProjectTitle,
   expectProjectSettingsHistoryRoundTrip,
+  expectProjectTitle,
   expectSaveButtonDisabled,
   expectScriptRowCount,
-  expectWriteFailedCalloutActions,
   expectUncommittedSetupWarning,
+  expectWriteFailedCalloutActions,
   fillProjectIconUrl,
   fillProjectName,
   installDaemonConnectionGate,
@@ -44,20 +54,10 @@ import {
   saveProjectEdits,
   unblockPaseoConfigWrites,
 } from "../support/helpers/project-settings";
-import { gotoAppShell } from "../support/helpers/app";
-import { openCompactSettings } from "../support/helpers/settings";
-import {
-  addProjectFlowInput,
-  chooseAddProjectMethod,
-  openAddProjectFlow,
-} from "../support/helpers/add-project-flow";
-import { createTempGitRepo } from "../support/helpers/workspace";
-import {
-  buildOpenProjectRoute,
-  buildProjectsSettingsRoute,
-  buildSettingsRoute,
-} from "@/utils/host-routes";
+import { connectSeedClient, seedWorkspace } from "../support/helpers/seed-client";
 import { getServerId } from "../support/helpers/server-id";
+import { openCompactSettings } from "../support/helpers/settings";
+import { createTempGitRepo } from "../support/helpers/workspace";
 
 const updatedSetup = ["npm install", "npm run build"];
 
@@ -162,7 +162,7 @@ async function expectProjectConfigSaved(project: ProjectsSettingsProject): Promi
 }
 
 async function readProjectConfigFile(project: ProjectsSettingsProject): Promise<string> {
-  return readFile(path.join(project.path, "paseo.json"), "utf8");
+  return readFile(path.join(project.path, "ait.json"), "utf8");
 }
 
 async function addProjectFromSidebar(page: Page, projectPath: string): Promise<string> {
@@ -377,7 +377,7 @@ test.describe("Projects settings — error UX", () => {
     await expectProjectSettingsFormVisible(page);
   });
 
-  test("invalid paseo.json shows read-error callout, reload after fix shows form", async ({
+  test("invalid ait.json shows read-error callout, reload after fix shows form", async ({
     page,
     editableProject,
   }) => {

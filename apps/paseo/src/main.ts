@@ -4,20 +4,22 @@ import log from "electron-log/main";
 log.transports.console.level = "info";
 log.initialize({ spyRendererConsole: true });
 
-import { inheritLoginShellEnv } from "./login-shell-env.js";
 import { configureDesktopProfile, desktopProfileOptions } from "./branding.js";
+import { inheritLoginShellEnv } from "./login-shell-env.js";
 
-import path from "node:path";
-import { pathToFileURL } from "node:url";
-import { existsSync } from "node:fs";
-import { execFileSync } from "node:child_process";
 import {
-  app,
-  autoUpdater as electronAutoUpdater,
+  APP_SCHEME,
+  buildAgentDeepLinkRoute,
+  parseAgentDeepLink,
+  type AgentDeepLinkTarget,
+} from "@getpaseo/protocol/agent-deep-link";
+import {
   BrowserWindow,
   ClipboardItem,
-  clipboard,
   Menu,
+  app,
+  clipboard,
+  autoUpdater as electronAutoUpdater,
   ipcMain,
   nativeImage,
   net,
@@ -27,83 +29,80 @@ import {
   shell,
   webContents,
 } from "electron";
-import { registerDaemonManager } from "./daemon/daemon-manager.js";
-import { parsePassthroughCliArgsFromArgv, runPassthroughCli } from "./daemon/cli/passthrough.js";
+import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { AgentNavigationInbox, parseAgentDeepLinkFromArgv } from "./agent-navigation.js";
+import {
+  isDesktopManagedDaemonRunningSync,
+  registerDaemonManager,
+  stopDesktopDaemonViaCli,
+} from "./daemon/daemon-manager.js";
 import { closeAllTransportSessions } from "./daemon/local-transport.js";
-import {
-  applyDesktopWindowChromeMode,
-  registerWindowManager,
-  getMainWindowChromeOptions,
-  getWindowBackgroundColor,
-  resolveSystemWindowTheme,
-  resolveWindowBounds,
-  setupWindowResizeEvents,
-  setupWindowStatePersistence,
-  setupDefaultContextMenu,
-  setupDragDropPrevention,
-  buildStandardContextMenuItems,
-} from "./window/window-manager.js";
-import { setupDarwinCompositorWatchdog } from "./window/compositor-watchdog/index.js";
-import { resolveDesktopWindowChromeMode, windowChromeModeArgument } from "./window/chrome.js";
-import { registerDialogHandlers } from "./features/dialogs.js";
-import {
-  registerNotificationHandlers,
-  ensureNotificationCenterRegistration,
-} from "./features/notifications.js";
-import { createExternalUrlOpener } from "./features/opener.js";
+import { createQuitLifecycle, registerExternalQuitSignals } from "./daemon/quit-lifecycle.js";
+import { runDesktopStartup } from "./desktop-startup.js";
+import { installAppUpdateOnQuit } from "./features/auto-updater.js";
+import { registerBrowserAutomationIpc } from "./features/browser-automation/ipc.js";
 import { createBrowserCaptureService } from "./features/browser-capture.js";
-import { registerEditorTargetHandlers } from "./features/editor-targets/ipc.js";
-import { resolveAppIconPath } from "./features/stamped-icon.js";
-import { setupApplicationMenu } from "./features/menu.js";
+import { BrowserKeyboard } from "./features/browser-keyboard/index.js";
 import {
-  BROWSER_NEW_TAB_REQUEST_EVENT,
-  decideBrowserWindowOpenRequest,
-  getPaseoBrowserIdForWebContents,
-  getPaseoBrowserWebContentsForHostWindow,
-  getPaseoBrowserWebviewRegistry,
-  listRegisteredPaseoBrowserIds,
-  isPaseoBrowserWebviewAttach,
-  preparePaseoBrowserWebContents,
-  PendingBrowserWindowOpenRequests,
-  registerBrowserWebviewNavigationGuards,
-  unregisterPaseoBrowserFromHost,
-  registerAttachedPaseoBrowser,
-  setWorkspaceActivePaseoBrowserId,
-  unregisterPaseoBrowserHost,
-} from "./features/browser-webviews/index.js";
-import {
+  PASEO_BROWSER_PROFILE_PARTITION,
   clearPaseoBrowserProfile,
   getLegacyPaseoBrowserProfileSession,
-  PASEO_BROWSER_PROFILE_PARTITION,
   getPaseoBrowserProfileSession,
   getPaseoBrowserProfileSessions,
   listPaseoBrowserProfileGuests,
   readLegacyPaseoBrowserIds,
 } from "./features/browser-profile.js";
+import {
+  BROWSER_NEW_TAB_REQUEST_EVENT,
+  PendingBrowserWindowOpenRequests,
+  decideBrowserWindowOpenRequest,
+  getPaseoBrowserIdForWebContents,
+  getPaseoBrowserWebContentsForHostWindow,
+  getPaseoBrowserWebviewRegistry,
+  isPaseoBrowserWebviewAttach,
+  listRegisteredPaseoBrowserIds,
+  preparePaseoBrowserWebContents,
+  registerAttachedPaseoBrowser,
+  registerBrowserWebviewNavigationGuards,
+  setWorkspaceActivePaseoBrowserId,
+  unregisterPaseoBrowserFromHost,
+  unregisterPaseoBrowserHost,
+} from "./features/browser-webviews/index.js";
+import { registerDialogHandlers } from "./features/dialogs.js";
+import { registerEditorTargetHandlers } from "./features/editor-targets/ipc.js";
+import { setupApplicationMenu } from "./features/menu.js";
+import {
+  ensureNotificationCenterRegistration,
+  registerNotificationHandlers,
+} from "./features/notifications.js";
+import { createExternalUrlOpener } from "./features/opener.js";
+import { resolveAppIconPath } from "./features/stamped-icon.js";
 import { parseOpenProjectPathFromArgv } from "./open-project-routing.js";
+import { getDesktopSettingsStore } from "./settings/desktop-settings-electron.js";
+import { clampWindowStateToWorkAreas, createWindowStateStore } from "./settings/window-state.js";
+import { resolveDesktopWindowChromeMode, windowChromeModeArgument } from "./window/chrome.js";
+import { setupDarwinCompositorWatchdog } from "./window/compositor-watchdog/index.js";
 import {
   createDesktopWindowOwner,
   type DesktopWindowOwner,
   type OwnedDesktopWindow,
 } from "./window/desktop-window-owner.js";
-import { getDesktopSettingsStore } from "./settings/desktop-settings-electron.js";
-import { clampWindowStateToWorkAreas, createWindowStateStore } from "./settings/window-state.js";
 import {
-  isDesktopManagedDaemonRunningSync,
-  stopDesktopDaemonViaCli,
-} from "./daemon/daemon-manager.js";
-import { createQuitLifecycle, registerExternalQuitSignals } from "./daemon/quit-lifecycle.js";
-import { runDesktopStartup } from "./desktop-startup.js";
-import { registerBrowserAutomationIpc } from "./features/browser-automation/ipc.js";
-import { BrowserKeyboard } from "./features/browser-keyboard/index.js";
-import { installAppUpdateOnQuit } from "./features/auto-updater.js";
-import {
-  buildAgentDeepLinkRoute,
-  APP_SCHEME,
-  parseAgentDeepLink,
-  type AgentDeepLinkTarget,
-} from "@getpaseo/protocol/agent-deep-link";
-import { AgentNavigationInbox, parseAgentDeepLinkFromArgv } from "./agent-navigation.js";
+  applyDesktopWindowChromeMode,
+  buildStandardContextMenuItems,
+  getMainWindowChromeOptions,
+  getWindowBackgroundColor,
+  registerWindowManager,
+  resolveSystemWindowTheme,
+  resolveWindowBounds,
+  setupDefaultContextMenu,
+  setupDragDropPrevention,
+  setupWindowResizeEvents,
+  setupWindowStatePersistence,
+} from "./window/window-manager.js";
 
 const DEV_SERVER_URL = process.env.EXPO_DEV_URL ?? "http://localhost:8081";
 const AIT_DEBUG = process.env.AIT_DEBUG === "1";
@@ -888,7 +887,7 @@ function setupSingleInstanceLock(): boolean {
       isDefaultApp: false,
     });
     log.info("[open-project] second-instance openProjectPath:", openProjectPath);
-    // Relaunching the app (CLI `paseo [path]`, double-click, etc.) opens a new
+    // Relaunching the app (`Ait [path]`, double-click, etc.) opens a new
     // window rather than focusing the existing one. Wait for bootstrap (not just
     // app.whenReady) so the protocol + IPC handlers exist before the window loads.
     void bootstrapComplete
@@ -897,24 +896,6 @@ function setupSingleInstanceLock(): boolean {
         log.error("[window] failed to create window from second-instance", error);
       });
   });
-
-  return true;
-}
-
-async function runCliPassthroughIfRequested(): Promise<boolean> {
-  const cliArgs = parsePassthroughCliArgsFromArgv(process.argv);
-  if (!cliArgs) {
-    return false;
-  }
-
-  try {
-    const exitCode = await runPassthroughCli(cliArgs);
-    app.exit(exitCode);
-  } catch (error) {
-    const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
-    process.stderr.write(`${message}\n`);
-    app.exit(1);
-  }
 
   return true;
 }
@@ -1011,8 +992,6 @@ async function bootstrap(): Promise<void> {
 }
 
 void runDesktopStartup({
-  hasPendingGuiLaunchRequest: Boolean(pendingOpenProjectPath || pendingAgentNavigation),
-  runCliPassthroughIfRequested,
   inheritLoginShellEnv,
   bootstrapGui: bootstrap,
 }).catch((error) => {

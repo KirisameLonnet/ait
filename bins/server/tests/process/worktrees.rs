@@ -16,7 +16,7 @@ async fn binary_creates_lists_and_archives_canonical_worktrees() {
     let repository = root.path().join("repository");
     create_repository(&repository);
     let nested = repository.join("packages/app");
-    std::fs::write(nested.join("paseo.json"), "{\"scripts\":{}}\n").unwrap();
+    std::fs::write(nested.join("ait.json"), "{\"scripts\":{}}\n").unwrap();
 
     let state = root.path().join("server");
     let log = root.path().join("server.log");
@@ -61,7 +61,7 @@ async fn binary_creates_lists_and_archives_canonical_worktrees() {
             .unwrap(),
     );
     assert_eq!(
-        std::fs::read_to_string(workspace_directory.join("paseo.json")).unwrap(),
+        std::fs::read_to_string(workspace_directory.join("ait.json")).unwrap(),
         "{\"scripts\":{}}\n"
     );
     assert_eq!(branch(&workspace_directory), "feature-review");

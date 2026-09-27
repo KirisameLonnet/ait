@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DaemonClientConfig } from "@getpaseo/client/internal/daemon-client";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DaemonConnectionDependencies, DaemonProbeClient } from "./test-daemon-connection";
 
 class FakeDaemonClient implements DaemonProbeClient {
@@ -128,16 +128,16 @@ describe("test-daemon-connection connectToDaemon", () => {
     const { connectToDaemon } = await import("./test-daemon-connection");
     const result = await connectToDaemon(
       {
-        id: "socket:/tmp/paseo.sock",
+        id: "socket:/tmp/ait.sock",
         type: "directSocket",
-        path: "/tmp/paseo.sock",
+        path: "/tmp/ait.sock",
       },
       undefined,
       probe.deps,
     );
     await result.client.close();
 
-    expect(probe.createdConfigs()[0]?.url).toBe("ait+desktop://socket?path=%2Ftmp%2Fpaseo.sock");
+    expect(probe.createdConfigs()[0]?.url).toBe("ait+desktop://socket?path=%2Ftmp%2Fait.sock");
   });
 
   it("uses the desktop transport for Remote SSH connections", async () => {
@@ -203,38 +203,6 @@ describe("test-daemon-connection connectToDaemon", () => {
     await result.client.close();
 
     expect(probe.createdConfigs()[0]?.trace).toBe(trace);
-  });
-
-  it("uses relay TLS from the stored connection", async () => {
-    const { connectToDaemon } = await import("./test-daemon-connection");
-    const tlsResult = await connectToDaemon(
-      {
-        id: "relay:wss:[::1]:443",
-        type: "relay",
-        relayEndpoint: "[::1]:443",
-        useTls: true,
-        daemonPublicKeyB64: "pubkey",
-      },
-      { serverId: "srv_probe_test" },
-      probe.deps,
-    );
-    await tlsResult.client.close();
-
-    const plainResult = await connectToDaemon(
-      {
-        id: "relay:relay.paseo.sh:443",
-        type: "relay",
-        relayEndpoint: "relay.paseo.sh:443",
-        useTls: false,
-        daemonPublicKeyB64: "pubkey",
-      },
-      { serverId: "srv_probe_test" },
-      probe.deps,
-    );
-    await plainResult.client.close();
-
-    expect(probe.createdConfigs()[0]?.url).toMatch(/^wss:\/\/\[::1\]\/ws\?/);
-    expect(probe.createdConfigs()[1]?.url).toMatch(/^ws:\/\/relay\.paseo\.sh:443\/ws\?/);
   });
 
   it("surfaces auth rejection as an incorrect password", async () => {

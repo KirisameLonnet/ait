@@ -1,6 +1,17 @@
 import { expect, test } from "vitest";
 import { restartDaemonFromSettings, updateDaemonFromSettings } from "./daemon-lifecycle";
 
+test("Ait restart completes when the same process serves a fresh instance", async () => {
+  let startedAt = "2026-09-28T01:00:00.000Z";
+  await restartDaemonFromSettings("ait", "settings", {
+    getStatus: async () => ({ pid: 10, serverId: "ait", version: "0.0.7", startedAt }),
+    restartServer: async () => {
+      startedAt = "2026-09-28T01:00:01.000Z";
+    },
+  });
+  expect(startedAt).toBe("2026-09-28T01:00:01.000Z");
+});
+
 test("settings restart completes when a replacement worker is observed without a sampled disconnect", async () => {
   let pid = 10;
   await restartDaemonFromSettings("daemon", "settings", {

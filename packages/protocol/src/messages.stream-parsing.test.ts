@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  AgentTimelineListPromptsResponseMessageSchema,
   AgentStreamMessageSchema,
+  AgentTimelineListPromptsResponseMessageSchema,
   FetchAgentTimelineResponseMessageSchema,
   SessionInboundMessageSchema,
   SessionOutboundMessageSchema,
@@ -102,14 +102,14 @@ describe("shared messages stream parsing", () => {
               status: "completed",
               detail: {
                 type: "worktree_setup",
-                worktreePath: "/repo/.paseo/worktrees/feature",
+                worktreePath: "/repo/.ait-server/worktrees/feature",
                 branchName: "feature",
                 log: "setup complete",
                 commands: [
                   {
                     index: 1,
                     command: "npm install",
-                    cwd: "/repo/.paseo/worktrees/feature",
+                    cwd: "/repo/.ait-server/worktrees/feature",
                     status: "completed",
                     exitCode: 0,
                     durationMs: 100,

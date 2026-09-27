@@ -1,11 +1,3 @@
-import { z } from "zod";
-import {
-  AgentStatusSchema,
-  AgentTimelineItemPayloadSchema,
-  WorkspaceGitHubRuntimePayloadSchema,
-} from "@getpaseo/protocol/messages";
-import { AgentProviderSchema } from "@getpaseo/protocol/provider-manifest";
-import type { PluginTimelineData } from "@getpaseo/plugin";
 import {
   normalizeProjectDescriptor,
   normalizeWorkspaceDescriptor,
@@ -20,6 +12,14 @@ import {
   type StreamItem,
 } from "@/types/stream";
 import { normalizeAgentSnapshot } from "@/utils/agent-snapshots";
+import type { JsonValue as PluginTimelineData } from "@getpaseo/protocol/agent-types";
+import {
+  AgentStatusSchema,
+  AgentTimelineItemPayloadSchema,
+  WorkspaceGitHubRuntimePayloadSchema,
+} from "@getpaseo/protocol/messages";
+import { AgentProviderSchema } from "@getpaseo/protocol/provider-manifest";
+import { z } from "zod";
 import { clearLegacyReplicaCache } from "./legacy-cleanup";
 import {
   REPLICA_SINGLETON_ROW_ID,

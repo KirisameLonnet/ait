@@ -12,7 +12,7 @@ async fn binary_runs_canonical_workspace_setup_and_script_methods() {
     let workspace = root.path().join("workspace");
     std::fs::create_dir(&workspace).unwrap();
     std::fs::write(
-        workspace.join("paseo.json"),
+        workspace.join("ait.json"),
         r#"{
           "worktree":{"setup":["printf setup > setup.txt"]},
           "scripts":{

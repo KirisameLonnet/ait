@@ -1,9 +1,9 @@
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+
+import { chmod, copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
 import path from "node:path";
-import { forkPaseoHomeMetadata, resolvePaseoHomePath } from "./paseo-home-fork";
+import { repoRoot } from "./ait-server";
 import { startIsolatedHostDaemon } from "./isolated-host-daemon";
 
 export interface E2EWorker {
@@ -20,11 +20,11 @@ export interface E2EWorkerOptions {
 function resolveOptionalHome(value: string | undefined): string | null {
   const trimmed = value?.trim();
   if (!trimmed) return null;
-  return resolvePaseoHomePath(trimmed === "current" ? "~/.paseo" : trimmed);
+  return path.resolve(trimmed.startsWith("~/") ? path.join(homedir(), trimmed.slice(2)) : trimmed);
 }
 
 async function createFakeEditorBin(): Promise<string> {
-  const binDir = await mkdtemp(path.join(tmpdir(), "paseo-e2e-editor-bin-"));
+  const binDir = await mkdtemp(path.join(tmpdir(), "ait-e2e-editor-bin-"));
   let realGhPath = "";
   try {
     const locator = process.platform === "win32" ? "where.exe" : "which";
@@ -133,67 +133,54 @@ process.exit(result.status ?? 1);
   return binDir;
 }
 
-async function applyMetadataFork(targetHome: string, providerIds: string[]): Promise<void> {
-  const sourceHome = resolveOptionalHome(process.env.E2E_FORK_PASEO_HOME_FROM);
-  if (!sourceHome) return;
-  const result = await forkPaseoHomeMetadata({ sourceHome, targetHome });
-  process.env.E2E_FORK_SOURCE_PASEO_HOME = result.sourceHome;
-  process.env.E2E_FORK_TARGET_PASEO_HOME = result.targetHome;
-  process.env.E2E_FORK_COPIED_FILES = String(result.copiedFiles);
-  process.env.E2E_FORK_COPIED_BYTES = String(result.copiedBytes);
-
-  if (providerIds.length === 0) return;
-
-  const sourceConfig = JSON.parse(
-    await readFile(path.join(result.sourceHome, "config.json"), "utf8"),
-  );
-  const sourceProviders = sourceConfig.agents?.providers ?? {};
-  const providers = Object.fromEntries(
-    providerIds.map((providerId: string) => {
-      const provider = sourceProviders[providerId];
-      if (!provider) {
-        throw new Error(`E2E provider '${providerId}' is not configured in ${result.sourceHome}`);
-      }
-      return [providerId, provider];
-    }),
-  );
-  await writeFile(
-    path.join(targetHome, "config.json"),
-    `${JSON.stringify({ version: 1, agents: { providers } }, null, 2)}\n`,
-  );
-}
-
 export async function startE2EWorker(
   workerIndex: number,
   options: E2EWorkerOptions = {},
 ): Promise<E2EWorker> {
-  const requestedRoot = resolveOptionalHome(process.env.E2E_PASEO_HOME);
-  const paseoHome = requestedRoot
+  const requestedRoot = resolveOptionalHome(process.env.E2E_AIT_DATA_ROOT);
+  const dataDir = requestedRoot
     ? path.join(requestedRoot, `worker-${workerIndex}`)
-    : await mkdtemp(path.join(tmpdir(), `paseo-e2e-worker-${workerIndex}-`));
-  const preserveHome = Boolean(requestedRoot) || process.env.E2E_KEEP_PASEO_HOME === "1";
+    : await mkdtemp(path.join(tmpdir(), `ait-e2e-worker-${workerIndex}-`));
+  const preserveHome = Boolean(requestedRoot) || process.env.E2E_KEEP_AIT_DATA === "1";
   const fakeEditorBin = await createFakeEditorBin();
-  const editorRecordPath = path.join(paseoHome, "editor-open-records.jsonl");
+  const editorRecordPath = path.join(dataDir, "editor-open-records.jsonl");
   const serverId = `srv_e2e_worker_${workerIndex}`;
+  const codexFixture = path.join(fakeEditorBin, "codex-offline");
 
   try {
-    await applyMetadataFork(paseoHome, options.forkProviders ?? []);
+    if (
+      process.env.E2E_FORK_PASEO_HOME_FROM ||
+      options.forkProviders?.length ||
+      options.injectPaseoTools
+    ) {
+      throw new Error("Paseo metadata/provider/MCP fixtures are not supported by Ait E2E");
+    }
+    await mkdir(dataDir, { recursive: true });
+    await copyFile(
+      path.join(repoRoot, "crates/server-provider/tests/fixtures/codex_app_server.py"),
+      codexFixture,
+    );
+    await chmod(codexFixture, 0o755);
     // Worker-scoped fixture config lets a spec exercise provider discovery without
     // reading the developer's provider state or sharing configuration with other specs.
     if (options.daemonConfig) {
       await writeFile(
-        path.join(paseoHome, "config.json"),
+        path.join(dataDir, "config.json"),
         `${JSON.stringify(options.daemonConfig, null, 2)}\n`,
       );
     }
-    if (options.injectPaseoTools) {
-      await enablePaseoTools(paseoHome);
-    }
     const daemon = await startIsolatedHostDaemon(serverId, {
-      paseoHome,
+      dataDir,
       preserveHome,
       environment: {
         NODE_ENV: "development",
+        AIT_SERVER_CODEX_BIN: codexFixture,
+        ...(process.env.E2E_REAL_PROVIDERS === "1"
+          ? {
+              AIT_SERVER_CODEX_BIN: process.env.AIT_SERVER_CODEX_BIN ?? "codex",
+              AIT_SERVER_CLAUDE_BIN: process.env.AIT_SERVER_CLAUDE_BIN ?? "claude",
+            }
+          : {}),
         PATH: `${fakeEditorBin}${path.delimiter}${process.env.PATH ?? ""}`,
         PASEO_E2E_EDITOR_RECORD_PATH: editorRecordPath,
         ...options.environment,
@@ -202,13 +189,13 @@ export async function startE2EWorker(
 
     process.env.E2E_DAEMON_PORT = String(daemon.port);
     process.env.E2E_SERVER_ID = daemon.serverId;
-    process.env.E2E_PASEO_HOME = daemon.paseoHome;
+    process.env.E2E_AIT_DATA_DIR = daemon.dataDir;
     process.env.E2E_EDITOR_RECORD_PATH = editorRecordPath;
     delete process.env.E2E_RELAY_PORT;
     delete process.env.E2E_RELAY_DAEMON_PUBLIC_KEY;
 
     console.log(
-      `[e2e] Worker ${workerIndex} daemon started on port ${daemon.port}, home: ${daemon.paseoHome}`,
+      `[e2e] Worker ${workerIndex} daemon started on port ${daemon.port}, home: ${daemon.dataDir}`,
     );
     return {
       close: async () => {
@@ -219,32 +206,7 @@ export async function startE2EWorker(
     };
   } catch (error) {
     await rm(fakeEditorBin, { recursive: true, force: true });
-    if (!preserveHome) await rm(paseoHome, { recursive: true, force: true });
+    if (!preserveHome) await rm(dataDir, { recursive: true, force: true });
     throw error;
   }
-}
-
-async function enablePaseoTools(paseoHome: string): Promise<void> {
-  const configPath = path.join(paseoHome, "config.json");
-  const existing = existsSync(configPath)
-    ? JSON.parse(await readFile(configPath, "utf8"))
-    : { version: 1 };
-  await writeFile(
-    configPath,
-    `${JSON.stringify(
-      {
-        ...existing,
-        daemon: {
-          ...existing.daemon,
-          mcp: {
-            ...existing.daemon?.mcp,
-            enabled: true,
-            injectIntoAgents: true,
-          },
-        },
-      },
-      null,
-      2,
-    )}\n`,
-  );
 }

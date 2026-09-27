@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
-import type { WorkspaceScriptPayload } from "@getpaseo/protocol/messages";
 import type { ActiveConnection } from "@/runtime/host-runtime";
+import type { WorkspaceScriptPayload } from "@getpaseo/protocol/messages";
+import { describe, expect, it } from "vitest";
 import { resolveWorkspaceScriptLink } from "./workspace-script-links";
 
 const runningService: WorkspaceScriptPayload = {
@@ -49,7 +49,7 @@ describe("resolveWorkspaceScriptLink", () => {
     const publicUrl = "https://web--feature--paseo.services.example.com";
     expect(
       resolveLink(
-        { type: "directSocket", endpoint: "/tmp/paseo.sock", display: "socket" },
+        { type: "directSocket", endpoint: "/tmp/ait.sock", display: "socket" },
         { ...runningService, publicProxyUrl: publicUrl, proxyUrl: publicUrl },
       ),
     ).toEqual({
@@ -124,11 +124,11 @@ describe("resolveWorkspaceScriptLink", () => {
     ]);
   });
 
-  it("keeps service routes available independently of a relay connection", () => {
+  it("keeps service routes available independently of a remote direct connection", () => {
     const relay: ActiveConnection = {
-      type: "relay",
-      endpoint: "relay.paseo.sh:443",
-      display: "relay",
+      type: "directTcp",
+      endpoint: "remote.example:443",
+      display: "remote",
     };
     expect(resolveLink(relay)).toEqual({
       primary: {
@@ -142,7 +142,7 @@ describe("resolveWorkspaceScriptLink", () => {
           label: "web--feature--paseo.localhost:6767",
           url: "http://web--feature--paseo.localhost:6767",
         },
-        { kind: "direct", label: "localhost:3000", url: "http://localhost:3000" },
+        { kind: "direct", label: "remote.example:3000", url: "http://remote.example:3000" },
       ],
     });
 
@@ -166,7 +166,7 @@ describe("resolveWorkspaceScriptLink", () => {
           label: "web--feature--paseo.localhost:6767",
           url: "http://web--feature--paseo.localhost:6767",
         },
-        { kind: "direct", label: "localhost:3000", url: "http://localhost:3000" },
+        { kind: "direct", label: "remote.example:3000", url: "http://remote.example:3000" },
       ],
     });
   });
@@ -181,7 +181,7 @@ describe("resolveWorkspaceScriptLink", () => {
     const publicUrl = "https://web--feature--paseo.services.example.com";
     expect(
       resolveLink(
-        { type: "relay", endpoint: "relay.paseo.sh:443", display: "relay" },
+        { type: "directTcp", endpoint: "relay.paseo.sh:443", display: "remote" },
         { ...legacyLocal, proxyUrl: publicUrl },
       ).primary,
     ).toEqual({

@@ -4,6 +4,11 @@ use std::fmt::Debug;
 
 use serde_json::Value;
 
+/// Preferred project setup and script configuration file.
+pub const PROJECT_CONFIG_FILE_NAME: &str = "ait.json";
+/// Read-only fallback for projects created before the Ait filename migration.
+pub const LEGACY_PROJECT_CONFIG_FILE_NAME: &str = "paseo.json";
+
 /// A normalized directory and its lightweight Git placement.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Checkout {
@@ -70,7 +75,7 @@ pub trait DirectorySource: Debug + Send + Sync {
     fn canonical(&self, path: &str) -> Result<String, DirectorySourceError>;
 }
 
-/// Filesystem revision used for optimistic `paseo.json` writes.
+/// Filesystem revision used for optimistic `ait.json` writes.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ProjectConfigRevision {
     /// Last modification time in Unix milliseconds.
@@ -82,9 +87,9 @@ pub struct ProjectConfigRevision {
 /// Existing project configuration and the revision read with it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProjectConfigDocument {
-    /// Parsed JSON document, or none when `paseo.json` is absent.
+    /// Parsed JSON document, or none when `ait.json` is absent.
     pub config: Option<Value>,
-    /// File revision, or none when `paseo.json` is absent.
+    /// File revision, or none when `ait.json` is absent.
     pub revision: Option<ProjectConfigRevision>,
 }
 
@@ -116,9 +121,9 @@ pub enum ProjectConfigStoreError {
     Write,
 }
 
-/// Blocking adapter for one project's `paseo.json` file.
+/// Blocking adapter for one project's `ait.json` file.
 pub trait ProjectConfigStore: Debug + Send + Sync {
-    /// Read and parse `paseo.json`; absence is a successful empty state.
+    /// Read and parse `ait.json`; absence is a successful empty state.
     ///
     /// # Errors
     /// Returns `Invalid` for malformed/unreadable existing content.

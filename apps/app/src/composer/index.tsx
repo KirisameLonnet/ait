@@ -1,69 +1,45 @@
-import type { ComposerTextSource } from "./text-source";
-import { createStore, type StoreApi } from "zustand/vanilla";
-import { useStore } from "zustand";
-import { getHostRuntimeStore } from "@/runtime/host-runtime";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { getFileTypeLabel } from "@/attachments/file-types";
+import type { SelectedFile } from "@/attachments/selected-file";
 import {
-  View,
-  Pressable,
-  Text,
-  StyleSheet as RNStyleSheet,
-  type PressableStateCallbackType,
-} from "react-native";
-import type { TFunction } from "i18next";
+  deleteAttachments,
+  persistAttachmentFromBlob,
+  persistAttachmentFromDataUrl,
+  persistAttachmentFromFileUri,
+} from "@/attachments/service";
+import type {
+  AttachmentMetadata,
+  ComposerAttachment,
+  UserComposerAttachment,
+  WorkspaceComposerAttachment,
+  WorkspaceFileComposerAttachment,
+} from "@/attachments/types";
+import { useWorkspaceAttachmentsForScopes } from "@/attachments/workspace-attachments-store";
 import {
-  useState,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useCallback,
-  useMemo,
-  useSyncExternalStore,
-  useImperativeHandle,
-  memo,
-  type ReactElement,
-  type ReactNode,
-} from "react";
-import { useTranslation } from "react-i18next";
-import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import { useIsCompactFormFactor } from "@/constants/layout";
-import { useShallow } from "zustand/shallow";
+  appendWorkspaceFileAttachment,
+  getWorkspaceFileAttachmentKey,
+  getWorkspaceFileAttachmentSubtitle,
+} from "@/attachments/workspace-file";
 import {
-  ArrowUp,
-  Square,
-  Pencil,
-  AudioLines,
-  CircleDot,
-  FileText,
-  GitPullRequest,
-  Image as ImageIcon,
-  ClipboardPaste,
-  Paperclip,
-} from "lucide-react-native";
-import * as Clipboard from "expo-clipboard";
-import { FOOTER_HEIGHT, MAX_CONTENT_WIDTH } from "@/constants/layout";
+  resolveWorkspaceFileDrop,
+  type WorkspaceFileDragPayload,
+} from "@/attachments/workspace-file-drag";
+import { resolveClientSlashCommand, type ClientSlashCommand } from "@/client-slash-commands";
+import { AttachmentLightbox, type ImageLightboxSource } from "@/components/attachment-lightbox";
 import {
-  AgentControls,
-  DraftAgentControls,
-  type DraftAgentControlsProps,
-} from "@/composer/agent-controls";
+  AttachmentFrame,
+  AttachmentLabel,
+  AttachmentPill,
+  AttachmentThumbnail,
+} from "@/components/attachment-pill";
 import { ContextWindowMeter } from "@/components/context-window-meter";
-import { useImageAttachmentPicker } from "@/hooks/use-image-attachment-picker";
-import { selectAgentTurnPresentation, useSessionStore } from "@/stores/session-store";
-import { useFilePicker } from "@/hooks/use-file-picker";
-import { useFileDrop } from "@/components/file-drop/use-file-drop";
 import type { DroppedItem } from "@/components/file-drop/types";
-import {
-  MessageInput,
-  type AttachmentMenuItem,
-  type ComposerKeyPressEvent,
-  type MessageInputRef,
-} from "./input/input";
-import type { ImageAttachment, MessagePayload, TextReplacement } from "./types";
-import { ICON_SIZE, type Theme } from "@/styles/theme";
-import type { DraftCommandConfig } from "@/hooks/use-agent-commands-query";
-import { encodeImages } from "@/utils/encode-images";
-import { focusWithRetries } from "@/utils/web-focus";
+import { useFileDrop } from "@/components/file-drop/use-file-drop";
+import type { AutocompleteOption } from "@/components/ui/autocomplete";
+import { AutocompletePopover } from "@/components/ui/autocomplete-popover";
+import { Combobox, ComboboxItem, type ComboboxOption } from "@/components/ui/combobox";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Shortcut } from "@/components/ui/shortcut";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   cancelComposerAgent,
   dispatchComposerAgentMessage,
@@ -81,86 +57,103 @@ import {
   type QueueWriter,
   type QueuedComposerMessage,
 } from "@/composer/actions";
-import { useVoiceOptional } from "@/contexts/voice-context";
+import { AfterPaintPublication } from "@/composer/after-paint-publication";
+import {
+  AgentControls,
+  DraftAgentControls,
+  type DraftAgentControlsProps,
+} from "@/composer/agent-controls";
+import { resolveAgentControlsMode } from "@/composer/agent-controls/mode";
+import { droppedItemsToSelectedFiles } from "@/composer/attachments/drop";
+import { resolveComposerAttachmentSubmitFormat } from "@/composer/attachments/submit";
+import { composerWorkspaceAttachment } from "@/composer/attachments/workspace";
+import { resolveComposerInputMode, type ComposerInputMode } from "@/composer/input-mode";
+import { ComposerKeyboardScopeProvider, useComposerKeyboardScope } from "@/composer/keyboard-scope";
+import { createMessageSubmissionWriter } from "@/composer/submission/writer";
+import { submitAgentInput } from "@/composer/submit";
+import { FOOTER_HEIGHT, MAX_CONTENT_WIDTH, useIsCompactFormFactor } from "@/constants/layout";
+import { isNative, isWeb } from "@/constants/platform";
 import { useToast } from "@/contexts/toast-context";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Shortcut } from "@/components/ui/shortcut";
-import { useShortcutKeys } from "@/hooks/use-shortcut-keys";
-import { AutocompletePopover } from "@/components/ui/autocomplete-popover";
-import type { AutocompleteOption } from "@/components/ui/autocomplete";
+import { useVoiceOptional } from "@/contexts/voice-context";
+import { getForgePresentation } from "@/git/forge";
+import { ForgeBrandIcon } from "@/git/forge-icon";
+import { useForgeSearchQuery } from "@/git/use-forge-search-query";
+import { useCheckoutPrStatusQuery } from "@/git/use-pr-status-query";
+import { useCheckoutStatusQuery } from "@/git/use-status-query";
 import { useAgentAutocomplete } from "@/hooks/use-agent-autocomplete";
-import { usePluginClientSlashCommands } from "@/plugins/client-slash-commands";
+import type { DraftCommandConfig } from "@/hooks/use-agent-commands-query";
+import { useFilePicker } from "@/hooks/use-file-picker";
+import { useImageAttachmentPicker } from "@/hooks/use-image-attachment-picker";
+import { useIsDictationReady } from "@/hooks/use-is-dictation-ready";
+import { useKeyboardActionHandler } from "@/hooks/use-keyboard-action-handler";
+import { useAppSettings } from "@/hooks/use-settings";
+import { useShortcutKeys } from "@/hooks/use-shortcut-keys";
+import type { MessageInputKeyboardActionKind } from "@/keyboard/actions";
+import type { KeyboardActionDefinition } from "@/keyboard/keyboard-action-dispatcher";
 import {
-  executePluginClientSlashCommand,
-  resolvePluginClientSlashCommand,
-} from "@/plugins/client-slash-commands/model";
-import {
+  getHostRuntimeStore,
   useHostRuntimeAgentDirectoryStatus,
   useHostRuntimeClient,
   useHostRuntimeIsConnected,
 } from "@/runtime/host-runtime";
-import {
-  deleteAttachments,
-  persistAttachmentFromBlob,
-  persistAttachmentFromDataUrl,
-  persistAttachmentFromFileUri,
-} from "@/attachments/service";
-import { resolveAgentControlsMode } from "@/composer/agent-controls/mode";
-import { resolveComposerInputMode, type ComposerInputMode } from "@/composer/input-mode";
-import { resolveActiveSendBehavior } from "./input/state";
-import { useKeyboardActionHandler } from "@/hooks/use-keyboard-action-handler";
-import type { KeyboardActionDefinition } from "@/keyboard/keyboard-action-dispatcher";
-import type { MessageInputKeyboardActionKind } from "@/keyboard/actions";
-import { submitAgentInput } from "@/composer/submit";
-import { createMessageSubmissionWriter } from "@/composer/submission/writer";
-import { ComposerKeyboardScopeProvider, useComposerKeyboardScope } from "@/composer/keyboard-scope";
-import { useAppSettings } from "@/hooks/use-settings";
-import { RenderProfile } from "@/utils/render-profiler";
-import { AfterPaintPublication } from "@/composer/after-paint-publication";
-import { isWeb, isNative } from "@/constants/platform";
-import type { ForgeSearchItem } from "@getpaseo/protocol/messages";
-import type {
-  AttachmentMetadata,
-  ComposerAttachment,
-  UserComposerAttachment,
-  WorkspaceFileComposerAttachment,
-  WorkspaceComposerAttachment,
-} from "@/attachments/types";
-import type { SelectedFile } from "@/attachments/selected-file";
-import { resolveComposerAttachmentSubmitFormat } from "@/composer/attachments/submit";
-import { composerWorkspaceAttachment } from "@/composer/attachments/workspace";
-import { useWorkspaceAttachmentsForScopes } from "@/attachments/workspace-attachments-store";
-import { droppedItemsToSelectedFiles } from "@/composer/attachments/drop";
-import { getFileTypeLabel } from "@/attachments/file-types";
-import { Combobox, ComboboxItem, type ComboboxOption } from "@/components/ui/combobox";
-import {
-  AttachmentFrame,
-  AttachmentLabel,
-  AttachmentPill,
-  AttachmentThumbnail,
-} from "@/components/attachment-pill";
-import { AttachmentLightbox, type ImageLightboxSource } from "@/components/attachment-lightbox";
+import { selectAgentTurnPresentation, useSessionStore } from "@/stores/session-store";
+import { ICON_SIZE, type Theme } from "@/styles/theme";
+import { encodeImages } from "@/utils/encode-images";
 import { openExternalUrl } from "@/utils/open-external-url";
-import { useIsDictationReady } from "@/hooks/use-is-dictation-ready";
-import { useForgeSearchQuery } from "@/git/use-forge-search-query";
-import { useCheckoutStatusQuery } from "@/git/use-status-query";
-import { useCheckoutPrStatusQuery } from "@/git/use-pr-status-query";
-import { getForgePresentation } from "@/git/forge";
-import { ForgeBrandIcon } from "@/git/forge-icon";
-import { useComposerForgeAutoAttach } from "./forge-auto-attach";
+import { RenderProfile } from "@/utils/render-profiler";
+import { focusWithRetries } from "@/utils/web-focus";
+import type { ForgeSearchItem } from "@getpaseo/protocol/messages";
+import * as Clipboard from "expo-clipboard";
+import type { TFunction } from "i18next";
+import {
+  ArrowUp,
+  AudioLines,
+  CircleDot,
+  ClipboardPaste,
+  FileText,
+  GitPullRequest,
+  Image as ImageIcon,
+  Paperclip,
+  Pencil,
+  Square,
+} from "lucide-react-native";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactElement,
+  type ReactNode,
+} from "react";
+import { useTranslation } from "react-i18next";
+import {
+  Pressable,
+  StyleSheet as RNStyleSheet,
+  Text,
+  View,
+  type PressableStateCallbackType,
+} from "react-native";
+import { StyleSheet, withUnistyles } from "react-native-unistyles";
+import { useStore } from "zustand";
+import { useShallow } from "zustand/shallow";
+import { createStore, type StoreApi } from "zustand/vanilla";
 import { readClipboardImage } from "./clipboard-image";
+import { useComposerForgeAutoAttach } from "./forge-auto-attach";
+import {
+  MessageInput,
+  type AttachmentMenuItem,
+  type ComposerKeyPressEvent,
+  type MessageInputRef,
+} from "./input/input";
+import { resolveActiveSendBehavior } from "./input/state";
 import { normalizeNativePastedImages, type NativePastedFile } from "./native-pasted-image";
-import { PluginResourceAttachmentPill, usePluginAttachmentPicker } from "@/plugins";
-import { resolveClientSlashCommand, type ClientSlashCommand } from "@/client-slash-commands";
-import {
-  appendWorkspaceFileAttachment,
-  getWorkspaceFileAttachmentKey,
-  getWorkspaceFileAttachmentSubtitle,
-} from "@/attachments/workspace-file";
-import {
-  resolveWorkspaceFileDrop,
-  type WorkspaceFileDragPayload,
-} from "@/attachments/workspace-file-drag";
+import type { ComposerTextSource } from "./text-source";
+import type { ImageAttachment, MessagePayload, TextReplacement } from "./types";
 
 const composerImageAttachmentPersister: Pick<
   AttachmentPersister,
@@ -479,20 +472,6 @@ function renderComposerAttachmentPill(args: RenderComposerAttachmentPillArgs): R
       onOpen,
       onRemove,
     });
-  }
-  if (attachment.kind === "plugin_resource") {
-    return (
-      <PluginResourceAttachmentPill
-        key={`${attachment.pluginId}:${attachment.sourceId}:${attachment.item.id}`}
-        attachment={attachment}
-        index={index}
-        disabled={disabled}
-        onOpen={onOpen}
-        onRemove={onRemove}
-        openLabel={labels.openGithub}
-        removeLabel={labels.removeGithub}
-      />
-    );
   }
   return (
     <GithubAttachmentPill
@@ -1388,19 +1367,6 @@ function ComposerContentImpl({
   const [lightboxMetadata, setLightboxMetadata] = useState<AttachmentMetadata | null>(null);
   const attachButtonRef = useRef<View | null>(null);
   const messageInputRef = useRef<MessageInputRef>(null);
-  const pluginAttachments = usePluginAttachmentPicker({
-    serverId,
-    client,
-    connected: isConnected,
-    attachments,
-    onChangeAttachments: setSelectedAttachments,
-    anchorRef: attachButtonRef,
-  });
-  const pluginClientSlashCommands = usePluginClientSlashCommands({
-    serverId,
-    workspaceId,
-    agentId,
-  });
   const isComposerLocked = resolveIsComposerLocked(submitBehavior, isSubmitLoading);
   const keyboardHandlerIdRef = useRef(
     `message-input:${serverId}:${agentId}:${Math.random().toString(36).slice(2)}`,
@@ -1450,27 +1416,6 @@ function ComposerContentImpl({
       setSelectedAttachments,
       replaceUserInput,
     ],
-  );
-
-  const runPluginClientSlashCommand = useCallback(
-    (resolved: { command: (typeof pluginClientSlashCommands)[number]; args: string }): boolean => {
-      if (blurOnSubmit) messageInputRef.current?.blur();
-      clearDraft("sent");
-      replaceUserInput("");
-      setSelectedAttachments([]);
-      resetSuppression();
-      setSendError(null);
-      executePluginClientSlashCommand({
-        command: resolved.command,
-        args: resolved.args,
-        onError(error) {
-          console.error("[Composer] Failed to run plugin client slash command:", error);
-          toastErrorRef.current(error instanceof Error ? error.message : String(error));
-        },
-      });
-      return true;
-    },
-    [blurOnSubmit, clearDraft, replaceUserInput, resetSuppression, setSelectedAttachments],
   );
 
   const { pickImages } = useImageAttachmentPicker();
@@ -1720,12 +1665,6 @@ function ComposerContentImpl({
       if (clientSlashCommand && runClientSlashCommand(clientSlashCommand)) {
         return;
       }
-      const pluginSlashCommand = resolvePluginClientSlashCommand({
-        text: payload.text,
-        hasAttachments: outgoingAttachments.length > 0,
-        commands: pluginClientSlashCommands,
-      });
-      if (pluginSlashCommand && runPluginClientSlashCommand(pluginSlashCommand)) return;
 
       if (blurOnSubmit) {
         messageInputRef.current?.blur();
@@ -1737,8 +1676,7 @@ function ComposerContentImpl({
       blurOnSubmit,
       buildOutgoingAttachments,
       runClientSlashCommand,
-      pluginClientSlashCommands,
-      runPluginClientSlashCommand,
+
       sendMessageWithContent,
     ],
   );
@@ -1973,21 +1911,14 @@ function ComposerContentImpl({
       if (clientSlashCommand && runClientSlashCommand(clientSlashCommand)) {
         return;
       }
-      const pluginSlashCommand = resolvePluginClientSlashCommand({
-        text: payload.text,
-        hasAttachments: outgoingAttachments.length > 0,
-        commands: pluginClientSlashCommands,
-      });
-      if (pluginSlashCommand && runPluginClientSlashCommand(pluginSlashCommand)) return;
       queueMessage(payload.text, outgoingAttachments);
     },
     [
       attachments,
       buildOutgoingAttachments,
-      pluginClientSlashCommands,
+
       queueMessage,
       runClientSlashCommand,
-      runPluginClientSlashCommand,
     ],
   );
 
@@ -2186,7 +2117,7 @@ function ComposerContentImpl({
           setIsGithubPickerOpen(true);
         },
       },
-      ...pluginAttachments.menuItems,
+
       {
         id: "file",
         label: t("composer.attachments.addFile"),
@@ -2202,7 +2133,7 @@ function ComposerContentImpl({
     handlePasteImage,
     handlePickFile,
     handlePickImage,
-    pluginAttachments.menuItems,
+
     t,
   ]);
 
@@ -2352,7 +2283,6 @@ function ComposerContentImpl({
       draftConfig: commandDraftConfig,
       canExecuteClientSlashCommand: buildOutgoingAttachments(attachments).length === 0,
       onClientSlashCommand: runClientSlashCommand,
-      pluginClientSlashCommands,
     }),
     [
       replaceUserInput,
@@ -2362,7 +2292,6 @@ function ComposerContentImpl({
       buildOutgoingAttachments,
       attachments,
       runClientSlashCommand,
-      pluginClientSlashCommands,
     ],
   );
   const messageInputContainerRef = useRef<View>(null);
@@ -2505,7 +2434,6 @@ function ComposerContentImpl({
                 emptyText={githubEmptyText}
                 renderOption={renderGithubPickerOption}
               />
-              {pluginAttachments.picker}
             </View>
           </View>
         </View>

@@ -9,7 +9,7 @@ import { _electron as electron } from "playwright";
 const require = createRequire(import.meta.url);
 const desktop = fileURLToPath(new URL("..", import.meta.url));
 const root = path.resolve(desktop, "../..");
-const temporary = mkdtempSync(path.join(os.tmpdir(), "ait-paseo-desktop-smoke-"));
+const temporary = mkdtempSync(path.join(os.tmpdir(), "ait-desktop-smoke-"));
 const fixtureBin = path.join(temporary, "bin");
 const workspace = path.join(temporary, "workspace");
 mkdirSync(fixtureBin);

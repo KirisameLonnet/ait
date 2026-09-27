@@ -1,6 +1,6 @@
-import type { ServerInfoStatusPayload } from "@getpaseo/protocol/messages";
 import type { HostRuntimeSnapshot } from "@/runtime/host-runtime";
 import type { HostConnection, HostProfile } from "@/types/host-connection";
+import type { ServerInfoStatusPayload } from "@getpaseo/protocol/messages";
 
 interface DiagnosticEntry {
   label: string;
@@ -135,9 +135,6 @@ function collectSensitiveHostValues(hosts: HostProfile[]): string[] {
       } else if (connection.type === "remoteSsh") {
         values.add(connection.host);
         if (connection.password) values.add(connection.password);
-      } else if (connection.type === "relay") {
-        values.add(connection.relayEndpoint);
-        values.add(connection.daemonPublicKeyB64);
       } else if (connection.type === "directSocket" || connection.type === "directPipe") {
         values.add(connection.path);
       }

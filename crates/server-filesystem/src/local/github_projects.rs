@@ -149,7 +149,7 @@ impl GithubProjectsRuntime for LocalGithubProjects {
             return Err(GithubProjectsError::TargetExists);
         }
         let staging = tempfile::Builder::new()
-            .prefix(".paseo-clone-")
+            .prefix(".ait-clone-")
             .tempdir_in(&parent)
             .map_err(|_| GithubProjectsError::InvalidTarget)?;
         let mut command = Command::new(&self.git_executable);

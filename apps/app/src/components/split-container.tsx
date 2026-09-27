@@ -1,15 +1,61 @@
+import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
 import {
-  Fragment,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type Dispatch,
-  type ReactNode,
-  type SetStateAction,
-} from "react";
+  resolveExplorerSidebarDockSizes,
+  resolveExplorerSidebarWidth,
+} from "@/components/explorer-sidebar-layout";
+import { ResizeHandle } from "@/components/resize-handle";
+import { RetainedPanel } from "@/components/retained-panel";
+import {
+  hasMultipleVisiblePanes,
+  resolveSplitContainerRoot,
+  splitNodeContainsPane,
+} from "@/components/split-container-focus";
+import { shouldFocusPaneFromEventTarget } from "@/components/split-container-pane-focus";
+import {
+  computeTabDropPreview,
+  type TabDropPreview,
+} from "@/components/split-container-tab-drop-preview";
+import {
+  SplitDropZone,
+  resolveSplitDropPosition,
+  type SplitDropZoneHover,
+} from "@/components/split-drop-zone";
+import { isNative } from "@/constants/platform";
 import { useStableEvent } from "@/hooks/use-stable-event";
+import { panelTargetSupportsHost } from "@/panels/target-host";
+import { ExplorerSidebarDock } from "@/screens/workspace/explorer-sidebar";
+import {
+  WorkspaceDesktopTabsRow,
+  type WorkspaceDesktopTabRowItem,
+} from "@/screens/workspace/workspace-desktop-tabs-row";
+import type { WorkspacePaneContentModel } from "@/screens/workspace/workspace-pane-content";
+import {
+  deriveWorkspacePaneState,
+  getWorkspacePaneDescriptors,
+} from "@/screens/workspace/workspace-pane-state";
+import { WorkspacePanelHost } from "@/screens/workspace/workspace-panel-host";
+import {
+  WorkspaceTabIcon,
+  WorkspaceTabPresentationResolver,
+} from "@/screens/workspace/workspace-tab-presentation";
+import type { WorkspaceTabDescriptor } from "@/screens/workspace/workspace-tabs-types";
+import {
+  createDefaultLayout,
+  findPaneById,
+  useWorkspaceLayoutStore,
+  type SplitNode,
+  type SplitPane,
+  type WorkspaceLayout,
+} from "@/stores/workspace-layout-store";
+import {
+  WindowChromeRegion,
+  WindowChromeSafeArea,
+  removeWindowChromeCorner,
+  useWindowChromeCorners,
+  type WindowChromeCorners,
+} from "@/utils/desktop-window";
+import { RenderProfile } from "@/utils/render-profiler";
+import type { WorkspaceTab } from "@/workspace-tabs/model";
 import {
   DndContext,
   DragOverlay,
@@ -26,71 +72,25 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { View, Text, type LayoutChangeEvent } from "react-native";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
+import { useTranslation } from "react-i18next";
+import { Text, View, type LayoutChangeEvent } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   type SharedValue,
 } from "react-native-reanimated";
-import { useTranslation } from "react-i18next";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { ResizeHandle } from "@/components/resize-handle";
-import {
-  resolveExplorerSidebarDockSizes,
-  resolveExplorerSidebarWidth,
-} from "@/components/explorer-sidebar-layout";
-import { RetainedPanel } from "@/components/retained-panel";
-import {
-  hasMultipleVisiblePanes,
-  resolveSplitContainerRoot,
-  splitNodeContainsPane,
-} from "@/components/split-container-focus";
-import { shouldFocusPaneFromEventTarget } from "@/components/split-container-pane-focus";
-import {
-  removeWindowChromeCorner,
-  WindowChromeRegion,
-  WindowChromeSafeArea,
-  useWindowChromeCorners,
-  type WindowChromeCorners,
-} from "@/utils/desktop-window";
-import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
-import {
-  computeTabDropPreview,
-  type TabDropPreview,
-} from "@/components/split-container-tab-drop-preview";
-import {
-  SplitDropZone,
-  resolveSplitDropPosition,
-  type SplitDropZoneHover,
-} from "@/components/split-drop-zone";
-import {
-  deriveWorkspacePaneState,
-  getWorkspacePaneDescriptors,
-} from "@/screens/workspace/workspace-pane-state";
-import type { WorkspacePaneContentModel } from "@/screens/workspace/workspace-pane-content";
-import { WorkspacePanelHost } from "@/screens/workspace/workspace-panel-host";
-import {
-  WorkspaceDesktopTabsRow,
-  type WorkspaceDesktopTabRowItem,
-} from "@/screens/workspace/workspace-desktop-tabs-row";
-import { ExplorerSidebarDock } from "@/screens/workspace/explorer-sidebar";
-import {
-  WorkspaceTabPresentationResolver,
-  WorkspaceTabIcon,
-} from "@/screens/workspace/workspace-tab-presentation";
-import type { WorkspaceTabDescriptor } from "@/screens/workspace/workspace-tabs-types";
-import {
-  createDefaultLayout,
-  findPaneById,
-  useWorkspaceLayoutStore,
-  type SplitNode,
-  type SplitPane,
-  type WorkspaceLayout,
-} from "@/stores/workspace-layout-store";
-import type { WorkspaceTab } from "@/workspace-tabs/model";
-import { RenderProfile } from "@/utils/render-profiler";
-import { isNative } from "@/constants/platform";
-import { panelTargetSupportsHost } from "@/plugins/workspace-panels/locations";
 
 interface SplitContainerProps {
   layout: WorkspaceLayout;

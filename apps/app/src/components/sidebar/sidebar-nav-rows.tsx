@@ -1,11 +1,5 @@
-import { router, usePathname } from "expo-router";
-import { CalendarClock, History, Plus, Search } from "lucide-react-native";
-import { memo, useCallback, useMemo, type ComponentType } from "react";
-import { useTranslation } from "react-i18next";
-import { View, type StyleProp, type ViewStyle } from "react-native";
 import { SidebarHeaderRow } from "@/components/sidebar/sidebar-header-row";
 import { useShortcutKeys } from "@/hooks/use-shortcut-keys";
-import { PluginSidebarItemRow } from "@/plugins/sidebar-items";
 import { canCreateWorktreeForProjectKind } from "@/projects/host-projects";
 import { useHostFeature } from "@/runtime/host-features";
 import {
@@ -22,6 +16,11 @@ import {
   buildSchedulesRoute,
   buildSessionsRoute,
 } from "@/utils/host-routes";
+import { router, usePathname } from "expo-router";
+import { CalendarClock, History, Plus, Search } from "lucide-react-native";
+import { memo, useCallback, useMemo, type ComponentType } from "react";
+import { useTranslation } from "react-i18next";
+import { View, type StyleProp, type ViewStyle } from "react-native";
 
 interface SidebarNavRowProps {
   onBeforeNavigate?: () => void;
@@ -46,15 +45,6 @@ export function SidebarNavRows({ style, onBeforeNavigate }: SidebarNavRowsProps)
   return (
     <View style={style}>
       {visibleItems.map((item) => {
-        if (item.kind === "plugin") {
-          return (
-            <PluginSidebarItemRow
-              key={item.key}
-              group={item.group}
-              onBeforeNavigate={onBeforeNavigate}
-            />
-          );
-        }
         const Row = BUILTIN_ROWS[item.id];
         return <Row key={item.key} onBeforeNavigate={onBeforeNavigate} />;
       })}

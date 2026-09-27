@@ -1,18 +1,15 @@
-import type { AssistantMessageItem, StreamItem, UserMessageItem } from "@/types/stream";
-import type { TimelineItemTransform } from "@/plugins/timeline/model";
-import { projectPluginTimelineItems } from "@/plugins/timeline/projection";
-import { splitMarkdownBlocks } from "@/utils/split-markdown-blocks";
 import {
   prepareToolCallHistory,
   projectToolCallDetailLevel,
   type PreparedToolCallHistory,
   type ToolCallDetailLevel,
 } from "@/tool-calls/detail-level/projection";
+import type { AssistantMessageItem, StreamItem, UserMessageItem } from "@/types/stream";
+import { splitMarkdownBlocks } from "@/utils/split-markdown-blocks";
 
 interface PresentationInput {
   tail: StreamItem[];
   head: StreamItem[];
-  transform: TimelineItemTransform | undefined;
   level: ToolCallDetailLevel;
   isTurnActive: boolean;
 }
@@ -23,7 +20,7 @@ function retainItems(previous: StreamItem[], next: StreamItem[]): StreamItem[] {
     : next;
 }
 
-/** Source messages reach plugins before any Markdown splitting or Overview grouping. */
+/** Project native messages into Markdown blocks and tool-call groups. */
 export function createStreamPresentation() {
   const userMessageCache = new WeakMap<UserMessageItem, UserMessageItem>();
 
@@ -45,7 +42,6 @@ export function createStreamPresentation() {
   const blocksBySource = new WeakMap<AssistantMessageItem, AssistantMessageItem[]>();
   let liveSources = new Map<string, AssistantMessageItem>();
   let historySource: StreamItem[] | undefined;
-  let historyTransform: TimelineItemTransform | undefined;
   let historyRows: StreamItem[] = [];
   let displayTail: StreamItem[] = [];
   let displayHistory: StreamItem[] | undefined;
@@ -107,22 +103,19 @@ export function createStreamPresentation() {
 
   return (input: PresentationInput) => {
     // Retained history is not reprojected or regrouped on each live text update.
-    if (historySource !== input.tail || historyTransform !== input.transform) {
-      historyRows = projectPluginTimelineItems(input.tail, input.transform).flatMap<StreamItem>(
-        (item) => {
-          // Preserve live block identities at completion; fetched native Markdown
-          // stays whole so links and other cross-block constructs keep their context.
-          if (item.kind === "assistant_message") return blocksBySource.get(item) ?? [item];
-          return [item.kind === "user_message" ? presentUserMessage(item) : item];
-        },
-      );
+    if (historySource !== input.tail) {
+      historyRows = input.tail.flatMap<StreamItem>((item) => {
+        // Preserve live block identities at completion; fetched native Markdown
+        // stays whole so links and other cross-block constructs keep their context.
+        if (item.kind === "assistant_message") return blocksBySource.get(item) ?? [item];
+        return [item.kind === "user_message" ? presentUserMessage(item) : item];
+      });
       historySource = input.tail;
-      historyTransform = input.transform;
     }
     const head: StreamItem[] = [];
     const promoted: StreamItem[] = [];
     const nextLiveSources = new Map<string, AssistantMessageItem>();
-    for (const item of projectPluginTimelineItems(input.head, input.transform, "streaming")) {
+    for (const item of input.head) {
       const blocks = nativeBlocks(item);
       if (item.kind === "assistant_message") nextLiveSources.set(item.id, item);
       if (item.kind === "assistant_message" && blocks.length > 1) {

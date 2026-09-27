@@ -1,3 +1,21 @@
+import { useDaemonConfig } from "@/hooks/use-daemon-config";
+import { panelSupportsHost, type PaneHost } from "@/panels/panel-manifest";
+import {
+  getPanelRegistration,
+  type PanelIconProps,
+  type PanelPresentation,
+} from "@/panels/panel-registry";
+import { ensurePanelsRegistered } from "@/panels/register-panels";
+import { buildSettingsHostSectionRoute } from "@/utils/host-routes";
+import type { WorkspaceTabTarget } from "@/workspace-tabs/model";
+import type { NewTabSelection } from "@/workspace-tabs/new-tab";
+import type { TerminalProfile } from "@getpaseo/protocol/messages";
+import {
+  getTerminalProfileIcon,
+  resolveTerminalProfiles,
+} from "@getpaseo/protocol/terminal-profiles";
+import { useRouter, type Href } from "expo-router";
+import { Globe, SquarePen, SquareTerminal } from "lucide-react-native";
 import {
   createContext,
   useCallback,
@@ -6,29 +24,8 @@ import {
   type ComponentType,
   type ReactNode,
 } from "react";
-import { useRouter, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Globe, SquarePen, SquareTerminal } from "lucide-react-native";
 import invariant from "tiny-invariant";
-import { useDaemonConfig } from "@/hooks/use-daemon-config";
-import { resolvePluginIcon } from "@/plugins/icons";
-import { useInstalledPlugins } from "@/plugins/registry";
-import { pluginPanelSupportsLocation } from "@/plugins/workspace-panels/locations";
-import { buildSettingsHostSectionRoute } from "@/utils/host-routes";
-import type { NewTabSelection } from "@/workspace-tabs/new-tab";
-import type { WorkspaceTabTarget } from "@/workspace-tabs/model";
-import type { TerminalProfile } from "@getpaseo/protocol/messages";
-import { panelSupportsHost, type PaneHost } from "@/panels/panel-manifest";
-import {
-  getPanelRegistration,
-  type PanelIconProps,
-  type PanelPresentation,
-} from "@/panels/panel-registry";
-import { ensurePanelsRegistered } from "@/panels/register-panels";
-import {
-  getTerminalProfileIcon,
-  resolveTerminalProfiles,
-} from "@getpaseo/protocol/terminal-profiles";
 import { getBuiltInLaunchOrder, type BuiltInLaunchItemId } from "./internal/catalog";
 
 export type WorkspaceTabLaunchPurpose = "primary" | "supporting";
@@ -59,7 +56,7 @@ export interface WorkspaceTabLaunchItem {
 }
 
 export interface WorkspaceTabLaunchGroup {
-  id: "tabs" | "plugin-panels" | "terminal-profiles";
+  id: "tabs" | "terminal-profiles";
   label: string | null;
   items: readonly WorkspaceTabLaunchItem[];
   accessory?: { id: string; label: string; run: () => void };
@@ -104,7 +101,6 @@ export function useWorkspaceTabLaunchCatalog(input: {
   const launcher = useContext(NewTabLauncherContext);
   invariant(launcher, "NewTabLauncherProvider is required");
   const { config } = useDaemonConfig(serverId);
-  const plugins = useInstalledPlugins();
   ensurePanelsRegistered();
 
   const launchSelection = useCallback(
@@ -201,34 +197,8 @@ export function useWorkspaceTabLaunchCatalog(input: {
       return item.hidden || !panelSupportsHost(item.panelKind, host) ? [] : [item];
     });
 
-    const pluginItems: WorkspaceTabLaunchItem[] = [];
-    for (const plugin of plugins) {
-      if (plugin.serverId !== serverId) continue;
-      for (const panel of plugin.workspacePanels) {
-        if (panel.context !== "workspace") continue;
-        const location = host === "explorer" ? "explorer" : "workspace";
-        if (!pluginPanelSupportsLocation(panel, location)) continue;
-        const selection: NewTabSelection = {
-          kind: "target",
-          target: { kind: "plugin", pluginId: plugin.id, panelId: panel.id, context: "workspace" },
-        };
-        pluginItems.push({
-          id: `plugin:${plugin.id}:${panel.id}`,
-          label: panel.title,
-          Icon: resolvePluginIcon(panel.icon),
-          disabled: false,
-          panelKind: "plugin",
-          toggleTarget: selection.target,
-          launch: launchSelection(selection),
-        });
-      }
-    }
-
     const profiles = resolveTerminalProfiles(config?.terminalProfiles);
     const groups: WorkspaceTabLaunchGroup[] = [{ id: "tabs", label: null, items: tabItems }];
-    if (pluginItems.length > 0) {
-      groups.push({ id: "plugin-panels", label: null, items: pluginItems });
-    }
     if (profiles.length > 0) {
       groups.push({
         id: "terminal-profiles",
@@ -255,7 +225,6 @@ export function useWorkspaceTabLaunchCatalog(input: {
     editTerminalProfiles,
     launchSelection,
     launcher,
-    plugins,
     purpose,
     host,
     serverId,

@@ -1,12 +1,8 @@
+import { expect, type Page } from "@playwright/test";
+import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync, writeFileSync } from "node:fs";
-import { execFileSync } from "node:child_process";
 import { join } from "node:path";
-import {
-  restoreWorkspaceFromHistory,
-  expectCommittedFileAfterReload,
-} from "../support/helpers/workspace-recovery";
-import { expect, type Page } from "@playwright/test";
 import { metroTest as test } from "../support/fixtures";
 import { gotoAppShell } from "../support/helpers/app";
 import {
@@ -27,10 +23,14 @@ import {
 } from "../support/helpers/new-workspace";
 import { connectSeedClient } from "../support/helpers/seed-client";
 import { createTempGitRepo } from "../support/helpers/workspace";
+import {
+  expectCommittedFileAfterReload,
+  restoreWorkspaceFromHistory,
+} from "../support/helpers/workspace-recovery";
 import { waitForSidebarHydration } from "../support/helpers/workspace-ui";
 
 test.describe("Worktree restore after daemon restart", () => {
-  const serverId = `srv_worktree_restart_${randomUUID().replaceAll("-", "").slice(0, 12)}`;
+  let serverId = "";
   let daemon: IsolatedHostDaemon;
   let client: Awaited<ReturnType<typeof connectSeedClient>>;
   let worktreeClient: Awaited<ReturnType<typeof connectNewWorkspaceDaemonClient>>;
@@ -41,7 +41,8 @@ test.describe("Worktree restore after daemon restart", () => {
   test.describe.configure({ retries: 0, timeout: 180_000 });
 
   test.beforeEach(async () => {
-    daemon = await startIsolatedHostDaemon(serverId);
+    daemon = await startIsolatedHostDaemon(`worktree-restart-${randomUUID()}`);
+    serverId = daemon.serverId;
     client = await connectSeedClient({ port: daemon.port });
     worktreeClient = await connectNewWorkspaceDaemonClient({
       port: daemon.port,

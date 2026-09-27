@@ -1,14 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { metroTest as test } from "../support/fixtures";
-import { expectSessionsEmptyState, openSessions } from "../support/helpers/archive-tab";
 import { gotoAppShell } from "../support/helpers/app";
+import { expectSessionsEmptyState, openSessions } from "../support/helpers/archive-tab";
 import { buildCreateAgentPreferences, buildSeededHost } from "../support/helpers/daemon-registry";
 import { startIsolatedHostDaemon } from "../support/helpers/isolated-host-daemon";
 import { seedWorkspace } from "../support/helpers/seed-client";
 
 test("Sessions shows an empty placeholder when the host has no history", async ({ page }) => {
-  const serverId = `srv_sessions_empty_${randomUUID().replaceAll("-", "").slice(0, 12)}`;
-  const daemon = await startIsolatedHostDaemon(serverId);
+  const daemon = await startIsolatedHostDaemon(`sessions-empty-${randomUUID()}`);
+  const serverId = daemon.serverId;
   let workspace: Awaited<ReturnType<typeof seedWorkspace>> | null = null;
 
   try {

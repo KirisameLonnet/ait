@@ -14,11 +14,15 @@ fn reads_missing_and_existing_documents_and_rejects_invalid_json() {
             revision: None
         }
     );
-    std::fs::write(fixture.path().join(FILE_NAME), "{\"future\":true}").unwrap();
+    std::fs::write(
+        fixture.path().join(PROJECT_CONFIG_FILE_NAME),
+        "{\"future\":true}",
+    )
+    .unwrap();
     let document = store.read(root).unwrap();
     assert_eq!(document.config, Some(json!({"future":true})));
     assert!(document.revision.is_some());
-    std::fs::write(fixture.path().join(FILE_NAME), "invalid").unwrap();
+    std::fs::write(fixture.path().join(PROJECT_CONFIG_FILE_NAME), "invalid").unwrap();
     assert_eq!(store.read(root), Err(ProjectConfigStoreError::Invalid));
 }
 
@@ -32,7 +36,7 @@ fn writes_atomically_and_rejects_stale_or_absent_revision_mismatches() {
         panic!("expected write")
     };
     assert_eq!(
-        std::fs::read_to_string(fixture.path().join(FILE_NAME)).unwrap(),
+        std::fs::read_to_string(fixture.path().join(PROJECT_CONFIG_FILE_NAME)).unwrap(),
         "{\n  \"one\": 1\n}\n"
     );
     assert!(matches!(
@@ -46,4 +50,28 @@ fn writes_atomically_and_rejects_stale_or_absent_revision_mismatches() {
         .write(root, &json!({"two":2}), Some(revision))
         .unwrap();
     assert!(matches!(second, ProjectConfigWrite::Written { .. }));
+}
+
+#[test]
+fn reads_legacy_config_and_migrates_writes_without_overwriting_the_original() {
+    let fixture = tempfile::tempdir().unwrap();
+    let root = fixture.path().to_str().unwrap();
+    let legacy = fixture.path().join(LEGACY_PROJECT_CONFIG_FILE_NAME);
+    std::fs::write(&legacy, "{\"legacy\":true}").unwrap();
+    let store = LocalProjectConfigStore;
+    let document = store.read(root).unwrap();
+    assert_eq!(document.config, Some(json!({"legacy":true})));
+    assert!(matches!(
+        store
+            .write(root, &json!({"ait":true}), document.revision)
+            .unwrap(),
+        ProjectConfigWrite::Written { .. }
+    ));
+    assert_eq!(store.read(root).unwrap().config, Some(json!({"ait":true})));
+    assert_eq!(
+        std::fs::read_to_string(&legacy).unwrap(),
+        "{\"legacy\":true}"
+    );
+    std::fs::write(fixture.path().join(PROJECT_CONFIG_FILE_NAME), "invalid").unwrap();
+    assert_eq!(store.read(root), Err(ProjectConfigStoreError::Invalid));
 }

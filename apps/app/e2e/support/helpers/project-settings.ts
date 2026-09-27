@@ -1,12 +1,12 @@
-import { chmod, readFile, writeFile } from "node:fs/promises";
-import { execFileSync } from "node:child_process";
-import path from "node:path";
-import { expect, type Page } from "@playwright/test";
+import { buildProjectsSettingsRoute } from "@/utils/host-routes";
 import type { WebSocketRoute } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
+import { execFileSync } from "node:child_process";
+import { chmod, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { gotoAppShell, openSettings } from "./app";
 import { daemonWsRoutePattern } from "./daemon-port";
 import { getServerId } from "./server-id";
-import { buildProjectsSettingsRoute } from "@/utils/host-routes";
 
 type WebSocketMessage = string | Buffer;
 
@@ -179,15 +179,15 @@ export async function expectSaveButtonDisabled(page: Page): Promise<void> {
 }
 
 export async function expectUncommittedSetupWarning(page: Page): Promise<void> {
-  const warning = page.getByRole("alert").filter({ hasText: "Commit paseo.json changes" });
-  await expect(warning).toContainText("Commit paseo.json changes");
+  const warning = page.getByRole("alert").filter({ hasText: "Commit ait.json changes" });
+  await expect(warning).toContainText("Commit ait.json changes");
   await expect(warning).toContainText(
     "New worktrees use the setup script from the base branch you select.",
   );
 }
 
 export async function expectNoUncommittedSetupWarning(page: Page): Promise<void> {
-  const warning = page.getByRole("alert").filter({ hasText: "Commit paseo.json changes" });
+  const warning = page.getByRole("alert").filter({ hasText: "Commit ait.json changes" });
   await expect(warning).toHaveCount(0);
 }
 
@@ -245,11 +245,11 @@ export async function removeProjectScript(page: Page, scriptName: string): Promi
 // --- File manipulation ---
 
 export async function corruptPaseoConfig(repoPath: string): Promise<void> {
-  await writeFile(path.join(repoPath, "paseo.json"), "{not valid json}");
+  await writeFile(path.join(repoPath, "ait.json"), "{not valid json}");
 }
 
 export async function bumpPaseoConfigOnDisk(repoPath: string): Promise<void> {
-  const configPath = path.join(repoPath, "paseo.json");
+  const configPath = path.join(repoPath, "ait.json");
   const raw = await readFile(configPath, "utf8");
   const config = JSON.parse(raw) as Record<string, unknown>;
   config._bump = Date.now();
@@ -260,11 +260,11 @@ export async function restorePaseoConfig(
   repoPath: string,
   config: Record<string, unknown>,
 ): Promise<void> {
-  await writeFile(path.join(repoPath, "paseo.json"), JSON.stringify(config, null, 2) + "\n");
+  await writeFile(path.join(repoPath, "ait.json"), JSON.stringify(config, null, 2) + "\n");
 }
 
 export function commitPaseoConfig(repoPath: string): void {
-  execFileSync("git", ["add", "paseo.json"], { cwd: repoPath });
+  execFileSync("git", ["add", "ait.json"], { cwd: repoPath });
   execFileSync("git", ["commit", "-m", "Update project config"], { cwd: repoPath });
 }
 
@@ -280,7 +280,7 @@ export async function unblockPaseoConfigWrites(repoPath: string): Promise<void> 
 
 // --- WebSocket helpers ---
 
-// Proxies all daemon WS traffic transparently, but rejects paseo.json reads
+// Proxies all daemon WS traffic transparently, but rejects ait.json reads
 // until the test explicitly allows recovery. Closing the transport leaves the
 // client-side RPC pending across reconnects, so this injects the same correlated
 // rpc_error shape the daemon emits for failed async session requests.

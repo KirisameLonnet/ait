@@ -1,6 +1,7 @@
+import type { AggregatedAgent } from "@/hooks/use-aggregated-agents";
 import { describe, expect, it } from "vitest";
 import { deriveProjectDisplayName, deriveRemoteProjectKey, groupAgents } from "./agent-grouping";
-import type { AggregatedAgent } from "@/hooks/use-aggregated-agents";
+import { deriveProjectPlacementFromCwd } from "./project-placement";
 
 function makeAgent(overrides: Partial<AggregatedAgent> = {}): AggregatedAgent {
   const now = new Date();
@@ -19,6 +20,7 @@ function makeAgent(overrides: Partial<AggregatedAgent> = {}): AggregatedAgent {
         cancellationRequestId: null,
       } as const),
     lastActivityAt: overrides.lastActivityAt ?? now,
+    projectPlacement: overrides.projectPlacement,
     cwd: overrides.cwd ?? "/tmp/repo",
     provider: overrides.provider ?? ("openai" as AggregatedAgent["provider"]),
     requiresAttention: overrides.requiresAttention ?? false,
@@ -105,6 +107,18 @@ describe("groupAgents", () => {
 
     expect(activeGroups).toHaveLength(1);
     expect(activeGroups[0]?.agents.map((a) => a.id).sort()).toEqual(["a1", "a2"]);
+  });
+
+  it("groups arbitrary managed worktree paths by server placement", () => {
+    const projectPlacement = deriveProjectPlacementFromCwd("/projects/repo");
+    const agents = [
+      makeAgent({ id: "main", cwd: "/projects/repo", projectPlacement }),
+      makeAgent({ id: "worktree", cwd: "/custom/data/worktrees/hash/branch", projectPlacement }),
+    ];
+    const { activeGroups } = groupAgents(agents);
+    expect(activeGroups).toHaveLength(1);
+    expect(activeGroups[0]?.projectKey).toBe("/projects/repo");
+    expect(activeGroups[0]?.agents).toHaveLength(2);
   });
 
   it("falls back to cwd grouping when remote URL is unavailable", () => {

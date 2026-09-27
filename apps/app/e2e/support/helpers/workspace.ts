@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { mkdtemp, readFile, writeFile, rm, mkdir, realpath } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -59,7 +59,7 @@ async function configureRemote(input: {
 }
 
 export const createTempGitRepo = async (
-  prefix = "paseo-e2e-",
+  prefix = "ait-e2e-",
   options?: {
     withRemote?: boolean;
     originUrl?: string;
@@ -78,10 +78,7 @@ export const createTempGitRepo = async (
   execSync("git config commit.gpgsign false", { cwd: repoPath, stdio: "ignore" });
   await writeFile(path.join(repoPath, "README.md"), "# Temp Repo\n");
   if (options?.paseoConfig) {
-    await writeFile(
-      path.join(repoPath, "paseo.json"),
-      JSON.stringify(options.paseoConfig, null, 2),
-    );
+    await writeFile(path.join(repoPath, "ait.json"), JSON.stringify(options.paseoConfig, null, 2));
   }
   for (const file of options?.files ?? []) {
     const filePath = path.join(repoPath, file.path);
@@ -90,7 +87,7 @@ export const createTempGitRepo = async (
   }
   execSync("git add README.md", { cwd: repoPath, stdio: "ignore" });
   if (options?.paseoConfig) {
-    execSync("git add paseo.json", { cwd: repoPath, stdio: "ignore" });
+    execSync("git add ait.json", { cwd: repoPath, stdio: "ignore" });
   }
   for (const file of options?.files ?? []) {
     execSync(`git add ${JSON.stringify(file.path)}`, { cwd: repoPath, stdio: "ignore" });
@@ -106,7 +103,7 @@ export const createTempGitRepo = async (
         stdio: "ignore",
       });
     }
-    const markerPath = `.paseo-e2e-${branch.replace(/[^a-zA-Z0-9._-]/g, "-")}.txt`;
+    const markerPath = `.ait-e2e-${branch.replace(/[^a-zA-Z0-9._-]/g, "-")}.txt`;
     await writeFile(path.join(repoPath, markerPath), `branch ${branch}\n`);
     execSync(`git add ${JSON.stringify(markerPath)}`, { cwd: repoPath, stdio: "ignore" });
     execSync(`git commit -m ${JSON.stringify(`Add ${branch} marker`)}`, {
@@ -142,7 +139,7 @@ export const createTempGitRepo = async (
  * A plain (non-git) directory opened as a project. The daemon shows its
  * basename as the project name, since there's no remote to group under.
  */
-export async function createTempDirectory(prefix = "paseo-e2e-dir-"): Promise<TempDirectory> {
+export async function createTempDirectory(prefix = "ait-e2e-dir-"): Promise<TempDirectory> {
   const dirPath = await mkdtemp(path.join(await resolveTempRoot(), prefix));
   await writeFile(path.join(dirPath, "README.md"), "# Temp Directory\n");
   return {
@@ -177,7 +174,7 @@ export function commitLocalOnly(repoPath: string, marker: string): string {
  */
 export async function trackForkUpstream(repoPath: string): Promise<string> {
   const upstreamDir = path.join(repoPath, "upstream.git");
-  const upstreamClone = await mkdtemp(path.join(await resolveTempRoot(), "paseo-e2e-upstream-"));
+  const upstreamClone = await mkdtemp(path.join(await resolveTempRoot(), "ait-e2e-upstream-"));
   await mkdir(upstreamDir, { recursive: true });
   execSync(`git init --bare -b main ${upstreamDir}`, { cwd: repoPath, stdio: "ignore" });
   execSync(`git remote add upstream ${upstreamDir}`, { cwd: repoPath, stdio: "ignore" });

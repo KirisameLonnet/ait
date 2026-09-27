@@ -5,7 +5,7 @@ import {
 } from "./desktop-daemon-transport";
 import { createFakeLocalDaemonTransportRpc } from "./test-local-daemon-transport-rpc";
 
-const LOCAL_URL = "ait+desktop://socket?path=%2Ftmp%2Fpaseo.sock";
+const LOCAL_URL = "ait+desktop://socket?path=%2Ftmp%2Fait.sock";
 
 vi.mock("@/desktop/host", () => ({ isElectronRuntime: () => true }));
 vi.mock("./local-daemon-transport-rpc", () => ({ defaultLocalDaemonTransportRpc: {} }));

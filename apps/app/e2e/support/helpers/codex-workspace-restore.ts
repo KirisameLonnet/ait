@@ -1,20 +1,20 @@
+import { buildHostAgentDetailRoute } from "@/utils/host-routes";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import type { TestInfo } from "@playwright/test";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { z } from "zod";
-import type { TestInfo } from "@playwright/test";
 import { test as base, expect, type Page } from "../fixtures";
-import { buildHostAgentDetailRoute } from "@/utils/host-routes";
 import { openSessions } from "./archive-tab";
 import { getE2EDaemonPort } from "./daemon-port";
 import { assertComposerIdle } from "./rewind-flow";
+import type { SeedDaemonClient } from "./seed-client";
 import { getServerId } from "./server-id";
 import { archiveWorkspaceFromSidebar, expectWorkspaceAbsentFromSidebar } from "./sidebar";
 import { createTempGitRepo } from "./workspace";
 import { waitForSidebarHydration } from "./workspace-ui";
-import type { SeedDaemonClient } from "./seed-client";
 
 const REPLY = "CODEX_WORKTREE_RESTORE_READY";
 const workspaceSchema = z.object({
@@ -229,14 +229,14 @@ async function createCodexRestoreJourney(page: Page, client: SeedDaemonClient, i
           contentType: "application/json",
         });
         await info.attach("daemon-log", {
-          body: await readFile(path.join(process.env.E2E_PASEO_HOME!, "daemon.log")),
+          body: await readFile(path.join(process.env.E2E_AIT_DATA_DIR!, "server.log")),
           contentType: "text/plain",
         });
       } catch (error) {
         errors.push(error);
       }
       const cleanup: Array<() => Promise<unknown>> = [() => mcp.close()];
-      if (!testFailed || process.env.E2E_KEEP_PASEO_HOME !== "1") {
+      if (!testFailed || process.env.E2E_KEEP_AIT_DATA !== "1") {
         const projectId = workspace?.projectId;
         if (projectId) cleanup.push(() => client.removeProject(projectId));
         cleanup.push(() => repo.cleanup());

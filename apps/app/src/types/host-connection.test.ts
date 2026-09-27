@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { defaultHostAppearance } from "@/hosts/appearance";
+import { describe, expect, it } from "vitest";
 import {
   createRemoteSshHostConnection,
   normalizeStoredHostProfile,
@@ -76,7 +76,7 @@ describe("normalizeStoredHostProfile", () => {
     expect(profile?.connections[0]).not.toHaveProperty("password");
   });
 
-  it("preserves legacy relay ids when TLS is absent", () => {
+  it("drops relay-only hosts without TLS", () => {
     const profile = normalizeStoredHostProfile({
       serverId: "srv_relay",
       connections: [
@@ -89,15 +89,10 @@ describe("normalizeStoredHostProfile", () => {
       ],
     });
 
-    expect(profile?.connections[0]).toEqual({
-      id: "relay:relay.example.com:80",
-      type: "relay",
-      relayEndpoint: "relay.example.com:80",
-      daemonPublicKeyB64: "pubkey",
-    });
+    expect(profile).toBeNull();
   });
 
-  it("namespaces relay ids only when TLS is true", () => {
+  it("drops relay-only hosts with TLS", () => {
     const profile = normalizeStoredHostProfile({
       serverId: "srv_relay",
       connections: [
@@ -111,21 +106,13 @@ describe("normalizeStoredHostProfile", () => {
       ],
     });
 
-    expect(profile?.connections[0]).toEqual({
-      id: "relay:wss:relay.example.com:443",
-      type: "relay",
-      relayEndpoint: "relay.example.com:443",
-      useTls: true,
-      daemonPublicKeyB64: "pubkey",
-    });
+    expect(profile).toBeNull();
   });
 
   it("gives a host stored before appearance existed the default appearance", () => {
     const profile = normalizeStoredHostProfile({
       serverId: "srv_old",
-      connections: [
-        { id: "socket:/tmp/paseo.sock", type: "directSocket", path: "/tmp/paseo.sock" },
-      ],
+      connections: [{ id: "socket:/tmp/ait.sock", type: "directSocket", path: "/tmp/ait.sock" }],
     });
 
     expect(profile?.appearance).toEqual({ color: "none", badgeDisplay: null });
@@ -135,9 +122,7 @@ describe("normalizeStoredHostProfile", () => {
     const profile = normalizeStoredHostProfile({
       serverId: "srv_new",
       appearance: { color: "teal", badgeDisplay: "icon" },
-      connections: [
-        { id: "socket:/tmp/paseo.sock", type: "directSocket", path: "/tmp/paseo.sock" },
-      ],
+      connections: [{ id: "socket:/tmp/ait.sock", type: "directSocket", path: "/tmp/ait.sock" }],
     });
 
     expect(profile?.appearance).toEqual({ color: "teal", badgeDisplay: "icon" });
@@ -191,9 +176,9 @@ describe("createRemoteSshHostConnection", () => {
 
 describe("upsertHostConnectionInProfiles", () => {
   const connection: HostConnection = {
-    id: "socket:/tmp/paseo.sock",
+    id: "socket:/tmp/ait.sock",
     type: "directSocket",
-    path: "/tmp/paseo.sock",
+    path: "/tmp/ait.sock",
   };
 
   it("gives a newly discovered host the default appearance", () => {
@@ -363,4 +348,19 @@ it("persists SSH server tokens separately from identity and updates rotated toke
     connection: rotated,
   });
   expect(updated[0].connections).toEqual([rotated]);
+});
+
+it("drops legacy relay connections while preserving authenticated direct connections", () => {
+  const profile = normalizeStoredHostProfile({
+    serverId: "server",
+    label: "My host",
+    connections: [
+      { type: "relay", relayEndpoint: "retired.example:443", daemonPublicKeyB64: "key" },
+      { type: "directTcp", endpoint: "localhost:7316", password: "test-token" },
+    ],
+    preferredConnectionId: "relay:retired.example:443",
+  });
+  expect(profile?.connections).toHaveLength(1);
+  expect(profile?.connections[0]).toMatchObject({ type: "directTcp", password: "test-token" });
+  expect(profile?.preferredConnectionId).toBe(profile?.connections[0]?.id);
 });

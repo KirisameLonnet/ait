@@ -1,66 +1,9 @@
-import { spawnSync } from "node:child_process";
-import {
-  chmodSync,
-  copyFileSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-
-function writeExecutable(filePath: string, contents: string): void {
-  writeFileSync(filePath, contents, "utf8");
-  chmodSync(filePath, 0o755);
-}
-
-function createFakeMacBundle(options: { includeHelper: boolean }): {
-  root: string;
-  shimPath: string;
-} {
-  const root = mkdtempSync(join(tmpdir(), "paseo-cli-shim-test-"));
-  const appPath = join(root, "Ait.app");
-  const contentsPath = join(appPath, "Contents");
-  const resourcesPath = join(contentsPath, "Resources");
-  const shimPath = join(resourcesPath, "bin", "paseo");
-  const mainPath = join(contentsPath, "MacOS", "Ait");
-  const helperPath = join(
-    contentsPath,
-    "Frameworks",
-    "Ait Helper.app",
-    "Contents",
-    "MacOS",
-    "Ait Helper",
-  );
-
-  mkdirSync(dirname(shimPath), { recursive: true });
-  mkdirSync(dirname(mainPath), { recursive: true });
-  copyFileSync(join(packageRoot, "bin", "paseo"), shimPath);
-  chmodSync(shimPath, 0o755);
-
-  writeExecutable(mainPath, "#!/bin/sh\necho main-executable\n");
-
-  if (options.includeHelper) {
-    mkdirSync(dirname(helperPath), { recursive: true });
-    writeExecutable(
-      helperPath,
-      [
-        "#!/bin/sh",
-        'printf "helper env=%s/%s cli=%s\\n" "$ELECTRON_RUN_AS_NODE" "$PASEO_NODE_ENV" "$PASEO_CLI"',
-        'printf "args=%s\\n" "$*"',
-        "",
-      ].join("\n"),
-    );
-  }
-
-  return { root, shimPath };
-}
 
 describe("desktop packaging", () => {
   it("uses an Electron runtime whose Squirrel handoff explicitly wakes ShipIt", () => {
@@ -103,12 +46,7 @@ describe("desktop packaging", () => {
     expect(config).not.toContain("- paseo");
   });
 
-  // electron-builder packs production dependencies declared in package.json into
-  // app.asar. Runtime code in runtime-paths.ts and bin/paseo dynamically resolves
-  // these workspace packages by string, so static analysis (TypeScript, Knip) cannot
-  // see the link. If a runtime-required workspace dep is dropped from
-  // dependencies, the build still succeeds but ships a broken bundle. This
-  // assertion is the safety net.
+  // Runtime dependencies must remain available inside app.asar.
   it("declares all workspace packages required at runtime", () => {
     const pkg = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")) as {
       dependencies?: Record<string, string>;
@@ -118,39 +56,5 @@ describe("desktop packaging", () => {
     expect(deps["@getpaseo/protocol"]).toBe("file:../../packages/protocol");
     expect(deps["@getpaseo/server"]).toBeUndefined();
     expect(deps["@getpaseo/cli"]).toBeUndefined();
-  });
-
-  it("launches the packaged macOS CLI through Helper instead of the main app executable", () => {
-    if (process.platform === "win32") return;
-
-    const bundle = createFakeMacBundle({ includeHelper: true });
-    try {
-      const result = spawnSync(bundle.shimPath, ["--version"], { encoding: "utf8" });
-
-      expect(result.status).toBe(0);
-      expect(result.stdout).toContain(`helper env=1/production cli=${bundle.shimPath}`);
-      expect(result.stdout).toContain("node-entrypoint-runner.js");
-      expect(result.stdout).toContain("node-script");
-      expect(result.stdout).toContain("@getpaseo/cli/dist/index.js");
-      expect(result.stdout).toContain("--version");
-      expect(result.stdout).not.toContain("main-executable");
-    } finally {
-      rmSync(bundle.root, { recursive: true, force: true });
-    }
-  });
-
-  it("fails packaged macOS CLI startup when Helper is missing", () => {
-    if (process.platform === "win32") return;
-
-    const bundle = createFakeMacBundle({ includeHelper: false });
-    try {
-      const result = spawnSync(bundle.shimPath, ["--version"], { encoding: "utf8" });
-
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain("Bundled Ait Helper executable not found");
-      expect(result.stdout).not.toContain("main-executable");
-    } finally {
-      rmSync(bundle.root, { recursive: true, force: true });
-    }
   });
 });

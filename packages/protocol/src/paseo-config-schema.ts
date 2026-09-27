@@ -67,7 +67,7 @@ export const PaseoMetadataGenerationSchema = z
     pullRequest: PaseoMetadataGenerationEntrySchema.optional(),
   })
   // COMPAT(projectMetadataAgentTitle): `agentTitle` project metadata prompts were removed
-  // in v0.1.96; keep legacy paseo.json parseable until 2026-12-16.
+  // in v0.1.96; keep legacy ait.json parseable until 2026-12-16.
   .passthrough()
   .catch({});
 

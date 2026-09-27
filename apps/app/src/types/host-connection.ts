@@ -1,4 +1,9 @@
 import {
+  defaultHostAppearance,
+  HostAppearanceSchema,
+  type HostAppearance,
+} from "@/hosts/appearance";
+import {
   normalizeHostPort,
   normalizeLoopbackToLocalhost,
 } from "@getpaseo/protocol/daemon-endpoints";
@@ -11,11 +16,6 @@ import {
   validatePort,
   validateSshHost,
 } from "@getpaseo/protocol/ssh-transport";
-import {
-  type HostAppearance,
-  defaultHostAppearance,
-  HostAppearanceSchema,
-} from "@/hosts/appearance";
 import { z } from "zod";
 
 export { DirectTcpHostConnectionSchema, type DirectTcpHostConnection };
@@ -41,20 +41,11 @@ export interface RemoteSshHostConnection {
   password?: string;
 }
 
-export interface RelayHostConnection {
-  id: string;
-  type: "relay";
-  relayEndpoint: string;
-  useTls?: boolean;
-  daemonPublicKeyB64: string;
-}
-
 export type HostConnection =
   | DirectTcpHostConnection
   | DirectSocketHostConnection
   | DirectPipeHostConnection
-  | RemoteSshHostConnection
-  | RelayHostConnection;
+  | RemoteSshHostConnection;
 
 export type HostLifecycle = Record<string, never>;
 
@@ -140,13 +131,6 @@ function hostConnectionEquals(left: HostConnection, right: HostConnection): bool
   }
   if (left.type === "remoteSsh" && right.type === "remoteSsh") {
     return remoteSshConnectionEquals(left, right);
-  }
-  if (left.type === "relay" && right.type === "relay") {
-    return (
-      left.relayEndpoint === right.relayEndpoint &&
-      left.useTls === right.useTls &&
-      left.daemonPublicKeyB64 === right.daemonPublicKeyB64
-    );
   }
 
   return false;
@@ -439,24 +423,7 @@ function normalizeStoredConnection(connection: StoredHostConnection): HostConnec
       return null;
     }
   }
-  if (connection.type === "relay") {
-    try {
-      const relayEndpoint = normalizeHostPort(connection.relayEndpoint);
-      const daemonPublicKeyB64 = connection.daemonPublicKeyB64.trim();
-      if (!daemonPublicKeyB64) return null;
-      const useTls = connection.useTls;
-      return {
-        id: useTls === true ? `relay:wss:${relayEndpoint}` : `relay:${relayEndpoint}`,
-        type: "relay",
-        relayEndpoint,
-        ...(useTls !== undefined ? { useTls } : {}),
-        daemonPublicKeyB64,
-      };
-    } catch {
-      return null;
-    }
-  }
-
+  // Discard legacy relay endpoints while retaining the host's direct connections.
   return null;
 }
 

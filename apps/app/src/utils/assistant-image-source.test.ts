@@ -56,13 +56,13 @@ describe("resolveAssistantImageSource", () => {
   it("uses the same home-root target as file previews for tilde paths", () => {
     expect(
       resolveAssistantImageSource({
-        source: "~/.paseo/screenshots/output.png",
+        source: "~/.ait-server/screenshots/output.png",
         workspaceRoot: "/Users/test/project",
       }),
     ).toEqual({
       kind: "file_rpc",
       cwd: "~",
-      path: "~/.paseo/screenshots/output.png",
+      path: "~/.ait-server/screenshots/output.png",
     });
   });
 

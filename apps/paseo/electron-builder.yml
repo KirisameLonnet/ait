@@ -56,7 +56,7 @@ linux:
   category: Development
   icon: assets
   artifactName: "Ait-${version}-linux-${arch}.${ext}"
-  maintainer: "Mohamed Boudra <hello@moboudra.com>"
+  maintainer: "Necokeine"
   vendor: "Ait"
   target:
     - AppImage

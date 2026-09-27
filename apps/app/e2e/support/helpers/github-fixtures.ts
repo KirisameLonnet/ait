@@ -289,7 +289,7 @@ export async function cloneGithubRepoDefaultBranchOnly(
 }
 
 export async function createLocalGithubPrFixture(): Promise<LocalGhPrFixture> {
-  const fixtureRoot = await mkdtemp(path.join("/tmp", "paseo-e2e-local-github-pr-"));
+  const fixtureRoot = await mkdtemp(path.join("/tmp", "ait-e2e-local-github-pr-"));
   const basePath = path.join(fixtureRoot, "base");
   const remotePath = path.join(fixtureRoot, "remote.git");
   const checkoutPath = path.join(fixtureRoot, "main-only");

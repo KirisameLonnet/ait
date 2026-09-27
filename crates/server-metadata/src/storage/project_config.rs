@@ -6,20 +6,19 @@ use std::path::Path;
 use std::time::UNIX_EPOCH;
 
 use crate::ports::provisioning::{
-    ProjectConfigDocument, ProjectConfigRevision, ProjectConfigStore, ProjectConfigStoreError,
-    ProjectConfigWrite,
+    LEGACY_PROJECT_CONFIG_FILE_NAME, PROJECT_CONFIG_FILE_NAME, ProjectConfigDocument,
+    ProjectConfigRevision, ProjectConfigStore, ProjectConfigStoreError, ProjectConfigWrite,
 };
 
-const FILE_NAME: &str = "paseo.json";
 const MAX_CONFIG_BYTES: u32 = 4 * 1024 * 1024;
 
-/// Atomic local `paseo.json` adapter.
+/// Atomic local `ait.json` adapter.
 #[derive(Debug, Default)]
 pub struct LocalProjectConfigStore;
 
 impl ProjectConfigStore for LocalProjectConfigStore {
     fn read(&self, root: &str) -> Result<ProjectConfigDocument, ProjectConfigStoreError> {
-        let path = Path::new(root).join(FILE_NAME);
+        let path = read_path(Path::new(root)).map_err(|_| ProjectConfigStoreError::Invalid)?;
         let Some(revision) = revision(&path).map_err(|_| ProjectConfigStoreError::Invalid)? else {
             return Ok(ProjectConfigDocument {
                 config: None,
@@ -44,7 +43,7 @@ impl ProjectConfigStore for LocalProjectConfigStore {
         expected_revision: Option<ProjectConfigRevision>,
     ) -> Result<ProjectConfigWrite, ProjectConfigStoreError> {
         let root = Path::new(root);
-        let path = root.join(FILE_NAME);
+        let path = root.join(PROJECT_CONFIG_FILE_NAME);
         let mut staged =
             tempfile::NamedTempFile::new_in(root).map_err(|_| ProjectConfigStoreError::Write)?;
         serde_json::to_writer_pretty(staged.as_file_mut(), config)
@@ -54,7 +53,9 @@ impl ProjectConfigStore for LocalProjectConfigStore {
             .write_all(b"\n")
             .and_then(|()| staged.as_file_mut().sync_all())
             .map_err(|_| ProjectConfigStoreError::Write)?;
-        let current_revision = revision(&path).map_err(|_| ProjectConfigStoreError::Write)?;
+        let current_path = read_path(root).map_err(|_| ProjectConfigStoreError::Write)?;
+        let current_revision =
+            revision(&current_path).map_err(|_| ProjectConfigStoreError::Write)?;
         if current_revision != expected_revision {
             return Ok(ProjectConfigWrite::Stale { current_revision });
         }
@@ -72,6 +73,20 @@ impl ProjectConfigStore for LocalProjectConfigStore {
             config: config.clone(),
             revision,
         })
+    }
+}
+
+/// Resolve the readable config beneath `root`, preferring Ait even when it is invalid.
+///
+/// Returns the legacy path only when the preferred entry is absent. Metadata errors propagate.
+pub(crate) fn read_path(root: &Path) -> std::io::Result<std::path::PathBuf> {
+    let path = root.join(PROJECT_CONFIG_FILE_NAME);
+    match path.symlink_metadata() {
+        Ok(_) => Ok(path),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            Ok(root.join(LEGACY_PROJECT_CONFIG_FILE_NAME))
+        }
+        Err(error) => Err(error),
     }
 }
 

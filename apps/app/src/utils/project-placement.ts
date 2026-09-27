@@ -1,5 +1,5 @@
+import { deriveProjectName } from "@/utils/agent-grouping";
 import type { ProjectPlacementPayload } from "@getpaseo/protocol/messages";
-import { deriveProjectKey, deriveProjectName } from "@/utils/agent-grouping";
 
 function normalizeWorkingDirectory(cwd: string): string {
   const trimmed = cwd.trim();
@@ -8,7 +8,7 @@ function normalizeWorkingDirectory(cwd: string): string {
 
 export function deriveProjectPlacementFromCwd(cwd: string): ProjectPlacementPayload {
   const normalizedCwd = normalizeWorkingDirectory(cwd);
-  const projectKey = deriveProjectKey(normalizedCwd);
+  const projectKey = normalizedCwd;
 
   return {
     projectKey,

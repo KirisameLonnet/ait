@@ -1,15 +1,15 @@
-import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
-import { useCallback, useMemo, type ReactElement, type ReactNode } from "react";
-import { Pressable, View } from "react-native";
-import type { GestureResponderEvent } from "react-native";
-import { Plus, Server, Settings } from "lucide-react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { HostStatusDot } from "@/components/host-status-dot";
 import { Combobox, ComboboxItem, type ComboboxProps } from "@/components/ui/combobox";
 import { useLocalDaemonServerId } from "@/hooks/use-is-local-daemon";
 import { useHostRuntimeSnapshot, type ActiveConnection } from "@/runtime/host-runtime";
 import { orderHostsLocalFirst } from "@/types/host-connection";
+import type { TFunction } from "i18next";
+import { Plus, Server, Settings } from "lucide-react-native";
+import { useCallback, useMemo, type ReactElement, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import type { GestureResponderEvent } from "react-native";
+import { Pressable, View } from "react-native";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import {
   ADD_HOST_OPTION_ID,
   ALL_HOSTS_OPTION_ID,
@@ -40,7 +40,7 @@ export function HostStatusDotSlot({ serverId }: { serverId: string }): ReactElem
 }
 
 // Standard secure/plain web ports carry no information in the host display, so
-// "relay.paseo.sh:443" reads as "relay.paseo.sh" while "127.0.0.1:6767" is kept.
+// "server.example.com:443" reads as "server.example.com" while "127.0.0.1:6767" is kept.
 function formatConnectionEndpoint(endpoint: string): string {
   return endpoint.replace(/:(?:443|80)$/, "");
 }

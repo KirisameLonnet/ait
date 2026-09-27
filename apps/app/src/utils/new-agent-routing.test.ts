@@ -12,24 +12,26 @@ describe("resolveNewAgentWorkingDir", () => {
     expect(resolveNewAgentWorkingDir("/repo/path", null)).toBe("/repo/path");
   });
 
-  it("falls back to repo root when checkout metadata is unavailable", () => {
-    expect(resolveNewAgentWorkingDir("/repo/.paseo/worktrees/feature", null)).toBe("/repo");
-  });
-
-  it("supports windows-style paseo worktree paths without checkout metadata", () => {
-    expect(resolveNewAgentWorkingDir("C:\\Users\\me\\repo\\.paseo\\worktrees\\feature", null)).toBe(
-      "C:\\Users\\me\\repo",
+  it("preserves cwd when checkout metadata is unavailable", () => {
+    expect(resolveNewAgentWorkingDir("/repo/.ait-server/worktrees/feature", null)).toBe(
+      "/repo/.ait-server/worktrees/feature",
     );
   });
 
-  it("returns the main repo root for paseo-owned worktrees", () => {
+  it("preserves Windows paths without checkout metadata", () => {
+    expect(
+      resolveNewAgentWorkingDir("C:\\Users\\me\\repo\\.ait-server\\worktrees\\feature", null),
+    ).toBe("C:\\Users\\me\\repo\\.ait-server\\worktrees\\feature");
+  });
+
+  it("uses the server-reported main repository for managed worktrees", () => {
     const checkout = {
       isPaseoOwnedWorktree: true,
-      worktreeRoot: "/repo/.paseo/worktrees/feature",
+      worktreeRoot: "/custom/data/worktrees/hash/feature",
       mainRepoRoot: "/repo/main",
     } as unknown as CheckoutStatusPayload;
 
-    expect(resolveNewAgentWorkingDir("/repo/.paseo/worktrees/feature", checkout)).toBe(
+    expect(resolveNewAgentWorkingDir("/custom/data/worktrees/hash/feature", checkout)).toBe(
       "/repo/main",
     );
   });
