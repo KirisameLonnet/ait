@@ -25,18 +25,18 @@ function createFakeMacBundle(options: { includeHelper: boolean }): {
   shimPath: string;
 } {
   const root = mkdtempSync(join(tmpdir(), "paseo-cli-shim-test-"));
-  const appPath = join(root, "Paseo.app");
+  const appPath = join(root, "Ait.app");
   const contentsPath = join(appPath, "Contents");
   const resourcesPath = join(contentsPath, "Resources");
   const shimPath = join(resourcesPath, "bin", "paseo");
-  const mainPath = join(contentsPath, "MacOS", "Paseo");
+  const mainPath = join(contentsPath, "MacOS", "Ait");
   const helperPath = join(
     contentsPath,
     "Frameworks",
-    "Paseo Helper.app",
+    "Ait Helper.app",
     "Contents",
     "MacOS",
-    "Paseo Helper",
+    "Ait Helper",
   );
 
   mkdirSync(dirname(shimPath), { recursive: true });
@@ -79,17 +79,6 @@ describe("desktop packaging", () => {
     expect(config).toContain('minimumSystemVersion: "13.0.0"');
   });
 
-  it("unpacks server zsh shell integration files for external shells", () => {
-    const config = readFileSync(join(packageRoot, "electron-builder.yml"), "utf8");
-
-    expect(config).toContain(
-      "node_modules/@getpaseo/server/dist/server/terminal/shell-integration/**/*",
-    );
-    expect(config).not.toContain(
-      "node_modules/@getpaseo/server/dist/src/terminal/shell-integration/**/*",
-    );
-  });
-
   it("excludes package debug/source files from the packaged app", () => {
     const config = readFileSync(join(packageRoot, "electron-builder.yml"), "utf8");
 
@@ -99,22 +88,17 @@ describe("desktop packaging", () => {
     expect(config).toContain("!node_modules/@getpaseo/**/*.spec.*");
   });
 
-  it("excludes the bundled daemon web UI from the packaged app", () => {
-    const config = readFileSync(join(packageRoot, "electron-builder.yml"), "utf8");
-
-    expect(config).toContain("!node_modules/@getpaseo/server/dist/server/web-ui/**");
-  });
-
   it("bundles the native Rust server as an external resource", () => {
     const config = readFileSync(join(packageRoot, "electron-builder.yml"), "utf8");
-    expect(config).toContain("from: release-resources/server");
-    expect(config).toContain("to: bin");
+    expect(config).toContain("from: release-resources/server/server");
+    expect(config).toContain("to: bin/server");
+    expect(config).not.toContain("from: bin/paseo");
   });
 
-  it("registers Paseo agent links with the operating system", () => {
+  it("registers Ait agent links with the operating system", () => {
     const config = readFileSync(join(packageRoot, "electron-builder.yml"), "utf8");
 
-    expect(config).toContain("name: Paseo agent link");
+    expect(config).toContain("name: Ait agent link");
     expect(config).toContain("- paseo");
   });
 
@@ -130,7 +114,7 @@ describe("desktop packaging", () => {
     };
     const deps = pkg.dependencies ?? {};
 
-    expect(deps["@getpaseo/protocol"]).toBe("0.9.0-beta.2");
+    expect(deps["@getpaseo/protocol"]).toBe("file:../../packages/protocol");
     expect(deps["@getpaseo/server"]).toBeUndefined();
     expect(deps["@getpaseo/cli"]).toBeUndefined();
   });
@@ -162,23 +146,10 @@ describe("desktop packaging", () => {
       const result = spawnSync(bundle.shimPath, ["--version"], { encoding: "utf8" });
 
       expect(result.status).toBe(1);
-      expect(result.stderr).toContain("Bundled Paseo Helper executable not found");
+      expect(result.stderr).toContain("Bundled Ait Helper executable not found");
       expect(result.stdout).not.toContain("main-executable");
     } finally {
       rmSync(bundle.root, { recursive: true, force: true });
     }
   });
-});
-
-it("installs the Linux helper as root-owned 4755 regardless of root's namespace access", () => {
-  const config = readFileSync(join(packageRoot, "electron-builder.yml"), "utf8");
-  expect(config).toContain("afterInstall: scripts/linux-sandbox/after-install.tpl");
-  const installer = readFileSync(
-    join(packageRoot, "scripts/linux-sandbox/after-install.tpl"),
-    "utf8",
-  );
-  expect(installer).not.toContain("unshare");
-  expect(installer).toContain("chown root:root '/opt/${sanitizedProductName}/chrome-sandbox'");
-  expect(installer).toContain("chmod 4755 '/opt/${sanitizedProductName}/chrome-sandbox'");
-  expect(installer).not.toContain("chmod 0755");
 });

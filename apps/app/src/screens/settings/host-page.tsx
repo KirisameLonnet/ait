@@ -275,6 +275,7 @@ export function HostAgentsPage({ serverId }: { serverId: string }) {
 
   return (
     <View>
+      <HostConfigError serverId={serverId} />
       {isConnected ? (
         <SettingsSection title={t("settings.hostSections.agents")}>
           <InjectPaseoToolsCard serverId={serverId} />
@@ -303,6 +304,7 @@ export function HostWorkspacesPage({ serverId }: { serverId: string }) {
 
   return (
     <View>
+      <HostConfigError serverId={serverId} />
       {isConnected ? (
         <SettingsSection title={t("settings.hostSections.workspaces")}>
           <AutoArchiveMergedWorkspacesCard serverId={serverId} />
@@ -379,6 +381,20 @@ export function HostSettingsPage({
       {!isLocalDaemon ? <UpdateDaemonCard key={host.serverId} host={host} /> : null}
 
       <RemoveHostSection host={host} isLocalDaemon={isLocalDaemon} onRemoved={onHostRemoved} />
+    </View>
+  );
+}
+
+function HostConfigError({ serverId }: { serverId: string }) {
+  const { t } = useTranslation();
+  const { error, retry } = useDaemonConfig(serverId);
+  if (!error) return null;
+  return (
+    <View testID="host-config-error">
+      <Text style={settingsStyles.rowError}>{error.message}</Text>
+      <Button variant="outline" size="sm" onPress={retry}>
+        {t("common.actions.retry")}
+      </Button>
     </View>
   );
 }
@@ -920,7 +936,7 @@ function AutoArchiveMergedWorkspacesCard({ serverId }: { serverId: string }) {
         <View style={settingsStyles.rowContent}>
           <Text style={settingsStyles.rowTitle}>Archive merged PR workspaces</Text>
           <Text style={settingsStyles.rowHint}>
-            Automatically archive clean Paseo workspaces after their pull request is merged
+            Automatically archive clean Ait workspaces after their pull request is merged
           </Text>
         </View>
         <Switch
@@ -1091,6 +1107,9 @@ function AppendSystemPromptCard({ serverId }: { serverId: string }) {
 
 function PairDeviceRow({ serverId }: { serverId: string }) {
   const { t } = useTranslation();
+  const pairingUnavailable = useSessionStore(
+    (state) => state.sessions[serverId]?.serverInfo?.features?.daemonPairing === false,
+  );
   const { theme } = useUnistyles();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -1107,7 +1126,13 @@ function PairDeviceRow({ serverId }: { serverId: string }) {
       >
         <View style={settingsStyles.rowContent}>
           <Text style={settingsStyles.rowTitle}>{t("settings.host.pairDevices.rowTitle")}</Text>
-          <Text style={settingsStyles.rowHint}>{t("settings.host.pairDevices.rowHint")}</Text>
+          <Text style={settingsStyles.rowHint}>
+            {t(
+              pairingUnavailable
+                ? "pairing.device.directConnectionHint"
+                : "settings.host.pairDevices.rowHint",
+            )}
+          </Text>
         </View>
         <ChevronRight size={theme.iconSize.sm} color={theme.colors.foregroundMuted} />
       </Pressable>
@@ -1661,6 +1686,7 @@ export function HostTerminalsPage({ serverId }: { serverId: string }) {
 
   return (
     <View>
+      <HostConfigError serverId={serverId} />
       <SettingsSection title="Terminal agents">
         <EnableTerminalAgentHooksCard serverId={serverId} />
       </SettingsSection>

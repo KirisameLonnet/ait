@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import Constants from "expo-constants";
 import { parseChangelog, type ChangelogRelease } from "./parse-changelog";
 
-const CHANGELOG_URL = "https://raw.githubusercontent.com/getpaseo/paseo/main/CHANGELOG.md";
+const CHANGELOG_URL = "https://raw.githubusercontent.com/necokeine/ait/main/CHANGELOG.md";
 
 export type ChangelogState =
   | { status: "loading" }
@@ -11,7 +12,12 @@ export type ChangelogState =
 // Survives close/reopen so the second look paints without a spinner. The raw
 // text is kept alongside the releases so an unchanged revalidation can be
 // dropped: handing back an equal-but-new array would re-render every release.
-let cached: { markdown: string; releases: ChangelogRelease[] } | null = null;
+const bundledMarkdown: unknown = Constants.expoConfig?.extra?.changelog;
+const bundledReleases = typeof bundledMarkdown === "string" ? parseChangelog(bundledMarkdown) : [];
+let cached: { markdown: string; releases: ChangelogRelease[] } | null =
+  typeof bundledMarkdown === "string" && bundledReleases.length > 0
+    ? { markdown: bundledMarkdown, releases: bundledReleases }
+    : null;
 
 export interface Changelog {
   state: ChangelogState;
@@ -19,10 +25,10 @@ export interface Changelog {
 }
 
 /**
- * Reads the changelog from the repository the app was built from.
+ * Shows the repository changelog bundled with this build immediately, then
+ * checks for newer release notes. Offline or unpublished builds remain usable.
  *
- * The daemon is not involved: the changelog describes the app, a phone reaching
- * a relay already has internet, and going through a host would make the notes
+ * The daemon is not involved: release notes describe the app and must not
  * depend on which host happens to be connected.
  *
  * Every open refetches, because the whole point of opening it is a release that
@@ -44,6 +50,7 @@ export function useChangelog(enabled: boolean): Changelog {
         const response = await fetch(CHANGELOG_URL, { signal: controller.signal });
         if (!response.ok) throw new Error(`Changelog request failed: ${response.status}`);
         const markdown = await response.text();
+        if (controller.signal.aborted) return;
         if (cached?.markdown === markdown) return;
         const releases = parseChangelog(markdown);
         if (releases.length === 0) throw new Error("Changelog has no releases");
@@ -60,7 +67,6 @@ export function useChangelog(enabled: boolean): Changelog {
   }, [enabled, attempt]);
 
   const reload = useCallback(() => {
-    cached = null;
     setAttempt((value) => value + 1);
   }, []);
 

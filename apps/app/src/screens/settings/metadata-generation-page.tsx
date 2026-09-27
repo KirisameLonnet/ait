@@ -5,6 +5,7 @@ import { StyleSheet } from "react-native-unistyles";
 import type { AgentProvider } from "@getpaseo/protocol/agent-types";
 import { CombinedModelSelector } from "@/components/combined-model-selector";
 import { ExternalLink } from "@/components/ui/external-link";
+import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useDaemonConfig } from "@/hooks/use-daemon-config";
@@ -18,7 +19,13 @@ type SelectionMode = "automatic" | "preferred";
 
 export function MetadataGenerationPage({ serverId }: { serverId: string }) {
   const { t } = useTranslation();
-  const { config, isLoading: isConfigLoading, patchConfig } = useDaemonConfig(serverId);
+  const {
+    config,
+    isLoading: isConfigLoading,
+    error,
+    retry,
+    patchConfig,
+  } = useDaemonConfig(serverId);
   const snapshot = useProvidersSnapshot(serverId);
   const providers = useMemo(
     () => buildSelectableProviderSelectorProviders(snapshot.entries),
@@ -98,6 +105,17 @@ export function MetadataGenerationPage({ serverId }: { serverId: string }) {
     ),
     [t],
   );
+
+  if (error) {
+    return (
+      <View testID="metadata-generation-error">
+        <Text style={settingsStyles.rowError}>{error.message}</Text>
+        <Button variant="outline" onPress={retry}>
+          {t("common.actions.retry")}
+        </Button>
+      </View>
+    );
+  }
 
   if (isConfigLoading || !config) {
     return (

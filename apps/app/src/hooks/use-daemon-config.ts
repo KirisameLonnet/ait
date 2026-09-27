@@ -9,6 +9,8 @@ import { useHostRuntimeClient, useHostRuntimeIsConnected } from "@/runtime/host-
 interface UseDaemonConfigResult {
   config: MutableDaemonConfig | null;
   isLoading: boolean;
+  error: Error | null;
+  retry: () => void;
   patchConfig: (patch: MutableDaemonConfigPatch) => Promise<MutableDaemonConfig | undefined>;
 }
 
@@ -34,19 +36,25 @@ export function useDaemonConfig(serverId: string | null): UseDaemonConfigResult 
 
   const patchConfig = useCallback(
     async (patch: MutableDaemonConfigPatch) => {
-      if (!client) {
-        return undefined;
+      if (!client || !isConnected) {
+        throw new Error(t("workspace.terminal.hostDisconnected"));
       }
       const result = await client.patchDaemonConfig(patch);
       queryClient.setQueryData(queryKey, result.config);
       return result.config;
     },
-    [client, queryClient, queryKey],
+    [client, isConnected, queryClient, queryKey, t],
   );
 
   return {
     config: configQuery.data ?? null,
     isLoading: configQuery.isLoading,
+    error:
+      configQuery.error ??
+      (!isConnected ? new Error(t("workspace.terminal.hostDisconnected")) : null),
+    retry: () => {
+      void configQuery.refetch();
+    },
     patchConfig,
   };
 }

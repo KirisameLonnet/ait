@@ -20,6 +20,7 @@ import { CODE_SURFACE_DATASET } from "@/styles/code-surface";
 import { useDaemonConfig } from "@/hooks/use-daemon-config";
 import { useProvidersSnapshot } from "@/hooks/use-providers-snapshot";
 import { useHostRuntimeClient } from "@/runtime/host-runtime";
+import { useSessionStore } from "@/stores/session-store";
 import { settingsStyles } from "@/styles/settings";
 import { resolveProviderLabel } from "@/utils/provider-definitions";
 import { formatTimeAgo } from "@/utils/time";
@@ -409,6 +410,7 @@ interface ProviderModalBodyProps {
 }
 
 interface ProviderSheetFooterInput {
+  canConfigure: boolean;
   fetchedAtLabel: string | null;
   isCompact: boolean;
   modelsRefreshing: boolean;
@@ -419,6 +421,7 @@ interface ProviderSheetFooterInput {
 }
 
 function renderProviderSheetFooter({
+  canConfigure,
   fetchedAtLabel,
   isCompact,
   modelsRefreshing,
@@ -442,15 +445,17 @@ function renderProviderSheetFooter({
         </Text>
       ) : null}
       <View style={actionsStyle}>
-        <Button
-          variant="secondary"
-          size="sm"
-          leftIcon={Plus}
-          onPress={onOpenAddSheet}
-          style={buttonStyle}
-        >
-          {t("settings.providers.models.addModel")}
-        </Button>
+        {canConfigure ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon={Plus}
+            onPress={onOpenAddSheet}
+            style={buttonStyle}
+          >
+            {t("settings.providers.models.addModel")}
+          </Button>
+        ) : null}
         <Button
           variant="secondary"
           size="sm"
@@ -572,6 +577,9 @@ export function ProviderDiagnosticSheet({
   onClose,
   serverId,
 }: ProviderDiagnosticSheetProps) {
+  const canConfigure = useSessionStore(
+    (state) => state.sessions[serverId]?.serverInfo?.features?.providerConfiguration !== false,
+  );
   const { t } = useTranslation();
   const { theme } = useUnistyles();
   const isCompact = useIsCompactFormFactor();
@@ -686,6 +694,7 @@ export function ProviderDiagnosticSheet({
         onClose={onClose}
         testID="provider-settings-sheet"
         footer={renderProviderSheetFooter({
+          canConfigure,
           fetchedAtLabel,
           isCompact,
           modelsRefreshing,

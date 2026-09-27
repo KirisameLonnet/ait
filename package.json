@@ -1,6 +1,6 @@
 {
   "name": "ait-paseo-workspace",
-  "version": "0.1.0",
+  "version": "0.0.7",
   "private": true,
   "workspaces": [
     "apps/app",
@@ -13,6 +13,9 @@
     "packages/expo-two-way-audio"
   ],
   "scripts": {
+    "verify:release": "node scripts/verify-release-version.mjs",
+    "generate:icons": "node scripts/generate-brand-assets.mjs",
+    "check:icons": "node scripts/generate-brand-assets.mjs --check",
     "dev:paseo": "npm run dev --workspace=@getpaseo/desktop",
     "build:server": "cargo build -p server-bin --bin server",
     "build:app-deps": "npm run build:sdk && npm run build:highlight && npm run build:plugin && npm run build --workspace=@getpaseo/expo-two-way-audio",
@@ -34,7 +37,10 @@
     "build:dmg:release": "npm run build:dmg:release --workspace=@getpaseo/desktop",
     "build:ios": "npm run build:ios --workspace=@getpaseo/app",
     "build:ios:simulator": "npm run build:ios:simulator --workspace=@getpaseo/app",
-    "build:ios:ipa": "npm run build:ios:ipa --workspace=@getpaseo/app"
+    "build:ios:ipa": "npm run build:ios:ipa --workspace=@getpaseo/app",
+    "package:linux": "npm run package:linux --workspace=@getpaseo/desktop",
+    "package:mac": "npm run package:mac --workspace=@getpaseo/desktop",
+    "test:release": "node --test scripts/release-assets.test.mjs scripts/prepare-desktop-server.test.mjs scripts/verify-packaged-resources.test.cjs"
   },
   "devDependencies": {
     "@typescript/native-preview": "7.0.0-dev.20260423.1",
@@ -45,7 +51,9 @@
     "oxlint": "1.61.0",
     "patch-package": "^8.0.1",
     "playwright": "^1.56.1",
-    "typescript": "^5.9.3"
+    "sharp": "0.34.5",
+    "typescript": "^5.9.3",
+    "yaml": "2.8.4"
   },
   "overrides": {
     "@codemirror/language": "6.12.4",

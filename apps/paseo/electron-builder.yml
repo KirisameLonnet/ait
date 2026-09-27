@@ -1,9 +1,9 @@
 npmRebuild: false
-appId: sh.paseo.desktop
-productName: Paseo
-executableName: Paseo
+appId: dev.ait.desktop
+productName: Ait
+executableName: Ait
 protocols:
-  - name: Paseo agent link
+  - name: Ait agent link
     schemes:
       - paseo
 afterPack: ./scripts/after-pack.js
@@ -16,29 +16,27 @@ files:
   - "!node_modules/@getpaseo/*/src/**"
   - "!node_modules/@getpaseo/**/*.test.*"
   - "!node_modules/@getpaseo/**/*.spec.*"
-  - "!node_modules/@getpaseo/server/dist/server/web-ui/**"
   # Workspace packages are symlinked, so anything a dev generates inside them
   # lands in the asar. CI never has these; a local .debug run adds gigabytes.
   - "!node_modules/@getpaseo/*/.debug/**"
   - "!node_modules/@getpaseo/*/.tasks/**"
   - "!node_modules/@getpaseo/*/conversations/**"
   - "!node_modules/@getpaseo/*/test-results/**"
-asarUnpack:
-  - dist/daemon/node-entrypoint-runner.js
-  - node_modules/@getpaseo/server/dist/server/terminal/shell-integration/**/*
 extraResources:
-  - from: release-resources/server
-    to: bin
+  - from: assets/icon.png
+    to: icon.png
+  - from: release-resources/server/server
+    to: bin/server
   - from: ../app/dist
     to: app-dist
   - from: assets/editor-targets
     to: editor-target-icons
 publish:
   provider: github
-  owner: getpaseo
-  repo: paseo
+  owner: necokeine
+  repo: ait
 mac:
-  artifactName: "Paseo-${version}-${arch}.${ext}"
+  artifactName: "Ait-${version}-macos-${arch}.${ext}"
   minimumSystemVersion: "13.0.0"
   category: public.app-category.developer-tools
   icon: assets/icon.icns
@@ -48,57 +46,20 @@ mac:
     - Contents/Resources/bin/server
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.inherit.plist
-  extraResources:
-    - from: bin/paseo
-      to: bin/paseo
-    - from: assets/icon.png
-      to: icon.png
   target:
     - dmg
     - zip
 linux:
   category: Development
   icon: assets
-  artifactName: "Paseo-${version}-${arch}.${ext}"
+  artifactName: "Ait-${version}-linux-${arch}.${ext}"
   maintainer: "Mohamed Boudra <hello@moboudra.com>"
-  vendor: "Paseo"
-  extraResources:
-    - from: bin/paseo
-      to: bin/paseo
+  vendor: "Ait"
   target:
     - AppImage
-    - deb
-    - rpm
     - tar.gz
-deb:
-  afterInstall: scripts/linux-sandbox/after-install.tpl
-rpm:
-  afterInstall: scripts/linux-sandbox/after-install.tpl
 appImage:
   # A nonempty argument list replaces builder's hardcoded --no-sandbox default.
-  executableArgs: ["--class=Paseo"]
-  # Keep the AppImage filename stable across versions (no ${version}) so
-  # electron-updater overwrites the file in place instead of renaming it to a new
-  # versioned path. A rename orphans the old binary, breaks desktop shortcuts, and
-  # dangles the ~/.local/bin/paseo CLI symlink, which points at $APPIMAGE. The
-  # version stays discoverable via the release tag and the in-app version.
-  artifactName: "Paseo-${arch}.${ext}"
-win:
-  artifactName: "Paseo-Setup-${version}-${arch}.${ext}"
-  icon: assets/icon.ico
-  extraResources:
-    - from: bin/paseo.cmd
-      to: bin/paseo.cmd
-  target:
-    - target: nsis
-      arch:
-        - x64
-        - arm64
-    - target: zip
-      arch:
-        - x64
-        - arm64
-nsis:
-  oneClick: false
-  perMachine: false
-  allowToChangeInstallationDirectory: true
+  executableArgs: ["--class=Ait"]
+  # Stable filenames let electron-updater replace the installed AppImage in place.
+  artifactName: "Ait-linux-${arch}.${ext}"

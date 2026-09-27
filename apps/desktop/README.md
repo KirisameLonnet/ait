@@ -1,4 +1,7 @@
-# Ait
+# Ait legacy desktop
+
+从 0.0.7 起，本目录不再用于正式发布。当前桌面入口是 [apps/paseo](../paseo/README.md)，
+构建与发布见 [操作指南](../../docs/operations/releasing.md)。以下内容仅描述旧实现。
 
 Electron desktop shell for the Ait daemon. The renderer is sandboxed and can only call the narrow preload API; Electron main translates those calls to the daemon's loopback HTTP API.
 
@@ -149,13 +152,16 @@ transient projection after Ait has finished saving it.
 
 ## Packaging
 
-The application name is **Ait**. The editable brand source is `logo.svg` at the
-repository root; `logo.png` is its committed 512×512 export. After editing the
-SVG, run `npm run generate:icons` in this directory and commit both files. The
-generator uses the icon toolset from the pinned electron-builder version (it
-downloads the toolset on first use). Ordinary builds copy the committed assets
-to `dist`; electron-builder converts the SVG to a macOS ICNS (up to 1024×1024)
-and uses the PNG for Linux packaging.
+The application name is **Ait**. The editable brand geometry and colors live in
+`apps/app/src/branding/ait-mark.json`; the root `logo.svg` and 512×512 `logo.png`
+are generated exports of the orange AIT swift. Run `npm run generate:icons` at
+the repository root or in this directory, then commit the generated assets.
+The shared generator uses pinned `sharp` and updates both desktop shells, Expo
+and Web resources. `npm run check:icons` at the root detects stale exports.
+See [brand assets](../../assets/brand/README.md) for the full inventory.
+Ordinary builds copy the committed assets to `dist`, including the dedicated
+small-size `favicon.svg`; electron-builder converts the root SVG to macOS ICNS
+and uses the root PNG for Linux packaging.
 
 The npm package name `@ait/desktop` and app ID `dev.ait.desktop` remain stable.
 Main resolves and pins the existing Electron `userData` and `sessionData` paths

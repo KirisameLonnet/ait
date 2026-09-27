@@ -5,7 +5,7 @@ import {
   type ReplicaSqliteConnection,
   type SqliteValue,
 } from "@/runtime/replica-cache/row-store-sqlite";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
 import type { SessionOutboundMessage } from "@getpaseo/protocol/messages";
 import {
@@ -1291,4 +1291,43 @@ it("fills every cached workspace beneath live updates received during the SQLite
   directory.dispose();
   await cache.flush();
   database.close();
+});
+
+describe("snapshot-only host directories", () => {
+  it("loads and polls snapshots without unsupported subscriptions, then stops without demand", async () => {
+    vi.useFakeTimers();
+    const serverId = "snapshot-only-host";
+    const { client, directory } = createDirectory(serverId);
+    const info = {
+      status: "server_info" as const,
+      serverId,
+      features: { directorySubscriptions: false, projectList: true, workspaceMultiplicity: true },
+    };
+    Object.assign(client, { getLastServerInfoMessage: () => info });
+    useSessionStore.getState().initializeSession(serverId, client as unknown as DaemonClient, 1);
+    useSessionStore
+      .getState()
+      .updateSessionServerInfo(serverId, { ...info, hostname: null, version: "0.0.6" });
+    const observeAgents = vi.spyOn(client, "observeAgents");
+    const observeWorkspaces = vi.spyOn(client, "observeWorkspaces");
+    const observeEvents = vi.spyOn(client, "observeEvents");
+    const demand = {};
+    try {
+      directory.setDemand(demand, true);
+      await directory.refreshDemand();
+      expect(client.listProjectsCalls).toBe(1);
+      expect(useSessionStore.getState().sessions[serverId]?.projects.size).toBe(1);
+      expect(observeAgents).not.toHaveBeenCalled();
+      expect(observeWorkspaces).not.toHaveBeenCalled();
+      expect(observeEvents).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(client.listProjectsCalls).toBe(2);
+      directory.setDemand(demand, false);
+      await vi.advanceTimersByTimeAsync(10000);
+      expect(client.listProjectsCalls).toBe(2);
+    } finally {
+      directory.dispose();
+      vi.useRealTimers();
+    }
+  });
 });

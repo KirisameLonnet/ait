@@ -11,5 +11,6 @@ Before changing domain boundaries, read `docs/README.md` and the authoritative A
 - ToolUse is an assistant sub-message; ToolResult is a user Message.
 - A Run is complete only after retry, compaction recovery, and newly queued work are all drained.
 - Never commit credentials, provider tokens, local SQLite databases, or runtime artifacts.
-- Run format, lint, and workspace tests before handing off changes.
+- Run format and lint checks appropriate to the changed files before handing off changes.
+- Run Rust workspace tests only when Rust code in `bins/` or `crates/` changes. If neither directory contains Rust code changes, skip Rust tests.
 - Record durable boundary changes as an ADR and update `docs/README.md`.

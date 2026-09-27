@@ -13,6 +13,7 @@ import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { settingsStyles } from "@/styles/settings";
 import { useHostRuntimeIsConnected } from "@/runtime/host-runtime";
+import { useSessionStore } from "@/stores/session-store";
 import { useHostFeature } from "@/runtime/host-features";
 import { useProvidersSnapshot } from "@/hooks/use-providers-snapshot";
 import { useDaemonConfig } from "@/hooks/use-daemon-config";
@@ -24,6 +25,7 @@ import {
 import { ProviderCatalogList } from "@/components/provider-catalog-list";
 import { getProviderIcon } from "@/components/provider-icons";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
@@ -84,6 +86,7 @@ interface ProviderRowProps {
   isToggling: boolean;
   isRemoving: boolean;
   canRemove: boolean;
+  canConfigure: boolean;
   isFirst: boolean;
   onPress: (providerId: string) => void;
   onToggleEnabled: (providerId: string, enabled: boolean) => void;
@@ -175,6 +178,7 @@ function ProviderRow({
   isToggling,
   isRemoving,
   canRemove,
+  canConfigure,
   isFirst,
   onPress,
   onToggleEnabled,
@@ -245,12 +249,14 @@ function ProviderRow({
             </View>
           </View>
           <View style={styles.trailingControls}>
-            <Switch
-              value={enabled}
-              onValueChange={handleToggleValueChange}
-              disabled={isToggling || isRemoving}
-              accessibilityLabel={t("settings.providers.enableProvider", { name: def.label })}
-            />
+            {canConfigure ? (
+              <Switch
+                value={enabled}
+                onValueChange={handleToggleValueChange}
+                disabled={isToggling || isRemoving}
+                accessibilityLabel={t("settings.providers.enableProvider", { name: def.label })}
+              />
+            ) : null}
             <View style={styles.menuSlot}>
               {canRemove ? (
                 <ProviderActionsMenu
@@ -327,7 +333,11 @@ export function ProvidersSection({ serverId }: ProvidersSectionProps) {
   const { t } = useTranslation();
   const isConnected = useHostRuntimeIsConnected(serverId);
   const supportsProviderRemoval = useHostFeature(serverId, "providerRemoval");
-  const { entries, isLoading, refresh } = useProvidersSnapshot(serverId);
+  const canConfigure = useSessionStore(
+    (state) => state.sessions[serverId]?.serverInfo?.features?.providerConfiguration !== false,
+  );
+  const { entries, isLoading, error, refresh, refetchIfStale } = useProvidersSnapshot(serverId);
+  const handleRetry = useCallback(() => refetchIfStale(), [refetchIfStale]);
   const { patchConfig } = useDaemonConfig(serverId);
   const openProviderSettings = useProviderSettingsStore((state) => state.open);
   const [pendingProviderId, setPendingProviderId] = useState<string | null>(null);
@@ -425,6 +435,14 @@ export function ProvidersSection({ serverId }: ProvidersSectionProps) {
             <Text style={styles.emptyText}>{t("settings.providers.unavailable")}</Text>
           </View>
         ) : null}
+        {error ? (
+          <View testID="providers-load-error">
+            <Text style={settingsStyles.rowError}>{error}</Text>
+            <Button variant="outline" size="sm" onPress={handleRetry}>
+              {t("common.actions.retry")}
+            </Button>
+          </View>
+        ) : null}
         {hasServer && isConnected && isLoading ? (
           <View style={[settingsStyles.card, styles.emptyCard]}>
             <Text style={styles.emptyText}>{t("settings.providers.loading")}</Text>
@@ -444,7 +462,8 @@ export function ProvidersSection({ serverId }: ProvidersSectionProps) {
                   enabled={entry.enabled ?? true}
                   isToggling={pendingProviderId === def.id}
                   isRemoving={removingProviderId === def.id}
-                  canRemove={supportsProviderRemoval && entry.source === "custom"}
+                  canConfigure={canConfigure}
+                  canRemove={canConfigure && supportsProviderRemoval && entry.source === "custom"}
                   isFirst={index === 0}
                   onPress={handleOpenProviderSettings}
                   onToggleEnabled={handleToggleEnabled}
@@ -456,7 +475,7 @@ export function ProvidersSection({ serverId }: ProvidersSectionProps) {
         ) : null}
       </SettingsSection>
 
-      {hasServer && isConnected ? (
+      {hasServer && isConnected && canConfigure ? (
         <SettingsSection
           title={t("settings.providers.addProvider")}
           testID="host-page-add-provider-card"

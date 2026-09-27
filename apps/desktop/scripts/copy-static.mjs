@@ -11,4 +11,5 @@ await Promise.all([
   cp(resolve(root, "src/styles.css"), resolve(root, "dist/styles.css")),
   cp(resolve(root, "../../logo.svg"), resolve(root, "dist/logo.svg")),
   cp(resolve(root, "../../logo.png"), resolve(root, "dist/logo.png")),
+  cp(resolve(root, "../../assets/brand/ait-mark-small.svg"), resolve(root, "dist/favicon.svg")),
 ]);

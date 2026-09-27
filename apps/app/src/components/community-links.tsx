@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
-import { Heart } from "lucide-react-native";
+import { Mail } from "lucide-react-native";
 import { Button } from "@/components/ui/button";
 import { GitHubIcon } from "@/components/icons/github-icon";
 import { DiscordIcon } from "@/components/icons/discord-icon";
@@ -12,11 +12,11 @@ const renderDiscordIcon = (color: string) => <DiscordIcon color={color} size={14
 
 export function CommunityLinks() {
   const handleOpenGitHub = useCallback(() => {
-    void openExternalUrl("https://github.com/getpaseo/paseo");
+    void openExternalUrl("https://github.com/necokeine/ait");
   }, []);
 
-  const handleOpenSponsor = useCallback(() => {
-    void openExternalUrl("https://github.com/sponsors/boudra");
+  const handleOpenEmail = useCallback(() => {
+    void openExternalUrl("mailto:dong@necoex.com");
   }, []);
 
   const handleOpenDiscord = useCallback(() => {
@@ -37,11 +37,11 @@ export function CommunityLinks() {
       <Button
         variant="ghost"
         size="sm"
-        leftIcon={Heart}
-        onPress={handleOpenSponsor}
-        testID="community-links-sponsor"
+        leftIcon={Mail}
+        onPress={handleOpenEmail}
+        testID="community-links-email"
       >
-        Sponsor
+        Email
       </Button>
       <Button
         variant="ghost"

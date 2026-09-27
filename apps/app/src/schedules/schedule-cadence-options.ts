@@ -1,10 +1,12 @@
+import type { TFunction } from "i18next";
+import { i18n } from "@/i18n/i18next";
 import type { ScheduleCadence } from "@getpaseo/protocol/schedule/types";
 import { everyMsToParts } from "@/utils/schedule-format";
 
 type CronCadence = Extract<ScheduleCadence, { type: "cron" }>;
 
 export interface CadencePresetOption {
-  id: string;
+  id: "every-minute" | "every-hour" | "daily-9" | "weekdays-9" | "mondays-9";
   label: string;
   expression: string;
 }
@@ -27,11 +29,21 @@ export function resolveCronPresetId(cadence: CronCadence): string {
   );
 }
 
-export function resolveCronPresetDisplay(cadence: CronCadence): { label: string } {
+export function getCadencePresetOptions(t: TFunction = i18n.t): CadencePresetOption[] {
+  return CADENCE_PRESET_OPTIONS.map((option) => ({
+    ...option,
+    label: t(`schedules.cadence.presets.${option.id}`),
+  }));
+}
+
+export function resolveCronPresetDisplay(
+  cadence: CronCadence,
+  t: TFunction = i18n.t,
+): { label: string } {
   return {
     label:
-      CADENCE_PRESET_OPTIONS.find((option) => option.id === resolveCronPresetId(cadence))?.label ??
-      "Custom cron",
+      getCadencePresetOptions(t).find((option) => option.id === resolveCronPresetId(cadence))
+        ?.label ?? t("schedules.cadence.custom"),
   };
 }
 

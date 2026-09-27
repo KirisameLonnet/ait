@@ -131,6 +131,14 @@ export function AgentSkillsSection({ serverId }: { serverId: string }) {
 
   return (
     <SettingsSection title={t("settings.host.skills.sectionTitle")} trailing={trailing}>
+      {skills.error ? (
+        <View testID="host-agent-skills-error">
+          <Text style={settingsStyles.rowError}>{skills.error.message}</Text>
+          <Button variant="outline" size="sm" onPress={refreshSkills}>
+            {t("common.actions.retry")}
+          </Button>
+        </View>
+      ) : null}
       <View style={settingsStyles.card} testID="host-agent-skills-card">
         <View style={settingsStyles.row}>
           <View style={settingsStyles.rowContent}>

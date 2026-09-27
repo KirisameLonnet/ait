@@ -4,7 +4,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
-const STAMP_CACHE_VERSION = "v3";
+const STAMP_CACHE_VERSION = "v4-swift";
 
 export const MONOSPACE_FONT_CANDIDATES = [
   "Menlo-Bold",

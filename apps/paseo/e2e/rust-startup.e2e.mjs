@@ -27,7 +27,7 @@ let pid;
 try {
   app = await electron.launch({
     executablePath: packagedApp
-      ? path.join(packagedApp, "Contents/MacOS/Paseo")
+      ? path.join(packagedApp, process.platform === "darwin" ? "Contents/MacOS/Ait" : "Ait")
       : require("electron"),
     args: packagedApp ? [] : [desktop],
     env,

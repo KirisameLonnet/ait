@@ -256,6 +256,10 @@ describe("host settings section slugs", () => {
     expect(normalizeHostSectionSlug("host")).toBe("host");
   });
 
+  it("does not expose removed plugin settings", () => {
+    expect(normalizeHostSectionSlug("plugins")).toBeNull();
+  });
+
   it("maps old host settings sections to their new names", () => {
     expect(normalizeHostSectionSlug("orchestration")).toBe("agents");
     expect(normalizeHostSectionSlug("daemon")).toBe("host");

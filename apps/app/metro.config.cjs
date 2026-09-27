@@ -2,6 +2,7 @@ const { getDefaultConfig } = require("expo/metro-config");
 const { resolve } = require("metro-resolver");
 const fs = require("fs");
 const path = require("path");
+const { createHash } = require("node:crypto");
 
 const projectRoot = __dirname;
 const reactRoot = path.dirname(require.resolve("react/package.json"));
@@ -19,6 +20,13 @@ const customWebPlatform = (process.env.PASEO_WEB_PLATFORM ?? "")
   .toLowerCase();
 
 const config = getDefaultConfig(projectRoot);
+// Expo inlines its public manifest into expo-constants. Those dependency files
+// do not change when release metadata does, so invalidate their cached transform.
+const manifestHash = createHash("sha256");
+for (const file of ["app.config.js", "package.json", "../../CHANGELOG.md"]) {
+  manifestHash.update(fs.readFileSync(path.resolve(projectRoot, file)));
+}
+config.cacheVersion = `${config.cacheVersion ?? ""}:${manifestHash.digest("hex")}`;
 const defaultResolveRequest = config.resolver.resolveRequest ?? resolve;
 
 // Keep app exports deterministic across dev machines and CI. Metro's Watchman

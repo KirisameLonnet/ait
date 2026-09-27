@@ -47,7 +47,8 @@ export function PairDeviceSection({ serverId, onClose }: PairDeviceSectionProps)
   const { patchConfig } = useDaemonConfig(serverId);
   const [copied, setCopied] = useState(false);
   const serverFeatures = client?.getLastServerInfoMessage()?.features;
-  const supportsPairingRpc = serverFeatures?.daemonStatusRpc === true;
+  const pairingUnavailable = serverFeatures?.daemonPairing === false;
+  const supportsPairingRpc = !pairingUnavailable && serverFeatures?.daemonStatusRpc === true;
   const canConfigureRelay = supportsPairingRpc && serverFeatures?.relayConfig === true;
 
   const pairingQuery = useFetchQuery({
@@ -104,6 +105,14 @@ export function PairDeviceSection({ serverId, onClose }: PairDeviceSectionProps)
   }, [enableRelay]);
 
   const qrSvg = useMemo(() => qrQuery.data ?? null, [qrQuery.data]);
+
+  if (pairingUnavailable) {
+    return (
+      <View testID="pair-device-direct-connection">
+        <Text style={styles.consentDescription}>{t("pairing.device.directConnectionHint")}</Text>
+      </View>
+    );
+  }
 
   return (
     <View testID="pair-device-content">

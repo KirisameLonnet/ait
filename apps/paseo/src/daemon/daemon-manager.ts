@@ -313,7 +313,7 @@ export function createDaemonCommandHandlers(): Record<string, DesktopCommandHand
     },
     get_local_daemon_version: () => getLocalDaemonVersion(),
     install_cli: () => {
-      throw new Error("The Paseo Node CLI is not bundled with the Rust desktop server.");
+      throw new Error("The Ait Node CLI is not bundled with the Rust desktop server.");
     },
     get_cli_install_status: () => ({ installed: false }),
     read_legacy_skill_selection: () => readLegacySkillSelection(),

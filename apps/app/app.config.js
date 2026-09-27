@@ -1,6 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const pkg = require("./package.json");
+const { colors: brandColors } = require("./src/branding/ait-mark.json");
 const withAndroidAsyncStorageSize = require("./plugins/with-android-async-storage-size");
 const withAndroidProfileable = require("./plugins/with-android-profileable");
 const withFdroidAutolinking = require("./plugins/with-fdroid-autolinking");
@@ -45,7 +46,7 @@ const buildProfile = isFdroidBuild
           "expo-notifications",
           {
             icon: "./assets/images/notification-icon.png",
-            color: "#20744A",
+            color: brandColors.primary,
           },
         ],
       ],
@@ -67,7 +68,7 @@ function resolveSecretFile(params) {
 
 const variants = {
   production: {
-    name: "Paseo",
+    name: "Ait",
     packageId: "sh.paseo",
     googleServicesFile: resolveSecretFile({
       envKey: "GOOGLE_SERVICES_FILE_PROD",
@@ -79,7 +80,7 @@ const variants = {
     }),
   },
   development: {
-    name: "Paseo Debug",
+    name: "Ait Debug",
     packageId: "sh.paseo.debug",
     googleServicesFile: resolveSecretFile({
       envKey: "GOOGLE_SERVICES_FILE_DEBUG",
@@ -120,7 +121,7 @@ export default {
     },
     android: {
       adaptiveIcon: {
-        backgroundColor: "#151613",
+        backgroundColor: brandColors.canvas,
         foregroundImage: "./assets/images/android-icon-foreground.png",
       },
       edgeToEdgeEnabled: true,
@@ -152,8 +153,9 @@ export default {
           image: "./assets/images/splash-icon.png",
           imageWidth: 200,
           resizeMode: "contain",
-          backgroundColor: "#ffffff",
+          backgroundColor: brandColors.canvas,
           dark: {
+            image: "./assets/images/splash-icon-dark.png",
             backgroundColor: "#000000",
           },
         },
@@ -191,6 +193,7 @@ export default {
       autolinkingModuleResolution: true,
     },
     extra: {
+      changelog: fs.readFileSync(path.resolve(__dirname, "../../CHANGELOG.md"), "utf8"),
       fdroidBuild: isFdroidBuild,
       profileBuild: isProfileBuild,
       router: {},

@@ -154,6 +154,7 @@ export class DirectorySync {
   private readonly routeDemandIds = new Set<string>();
   private readonly fullDemandSources = new Set<object>();
   private demandRefresh: Promise<void> | null = null;
+  private snapshotRefreshTimer: ReturnType<typeof setTimeout> | null = null;
   private satisfiedDemandSource: DirectorySourceToken | null = null;
   private cursors: DirectoryCheckpoint = {};
 
@@ -230,6 +231,8 @@ export class DirectorySync {
   }
 
   private releaseSubscriptions(): void {
+    if (this.snapshotRefreshTimer) clearTimeout(this.snapshotRefreshTimer);
+    this.snapshotRefreshTimer = null;
     for (const subscription of [
       this.agentSubscription,
       this.workspaceSubscription,
@@ -268,7 +271,7 @@ export class DirectorySync {
   }
 
   private observeDirectoryEvents(): void {
-    if (this.eventSubscription) return;
+    if (this.eventSubscription || !this.supportsDirectorySubscriptions()) return;
     const { client, source } = this.requireOnline();
     this.eventSubscription = client.observeEvents(["project.update", "script_status_update"]);
     this.eventSubscription.subscribe({
@@ -322,9 +325,28 @@ export class DirectorySync {
             current.connectionEpoch !== source.connectionEpoch)
         ) {
           void this.requestDemandRefresh().catch(() => undefined);
+        } else {
+          this.scheduleSnapshotRefresh();
         }
       });
     return this.demandRefresh;
+  }
+
+  private supportsDirectorySubscriptions(): boolean {
+    return (
+      this.connection.client?.getLastServerInfoMessage()?.features?.directorySubscriptions !== false
+    );
+  }
+
+  private scheduleSnapshotRefresh(): void {
+    if (this.snapshotRefreshTimer) clearTimeout(this.snapshotRefreshTimer);
+    this.snapshotRefreshTimer = null;
+    if (!this.hasDemand() || !this.getOnlineConnection() || this.supportsDirectorySubscriptions())
+      return;
+    this.snapshotRefreshTimer = setTimeout(() => {
+      this.snapshotRefreshTimer = null;
+      void this.requestDemandRefresh(true).catch(() => undefined);
+    }, 5000);
   }
 
   refreshDemand(): Promise<void> {
@@ -520,7 +542,7 @@ export class DirectorySync {
     supportsDirectorySync: boolean,
   ): Promise<void> {
     let cursor: string | null = null;
-    let subscribe = initialSubscribe;
+    let subscribe = initialSubscribe && this.supportsDirectorySubscriptions();
     while (true) {
       const query: Parameters<DaemonClient["observeWorkspaces"]>[0] = {
         sort: [{ key: "activity_at", direction: "desc" }],
@@ -615,7 +637,7 @@ export class DirectorySync {
     input: RefreshAgentDirectoryInput,
   ): Promise<void> {
     let cursor = input.page?.cursor ?? null;
-    let subscribe = input.subscribe;
+    let subscribe = this.supportsDirectorySubscriptions() ? input.subscribe : undefined;
     while (true) {
       const limit = input.page?.limit ?? PAGE_LIMIT;
       const query: Omit<FetchAgentsOptions, "subscribe"> = {

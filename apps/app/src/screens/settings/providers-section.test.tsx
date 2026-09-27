@@ -34,9 +34,12 @@ const { theme, snapshotState, configState, patchConfigMock, openProviderSettings
       entries: undefined as ProviderSnapshotEntry[] | undefined,
       isLoading: false,
       isRefreshing: false,
+      error: null as string | null,
+      retry: vi.fn(),
     },
     configState: {
       config: null as MutableDaemonConfig | null,
+      providerConfiguration: undefined as boolean | undefined,
     },
     patchConfigMock: vi.fn(async () => undefined),
     openProviderSettingsMock: vi.fn(),
@@ -237,6 +240,22 @@ vi.mock("@/components/provider-icons", () => ({
     React.createElement("span", { "data-icon": `provider-${provider}` }),
 }));
 
+vi.mock("@/components/ui/button", () => ({
+  Button: ({ children, onPress }: { children?: React.ReactNode; onPress?: () => void }) =>
+    React.createElement("button", { onClick: onPress }, children),
+}));
+
+vi.mock("@/stores/session-store", () => ({
+  useSessionStore: (selector: (state: unknown) => unknown) =>
+    selector({
+      sessions: {
+        "server-1": {
+          serverInfo: { features: { providerConfiguration: configState.providerConfiguration } },
+        },
+      },
+    }),
+}));
+
 vi.mock("@/stores/provider-settings-store", () => ({
   useProviderSettingsStore: (selector: (state: unknown) => unknown) =>
     selector({ open: openProviderSettingsMock }),
@@ -252,10 +271,10 @@ vi.mock("@/hooks/use-providers-snapshot", () => ({
     isLoading: snapshotState.isLoading,
     isFetching: false,
     isRefreshing: snapshotState.isRefreshing,
-    error: null,
+    error: snapshotState.error,
     supportsSnapshot: true,
     refresh: vi.fn(async () => {}),
-    refetchIfStale: vi.fn(),
+    refetchIfStale: snapshotState.retry,
   }),
 }));
 
@@ -346,6 +365,9 @@ describe("ProvidersSection", () => {
     snapshotState.entries = undefined;
     snapshotState.isLoading = false;
     snapshotState.isRefreshing = false;
+    snapshotState.error = null;
+    snapshotState.retry.mockReset();
+    configState.providerConfiguration = undefined;
     configState.config = null;
     patchConfigMock.mockReset();
     patchConfigMock.mockResolvedValue(undefined);
@@ -377,6 +399,29 @@ describe("ProvidersSection", () => {
     if (!row) throw new Error(`Expected row with aria-label "${accessibilityLabel}"`);
     return row;
   }
+
+  it("keeps native provider details available without unsupported installation or enablement controls", () => {
+    snapshotState.entries = [claudeEntry];
+    configState.providerConfiguration = false;
+    render();
+    const row = findRow("Claude provider details");
+    expect(row.querySelector('[role="switch"]')).toBeNull();
+    expect(container?.querySelector('[data-testid="host-page-add-provider-card"]')).toBeNull();
+    act(() => row.click());
+    expect(openProviderSettingsMock).toHaveBeenCalledWith({
+      serverId: "server-1",
+      provider: "claude",
+    });
+  });
+
+  it("shows failed provider reads with a retry action", () => {
+    snapshotState.error = "Catalog unavailable";
+    render();
+    const error = container?.querySelector('[data-testid="providers-load-error"]');
+    expect(error?.textContent).toContain("Catalog unavailable");
+    act(() => error?.querySelector("button")?.click());
+    expect(snapshotState.retry).toHaveBeenCalledOnce();
+  });
 
   it("renders the disabled provider with its server-provided label in snapshot order", () => {
     snapshotState.entries = [claudeEntry, disabledCodexEntry];

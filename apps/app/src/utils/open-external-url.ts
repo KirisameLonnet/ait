@@ -5,7 +5,7 @@ import { isWeb } from "@/constants/platform";
 import { isHttpUrl } from "./http-url";
 
 export async function openExternalUrl(url: string): Promise<void> {
-  if (!isHttpUrl(url)) return;
+  if (!isHttpUrl(url) && !/^mailto:/i.test(url)) return;
   if (isWeb) {
     const opener = getDesktopHost()?.opener?.openUrl;
     if (typeof opener === "function") {

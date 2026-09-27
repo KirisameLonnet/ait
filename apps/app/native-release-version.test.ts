@@ -7,6 +7,14 @@ const {
 } = require("./native-release-version");
 
 describe("native release version", () => {
+  it("derives native metadata when the major and minor versions are both zero", () => {
+    expect(getNativeReleaseVersion("0.0.6")).toEqual({
+      appVersion: "0.0.6",
+      androidVersionCode: 6,
+      iosBuildNumber: "6999",
+    });
+  });
+
   it("reserves the final iOS build slot for a stable release", () => {
     expect(getNativeReleaseVersion("0.2.6")).toEqual({
       appVersion: "0.2.6",

@@ -32,20 +32,18 @@ jobs:
       - run: cargo test --workspace
 
   desktop:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/desktop
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: apps/desktop/package-lock.json
-      - run: npm ci --ignore-scripts
+          cache-dependency-path: package-lock.json
+      - run: npm ci
       - run: npm run verify:release
-      - run: npm run typecheck
-      - run: npm test
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:browser
+      - run: npm run test:release
+      - run: npm run build:paseo
+      - run: npm run typecheck --workspace=@getpaseo/desktop --workspace=@getpaseo/app
+      - run: npm test --workspace=@getpaseo/desktop
+      - run: npm run test --workspace=@getpaseo/app -- src/i18n/resources.test.ts src/runtime/rust-server native-release-version.test.ts

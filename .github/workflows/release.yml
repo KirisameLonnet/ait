@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing semantic version tag to release (for example v0.0.1)
+        description: Existing semantic version tag to release (for example v0.0.7)
         required: true
         type: string
 
@@ -29,16 +29,19 @@ jobs:
           - label: Linux x86_64
             runner: ubuntu-24.04
             rust_target: x86_64-unknown-linux-gnu
-            package_script: package:linux
-            artifact: ait-desktop-linux-x86_64
+            platform: linux
+            artifact: ait-linux-x64
           - label: Apple Silicon
             runner: macos-15
             rust_target: aarch64-apple-darwin
-            package_script: package:mac
-            artifact: ait-desktop-macos-arm64
+            platform: mac
+            artifact: ait-macos-arm64
     env:
       RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
       CARGO_TERM_COLOR: always
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+      PASEO_DESKTOP_SMOKE: "1"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -52,29 +55,37 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: apps/desktop/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Verify release version
-        run: node apps/desktop/scripts/verify-release-version.mjs "$RELEASE_TAG"
+        run: node scripts/verify-release-version.mjs "$RELEASE_TAG"
 
-      - name: Build release daemon
-        run: cargo build --locked --release -p ait-daemon -p ait-worker --target "${{ matrix.rust_target }}"
-
-      - name: Install desktop dependencies
-        working-directory: apps/desktop
+      - name: Install workspace dependencies
         run: npm ci
 
-      - name: Stage release daemon
-        working-directory: apps/desktop
-        run: npm run stage:daemon -- "../../target/${{ matrix.rust_target }}/release/ait-daemon"
+      - name: Validate release tooling
+        run: npm run test:release
 
-      - name: Package Ait
-        if: matrix.label != 'Apple Silicon'
-        working-directory: apps/desktop
-        run: npm run "${{ matrix.package_script }}"
+      - name: Install Linux packaging and smoke-test dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libfuse2 xvfb libgtk-3-0 libnss3 libasound2t64
+          if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+
+      - name: Build release server only
+        run: cargo build --locked --release -p server-bin --bin server --target "${{ matrix.rust_target }}"
+
+      - name: Package Linux desktop
+        if: matrix.platform == 'linux'
+        env:
+          AIT_SERVER_BIN: ${{ github.workspace }}/target/${{ matrix.rust_target }}/release/server
+        run: npm run package:linux
 
       - name: Validate Apple signing secrets
-        if: matrix.label == 'Apple Silicon'
+        if: matrix.platform == 'mac'
         env:
           CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
@@ -88,29 +99,19 @@ jobs:
           test -n "$APPLE_APP_SPECIFIC_PASSWORD"
           test -n "$APPLE_TEAM_ID"
 
-      - name: Package, sign, and notarize Ait desktop
-        if: matrix.label == 'Apple Silicon'
-        working-directory: apps/desktop
+      - name: Package, sign, and notarize macOS desktop
+        if: matrix.platform == 'mac'
         env:
+          AIT_SERVER_BIN: ${{ github.workspace }}/target/${{ matrix.rust_target }}/release/server
           CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_BUILD_APP_SECRET }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npm run "${{ matrix.package_script }}"
+        run: npm run package:mac
 
-      - name: Collect release assets
-        shell: bash
-        run: |
-          mkdir -p release-assets
-          if [[ "${{ matrix.artifact }}" == "ait-desktop-linux-x86_64" ]]; then
-            cp apps/desktop/release/Ait-*-linux-x86_64.AppImage release-assets/
-            cp apps/desktop/release/Ait-*-linux-x86_64.tar.gz release-assets/
-          else
-            cp apps/desktop/release/Ait-*-macos-arm64.dmg release-assets/
-            cp apps/desktop/release/Ait-*-macos-arm64.zip release-assets/
-          fi
-          test "$(find release-assets -maxdepth 1 -type f | wc -l | tr -d ' ')" -eq 2
+      - name: Collect installers and updater assets
+        run: node scripts/release-assets.mjs collect "${{ matrix.platform }}" "${RELEASE_TAG#v}" apps/paseo/release release-assets
 
       - uses: actions/upload-artifact@v4
         with:
@@ -129,26 +130,20 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - uses: actions/download-artifact@v4
         with:
+          pattern: ait-*
           path: release-assets
           merge-multiple: true
 
       - name: Verify assets and write checksums
-        shell: bash
-        run: |
-          version="${RELEASE_TAG#v}"
-          expected=(
-            "Ait-${version}-linux-x86_64.AppImage"
-            "Ait-${version}-linux-x86_64.tar.gz"
-            "Ait-${version}-macos-arm64.dmg"
-            "Ait-${version}-macos-arm64.zip"
-          )
-          for asset in "${expected[@]}"; do
-            test -f "release-assets/${asset}"
-          done
-          test "$(find release-assets -maxdepth 1 -type f | wc -l | tr -d ' ')" -eq 4
-          (cd release-assets && sha256sum "${expected[@]}" > SHA256SUMS)
+        run: node scripts/release-assets.mjs verify "${RELEASE_TAG#v}" release-assets
 
       - name: Create or repair GitHub Release
         shell: bash

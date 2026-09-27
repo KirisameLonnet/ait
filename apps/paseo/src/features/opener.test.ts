@@ -3,20 +3,23 @@ import { describe, expect, it } from "vitest";
 import { createExternalUrlOpener } from "./opener";
 
 describe("desktop opener", () => {
-  it("passes a canonical web URL to its external owner", async () => {
-    const opened: string[] = [];
-    const open = createExternalUrlOpener({
-      open: async (url) => {
-        opened.push(url);
-      },
-    });
+  it.each(["https://example.com/docs#install", "mailto:dong@necoex.com"])(
+    "passes %s to its external owner",
+    async (url) => {
+      const opened: string[] = [];
+      const open = createExternalUrlOpener({
+        open: async (url) => {
+          opened.push(url);
+        },
+      });
 
-    await open("https://example.com/docs#install");
+      await open(url);
 
-    expect(opened).toEqual(["https://example.com/docs#install"]);
-  });
+      expect(opened).toEqual([url]);
+    },
+  );
 
-  it("does not hand non-web or relative URLs to the external owner", async () => {
+  it("does not hand unsupported schemes or relative URLs to the external owner", async () => {
     const opened: string[] = [];
     const open = createExternalUrlOpener({
       open: async (url) => {
@@ -31,7 +34,9 @@ describe("desktop opener", () => {
       "/docs",
       null,
     ]) {
-      await expect(open(input)).rejects.toThrow("Only HTTP(S) URLs can open externally.");
+      await expect(open(input)).rejects.toThrow(
+        "Only HTTP(S) and mailto URLs can open externally.",
+      );
     }
 
     expect(opened).toEqual([]);
