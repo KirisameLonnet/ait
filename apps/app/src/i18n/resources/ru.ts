@@ -9,7 +9,6 @@ export const ru: TranslationResources = {
     loading: "Загрузка…",
     failed: "Ошибка",
     retry: "Повторить",
-    chatPosition: "{{current}} из {{total}} в сообщении",
 
     title: "Найти",
     placeholder: "Найти в панели",

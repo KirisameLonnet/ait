@@ -1,5 +1,7 @@
 # 概念与架构文档
 
+- [Paseo 0.10.0-beta.1 API 对照与搜索移植](reports/paseo-api-update-2026-09-28.md)：205 个入站名称保持不变，移植聊天搜索命中计数、Markdown 搜索和整段聊天导航，记录认证及 relay API 的取舍与验证。
+
 - [ADR-062：Ait 运行路径与项目配置](decisions/adr-062-ait-runtime-paths.md)：工作区归属采用 server 元数据，`ait.json` 及旧文件读取兼容，清理旧 CLI 与测试启动器，更新项目版权署名；[验证报告](reports/ait-e2e-migration.md)与[提交准备覆盖率](reports/ait-e2e-coverage.md)。
 
 - [ADR-061：App Ait E2E 与移除 relay / 插件](decisions/adr-061-app-ait-e2e-remove-relay-plugin.md)：隔离 Rust server、认证和生产 transport、旧状态迁移；[运行说明](../apps/app/e2e/README.md)。

@@ -8,7 +8,6 @@ export const ar: TranslationResources = {
     loading: "جارٍ التحميل…",
     failed: "فشل",
     retry: "إعادة المحاولة",
-    chatPosition: "{{current}} من {{total}} في الرسالة",
 
     title: "بحث",
     placeholder: "بحث في اللوحة",

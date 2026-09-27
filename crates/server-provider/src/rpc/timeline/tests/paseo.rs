@@ -166,7 +166,7 @@ fn search_finds_literal_punctuation_without_matching_tools_reasoning_or_task_sta
     ];
     assert_eq!(
         search(&query("a.b"), "e", &rows).unwrap()["locations"],
-        json!([{"seq":1,"role":"assistant"},{"seq":5,"role":"user"}])
+        json!([{"seq":1,"role":"assistant","count":1},{"seq":5,"role":"user","count":1}])
     );
 }
 
@@ -180,7 +180,10 @@ fn search_joins_same_message_deltas_across_interleaved_tools() {
         row(5, "message", "assistant_message", "world"),
     ];
     let found = search(&query("HELLO world"), "e", &rows).unwrap();
-    assert_eq!(found["locations"], json!([{"seq":1,"role":"assistant"}]));
+    assert_eq!(
+        found["locations"],
+        json!([{"seq":1,"role":"assistant","count":1}])
+    );
     assert!(
         search(&query("hello separate"), "e", &rows).unwrap()["locations"]
             .as_array()
@@ -198,7 +201,7 @@ fn search_does_not_join_distinct_messages_or_return_duplicate_locations() {
     ];
     assert_eq!(
         search(&query("target"), "e", &rows).unwrap()["locations"],
-        json!([{"seq":1,"role":"assistant"}])
+        json!([{"seq":1,"role":"assistant","count":2}])
     );
     assert_eq!(
         search(&query("first second"), "e", &rows).unwrap()["locations"],
@@ -237,7 +240,7 @@ fn search_final_page_preserves_remaining_locations_and_clears_cursor() {
     .unwrap();
     assert_eq!(
         second["locations"],
-        json!([{"seq":201,"role":"user"},{"seq":202,"role":"user"}])
+        json!([{"seq":201,"role":"user","count":1},{"seq":202,"role":"user","count":1}])
     );
     assert!(second["nextCursor"].is_null());
 }
@@ -266,4 +269,29 @@ fn exactly_bounded_prompt_is_not_truncated_and_unicode_space_is_collapsed() {
         "first second third fourth"
     );
     assert_eq!(preview(" \n\t"), "");
+}
+
+#[test]
+fn search_counts_rendered_occurrences_and_excludes_cross_block_matches() {
+    let rows = vec![
+        row(
+            1,
+            "assistant",
+            "assistant_message",
+            "target **one**\n\ntarget two\n\n- target three\n- end target",
+        ),
+        row(2, "user", "user_message", "TARGET target"),
+    ];
+    assert_eq!(
+        search(&query("target"), "e", &rows).unwrap()["locations"],
+        json!([{"seq":1,"role":"assistant","count":4},{"seq":2,"role":"user","count":2}])
+    );
+    assert_eq!(
+        search(&query("one target"), "e", &rows).unwrap()["locations"],
+        json!([])
+    );
+    assert_eq!(
+        search(&query("target one"), "e", &rows).unwrap()["locations"],
+        json!([{"seq":1,"role":"assistant","count":1}])
+    );
 }
