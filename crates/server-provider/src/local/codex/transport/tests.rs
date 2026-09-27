@@ -216,12 +216,40 @@ async fn unterminated_frame_at_eof_does_not_complete_the_request() {
 }
 
 #[tokio::test]
-async fn oversized_incoming_frame_rejects_instead_of_consuming_unbounded_stdout() {
+async fn large_image_before_acknowledgment_preserves_transport_and_event_order() {
     let mut fixture = Fixture::new(
-        "request = receive()\nsend({'id': request['id'], 'result': 'x' * (2 * 1024 * 1024)})",
+        "request = receive()\n\
+         image = {'type': 'imageGeneration', 'id': 'image', 'savedPath': '/tmp/generated.png', 'result': 'a' * (3 * 1024 * 1024)}\n\
+         send({'method': 'codex/event/item_completed', 'params': {'item': image}})\n\
+         send({'method': 'item/completed', 'params': {'item': image}})\n\
+         send({'id': request['id'], 'result': {'accepted': True}})\n\
+         send({'method': 'turn/completed', 'params': {'turnId': 'finished'}})\n\
+         next_request = receive()\nsend({'id': next_request['id'], 'result': {}})\nreceive()",
     );
-    assert_eq!(fixture.request().await, Err(AgentSessionError::Failed));
-    assert!(fixture.transport.closed);
+    assert_eq!(fixture.request().await.unwrap()["accepted"], true);
+    let image = fixture.event().await.unwrap();
+    assert_eq!(image["method"], "item/completed");
+    assert_eq!(
+        image["params"]["item"]["result"].as_str().unwrap().len(),
+        3 * 1024 * 1024
+    );
+    assert_eq!(fixture.event().await.unwrap()["method"], "turn/completed");
+    fixture.request().await.unwrap();
+    assert_eq!(fixture.transport.poll().unwrap(), None);
+    fixture.transport.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn large_history_response_is_not_limited_by_the_outgoing_request_budget() {
+    let mut fixture = Fixture::new(
+        "request = receive()\nsend({'id': request['id'], 'result': 'x' * (8 * 1024 * 1024)})\nreceive()",
+    );
+    assert_eq!(
+        fixture.request().await.unwrap().as_str().unwrap().len(),
+        8 * 1024 * 1024
+    );
+    assert!(!fixture.transport.closed);
+    fixture.transport.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -229,7 +257,7 @@ async fn oversized_outgoing_request_is_not_written_and_closes_transport() {
     let mut fixture =
         Fixture::new("first = receive()\nsend({'id': first['id'], 'result': first})\nreceive()");
     let oversized = json!({"id":999,"method":"turn/start","params":{
-        "text":"x".repeat(MAX_FRAME)
+        "text":"x".repeat(MAX_OUTBOUND_FRAME)
     }});
     assert_eq!(
         write(&fixture.transport.input, &oversized).await,
