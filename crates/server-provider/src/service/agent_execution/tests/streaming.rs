@@ -32,6 +32,45 @@ fn assistant(page: &Value) -> String {
 }
 
 #[tokio::test]
+async fn large_generated_image_preserves_execution_and_history_refresh() {
+    let fixture = Fixture::new();
+    let (execution, registry) = worker(&fixture);
+    let created = create(&execution, &fixture).await;
+    let id = created["agentId"].as_str().unwrap();
+    assert_eq!(
+        send(&execution, id, "large-generated-image", false).await["accepted"],
+        true
+    );
+    let finished = execution
+        .execute("agent.finish.wait.request", json!({"agentId":id}))
+        .await
+        .unwrap();
+    assert_eq!(finished["status"], "idle");
+    assert!(registry.get(id).unwrap().unwrap().last_error.is_none());
+    let completed = page(&execution, id).await;
+    let image = format!(
+        "![Image]({}/generated.png)",
+        fixture.cwd.canonicalize().unwrap().display()
+    );
+    assert!(assistant(&completed).contains(&image));
+    assert!(serde_json::to_vec(&completed).unwrap().len() < 8192);
+    execution
+        .execute("agent.refresh.request", json!({"agentId":id}))
+        .await
+        .unwrap();
+    assert!(assistant(&page(&execution, id).await).contains(&image));
+    assert_eq!(send(&execution, id, "next", false).await["accepted"], true);
+    assert_eq!(
+        execution
+            .execute("agent.finish.wait.request", json!({"agentId":id}))
+            .await
+            .unwrap()["status"],
+        "idle"
+    );
+    execution.shutdown().await.unwrap();
+}
+
+#[tokio::test]
 async fn streaming_is_durable_searchable_and_steering_stays_in_one_native_turn() {
     let fixture = Fixture::new();
     let (execution, registry) = worker(&fixture);

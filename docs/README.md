@@ -1,5 +1,7 @@
 # 概念与架构文档
 
+- [Codex 大图片事件修复](reports/codex-large-image-frames.md)：对照 Paseo 原版，移除原生输出的 2 MiB 限制；包含故障复现、限额对照和定向验证。
+
 - [ADR-060：统一 Workspace 创建入口支持 Worktree](decisions/adr-060-workspace-create-worktree.md)：Paseo 来源参数、共享 Git 服务、预留身份、幂等回执与 setup；[验证报告](reports/workspace-create-worktree.md)。
 
 - [ADR-059：移除旧 Rust 运行时](decisions/adr-059-remove-legacy-rust-runtime.md)：删除 daemon、worker、CLI 和 16 个专用 crate；Cargo workspace 统一为 `bins/server` 与 11 个 `server-*` crate；[验证报告](reports/remove-legacy-rust-runtime.md)。

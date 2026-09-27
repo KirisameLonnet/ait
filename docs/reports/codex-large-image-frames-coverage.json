@@ -1,0 +1,166 @@
+{
+  "base_revision": "ca317d2b1c3eb0c2e02112a4eae73425ea7248fa",
+  "revision": "base_revision plus changed_source_sha256",
+  "date": "2026-09-28",
+  "platform": "macOS aarch64",
+  "scope": {
+    "workspace": true,
+    "features": "default",
+    "explicit_file_exclusions": [],
+    "test_source_exclusions": "cargo-llvm-cov defaults",
+    "doctests": "not instrumented by default; workspace has no doctest cases",
+    "ignored_tests": 3,
+    "unavailable_platforms": [
+      "Linux",
+      "Windows"
+    ]
+  },
+  "commands": [
+    "cargo test --workspace --locked --offline",
+    "cargo llvm-cov --workspace --html --locked --offline -- --test-threads=4",
+    "cargo llvm-cov report --json --summary-only --output-path /private/tmp/ait-large-image-pr-coverage.json"
+  ],
+  "test_execution": {
+    "passed": 1270,
+    "failed": 0,
+    "ignored": 3
+  },
+  "coverage_test_execution": {
+    "passed": 1270,
+    "failed": 0,
+    "ignored": 3
+  },
+  "lines": {
+    "count": 38995,
+    "covered": 35722,
+    "percent": 91.60661623285037
+  },
+  "crate_lines": {
+    "bins/server": {
+      "count": 887,
+      "covered": 838,
+      "percent": 94.47576099210822
+    },
+    "crates/server-api": {
+      "count": 1156,
+      "covered": 1110,
+      "percent": 96.02076124567473
+    },
+    "crates/server-browser": {
+      "count": 726,
+      "covered": 707,
+      "percent": 97.38292011019284
+    },
+    "crates/server-domain": {
+      "count": 121,
+      "covered": 121,
+      "percent": 100.0
+    },
+    "crates/server-filesystem": {
+      "count": 8932,
+      "covered": 7872,
+      "percent": 88.13255709807434
+    },
+    "crates/server-metadata": {
+      "count": 6866,
+      "covered": 6168,
+      "percent": 89.83396446256918
+    },
+    "crates/server-model": {
+      "count": 310,
+      "covered": 296,
+      "percent": 95.48387096774194
+    },
+    "crates/server-protocol": {
+      "count": 57,
+      "covered": 57,
+      "percent": 100.0
+    },
+    "crates/server-provider": {
+      "count": 16409,
+      "covered": 15244,
+      "percent": 92.90023767444696
+    },
+    "crates/server-schedule": {
+      "count": 820,
+      "covered": 802,
+      "percent": 97.80487804878048
+    },
+    "crates/server-terminal": {
+      "count": 1436,
+      "covered": 1289,
+      "percent": 89.76323119777159
+    },
+    "crates/server-voice": {
+      "count": 1275,
+      "covered": 1218,
+      "percent": 95.52941176470588
+    }
+  },
+  "changed_source_sha256": {
+    "crates/server-provider/src/local/codex/discovery.rs": "bb502239770fcbfa09202a8cca35056733bf8050ed45d279f75ed3efc6786061",
+    "crates/server-provider/src/local/codex/transport.rs": "30a1a59fd34a5282894d567518a8baabab64baae25722bee50ba1ec6ae2f55de",
+    "crates/server-provider/src/local/codex/transport/tests.rs": "c5fea2ce52e8f2d7323f3f573a5314e77a4ca844e8cecd29ca7f2ec61051723a",
+    "crates/server-provider/src/local/images.rs": "cca19b5e0c51588c5234ab73438a766d9481db70f1bed115d357703c5594a5df",
+    "crates/server-provider/src/local/images/tests.rs": "063d61f74c903c53d1042d306af6d54722563e804754125f61f1ebaf0a703b3c",
+    "crates/server-provider/src/service/agent_execution/tests/streaming.rs": "f1ec91ee5583354695be8e0033d51bd61a5e7f15255fe3c445a8122ca5bb44bd",
+    "crates/server-provider/tests/fixtures/codex_app_server.py": "06b271ddf557e386d5d4fe88114e220e92f70586328022e4b3664ab52a99de7b"
+  },
+  "changed_production_files": [
+    {
+      "path": "crates/server-provider/src/local/codex/discovery.rs",
+      "sha256": "bb502239770fcbfa09202a8cca35056733bf8050ed45d279f75ed3efc6786061",
+      "lines": {
+        "count": 245,
+        "covered": 232,
+        "percent": 94.6938775510204
+      }
+    },
+    {
+      "path": "crates/server-provider/src/local/codex/transport.rs",
+      "sha256": "30a1a59fd34a5282894d567518a8baabab64baae25722bee50ba1ec6ae2f55de",
+      "lines": {
+        "count": 250,
+        "covered": 230,
+        "percent": 92.0
+      }
+    },
+    {
+      "path": "crates/server-provider/src/local/images.rs",
+      "sha256": "cca19b5e0c51588c5234ab73438a766d9481db70f1bed115d357703c5594a5df",
+      "lines": {
+        "count": 156,
+        "covered": 144,
+        "percent": 92.3076923076923
+      }
+    }
+  ],
+  "baseline": {
+    "artifact": "workspace-create-worktree-coverage.json",
+    "source_comparison": "All 246 recorded baseline source hashes match base_revision",
+    "lines": {
+      "count": 39000,
+      "covered": 35725,
+      "percent": 91.6025641025641
+    },
+    "delta_percentage_points": 0.004052130286268607,
+    "server_provider_lines": {
+      "count": 16414,
+      "covered": 15247,
+      "percent": 92.89021566955039
+    },
+    "server_provider_delta_percentage_points": 0.01002200489656957
+  },
+  "validation": {
+    "workspace_build": "passed",
+    "workspace_clippy": "passed with --all-targets -- -D warnings",
+    "rust_format": "passed",
+    "git_diff_check": "passed"
+  },
+  "uncovered_behavior": [
+    "Ignored installed-provider discovery/authenticated model tests",
+    "Linux and Windows execution not measured",
+    "Existing process cleanup, malformed native protocol, and image filesystem failure branches remain partially uncovered"
+  ],
+  "html_report": "target/llvm-cov/html/index.html"
+}

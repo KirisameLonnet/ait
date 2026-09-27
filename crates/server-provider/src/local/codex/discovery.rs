@@ -158,9 +158,7 @@ pub(super) fn timeline_items(
             &native["result"]
         };
         let text = images.render(source)?;
-        let mut assistant = native.clone();
-        assistant["type"] = json!("agentMessage");
-        assistant["text"] = json!(text);
+        let assistant = json!({"id":native["id"],"type":"agentMessage","text":text});
         return Ok(timeline_item(&assistant, turn, timestamp)?
             .into_iter()
             .collect());

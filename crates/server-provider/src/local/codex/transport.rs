@@ -5,14 +5,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::{Value, json};
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, Command};
 use tokio::sync::{Mutex, mpsc};
 use tokio::task::JoinHandle;
 
 use crate::ports::agent_session::AgentSessionError;
 
-const MAX_FRAME: usize = 2 * 1024 * 1024;
+const MAX_OUTBOUND_FRAME: usize = 2 * 1024 * 1024;
 const MAX_EVENTS: usize = 128;
 
 #[derive(Debug)]
@@ -69,10 +69,9 @@ impl Transport {
             let mut output = BufReader::new(output);
             loop {
                 let mut bytes = Vec::new();
-                let read = (&mut output)
-                    .take(MAX_FRAME as u64)
-                    .read_until(b'\n', &mut bytes)
-                    .await;
+                // Paseo's Codex transport uses readline without a frame-size cap. Native
+                // images and thread/read history can exceed the client request budget.
+                let read = output.read_until(b'\n', &mut bytes).await;
                 if !matches!(read, Ok(1..)) || bytes.last() != Some(&b'\n') {
                     break;
                 }
@@ -288,7 +287,7 @@ impl Drop for Transport {
 
 async fn write(input: &Mutex<ChildStdin>, value: &Value) -> Result<(), AgentSessionError> {
     let mut bytes = serde_json::to_vec(value).map_err(|_| AgentSessionError::Failed)?;
-    if bytes.len() >= MAX_FRAME {
+    if bytes.len() >= MAX_OUTBOUND_FRAME {
         return Err(AgentSessionError::Failed);
     }
     bytes.push(b'\n');
