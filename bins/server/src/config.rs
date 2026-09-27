@@ -17,7 +17,7 @@ pub(super) struct Cli {
     /// Isolated server directory (default: `AIT_SERVER_DATA_DIR` or ~/.ait-server).
     #[arg(long)]
     data_dir: Option<PathBuf>,
-    /// Loopback socket address (default: `AIT_SERVER_LISTEN`, config, or 127.0.0.1:7316).
+    /// IP socket address (default: `AIT_SERVER_LISTEN`, config, or 127.0.0.1:7316).
     #[arg(long)]
     listen: Option<SocketAddr>,
     /// Non-secret TOML configuration (default: <data-dir>/config.toml, if present).
@@ -93,9 +93,6 @@ impl Config {
             file.listen
                 .unwrap_or_else(|| SocketAddr::from(([127, 0, 0, 1], 7316)))
         };
-        if !listen.ip().is_loopback() {
-            bail!("M0 only supports loopback listening addresses");
-        }
         let log_level = cli
             .log_level
             .or_else(|| env("AIT_SERVER_LOG_LEVEL").map(|v| v.to_string_lossy().into_owned()))

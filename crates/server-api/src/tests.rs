@@ -110,7 +110,7 @@ async fn request(socket: &mut Socket, method: &str, params: Value) -> Value {
 
 #[test]
 fn rejects_bad_config_and_redacts_debug() {
-    for address in ["0.0.0.0:7316", "127.0.0.1:0"] {
+    for address in ["0.0.0.0:0", "127.0.0.1:0"] {
         assert!(
             Api::new(
                 address.parse().unwrap(),

@@ -1,14 +1,23 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpdir, networkInterfaces } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { RustServerManager, resolveDesktopServerHome } from "./rust-server";
 
 const managers: RustServerManager[] = [];
 const homes: string[] = [];
-function create(binary: string, home = mkdtempSync(path.join(tmpdir(), "ait-desktop-test-"))) {
+function create(
+  binary: string,
+  home = mkdtempSync(path.join(tmpdir(), "ait-desktop-test-")),
+  options: { getListen?: () => Promise<string>; listen?: string } = {},
+) {
   homes.push(home);
-  const manager = new RustServerManager({ binary, home, timeoutMs: 15000 });
+  const manager = new RustServerManager({
+    binary,
+    home,
+    timeoutMs: 15000,
+    ...options,
+  });
   managers.push(manager);
   return manager;
 }
@@ -25,6 +34,54 @@ it("reports spawn failure and allows stop after a failed start", async () => {
 });
 
 describe.skipIf(!process.env.AIT_SERVER_BIN)("real Rust child lifecycle", () => {
+  it("reads saved settings on each start, applies fixed ports, and lets the environment override them", async () => {
+    let listen = "0.0.0.0:0";
+    const manager = create(process.env.AIT_SERVER_BIN!, undefined, {
+      getListen: async () => listen,
+    });
+    const initial = await manager.start();
+    expect(initial.listen).toMatch(/^0\.0\.0\.0:\d+$/);
+    expect(initial.connectAddress).toBe(initial.listen!.replace("0.0.0.0", "127.0.0.1"));
+    expect(manager.authorization(`ws://${initial.connectAddress}/v1/ws`)).toHaveLength(64);
+    expect(manager.authorization(`ws://${initial.listen}/v1/ws`)).toBeUndefined();
+    listen = `127.0.0.1:${initial.listen!.split(":").at(-1)}`;
+    expect((await manager.start()).listen).toBe(initial.listen);
+    const restarted = await manager.restart();
+    expect(restarted.listen).toBe(listen);
+    expect(restarted.serverId).toBe(initial.serverId);
+    await manager.stop();
+    const fresh = create(process.env.AIT_SERVER_BIN!, initial.home, {
+      getListen: async () => listen,
+    });
+    expect((await fresh.start()).listen).toBe(listen);
+    await fresh.stop();
+    const overridden = create(process.env.AIT_SERVER_BIN!, initial.home, {
+      listen: "[::]:0",
+      getListen: async () => listen,
+    });
+    const status = await overridden.start();
+    expect(status.listenOverride).toBe("[::]:0");
+    expect(status.connectAddress).toMatch(/^\[::1\]:\d+$/);
+  }, 60000);
+
+  it("connects a concrete LAN listener without lending its token to localhost", async ({
+    skip,
+  }) => {
+    const address = Object.values(networkInterfaces())
+      .flat()
+      .find((item) => item && item.family === "IPv4" && !item.internal)?.address;
+    if (!address) return skip();
+    const manager = create(process.env.AIT_SERVER_BIN!, undefined, {
+      listen: `${address}:0`,
+    });
+    const status = await manager.start();
+    expect(status.connectAddress).toBe(status.listen);
+    expect(manager.authorization(`ws://${status.connectAddress}/v1/ws`)).toHaveLength(64);
+    expect(
+      manager.authorization(`ws://localhost:${status.listen!.split(":").at(-1)}/v1/ws`),
+    ).toBeUndefined();
+  }, 30000);
+
   it("serializes startup, authenticates readiness, rotates credentials and cleans up on restart/stop", async () => {
     const manager = create(process.env.AIT_SERVER_BIN!);
     const [a, b] = await Promise.all([manager.start(), manager.start()]);

@@ -275,9 +275,9 @@ pub struct CheckoutStashEntry {
     pub index: usize,
     /// Full Git subject.
     pub message: String,
-    /// Paseo branch label.
+    /// Ait auto-stash branch label.
     pub branch: Option<String>,
-    /// Whether the subject carries the Paseo prefix.
+    /// Whether the subject carries the Ait prefix; field name retained for wire compatibility.
     pub is_paseo: bool,
 }
 
@@ -406,7 +406,7 @@ pub trait CheckoutRuntime: std::fmt::Debug + Send + Sync {
     /// Returns categorized path, Git, timeout, or output failures.
     fn discard_changes(&self, cwd: &str, paths: &[String]) -> Result<(), CheckoutRuntimeError>;
 
-    /// Save tracked and untracked changes with the Paseo stash prefix.
+    /// Save tracked and untracked changes with the Ait stash prefix.
     ///
     /// # Errors
     /// Returns categorized Git, timeout, or output failures.
@@ -418,7 +418,7 @@ pub trait CheckoutRuntime: std::fmt::Debug + Send + Sync {
     /// Returns categorized conflict, Git, timeout, or output failures.
     fn stash_pop(&self, cwd: &str, index: usize) -> Result<(), CheckoutRuntimeError>;
 
-    /// List stashes, optionally filtering to Paseo-created entries.
+    /// List stashes, optionally filtering to Ait-created entries.
     ///
     /// # Errors
     /// Returns categorized Git, timeout, or output failures.

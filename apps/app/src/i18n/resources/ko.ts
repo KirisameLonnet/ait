@@ -1311,6 +1311,7 @@ export const ko: TranslationResources = {
       detail: "로컬 데몬을 중지하는 중입니다.",
     },
     daemon: {
+      listen: en.desktop.daemon.listen,
       lifecycle: en.desktop.daemon.lifecycle,
       title: "데몬",
       status: {
@@ -1697,6 +1698,7 @@ export const ko: TranslationResources = {
         connecting: "연결 중...",
       },
       errors: {
+        tokenRequired: "원격 Ait 서버 토큰(32–256자)을 입력하세요.",
         targetRequired: "SSH 호스트가 필요합니다",
         invalidTarget: "유효한 ssh:// 호스트를 입력하세요",
         failedToConnect: "SSH로 연결할 수 없습니다. {{detail}}",

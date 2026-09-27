@@ -12,6 +12,7 @@ import {
 
 const SESSION_INPUT = {
   sessionId: "local-session-test",
+  bearerToken: "t".repeat(32),
   target: { transportType: "ssh", host: "build-box" },
 } as const;
 
@@ -32,9 +33,11 @@ function createConnectingSocket(): TransportWebSocket & {
   };
 }
 
-function createEndpoint(): TransportEndpoint & { close: ReturnType<typeof vi.fn> } {
+function createEndpoint(): TransportEndpoint & {
+  close: ReturnType<typeof vi.fn>;
+} {
   return {
-    url: "ws://127.0.0.1:12345/ws",
+    url: "ws://127.0.0.1:12345/v1/ws",
     close: vi.fn(),
     failureDetail: () => null,
   };
@@ -75,10 +78,26 @@ function createManagerHarness(
 }
 
 describe("Remote SSH desktop transport", () => {
-  it("accepts only token-free loopback Rust endpoints", () => {
+  it("accepts token-free IP and localhost Rust endpoints", () => {
     expect(
-      parseTransportTarget({ transportType: "rustTcp", url: "ws://127.0.0.1:7316/v1/ws" }),
-    ).toEqual({ transportType: "rustTcp", url: "ws://127.0.0.1:7316/v1/ws" });
+      parseTransportTarget({
+        transportType: "rustTcp",
+        url: "ws://127.0.0.1:7316/v1/ws",
+      }),
+    ).toEqual({
+      transportType: "rustTcp",
+      url: "ws://127.0.0.1:7316/v1/ws",
+    });
+    for (const url of [
+      "ws://192.168.1.2:7316/v1/ws",
+      "ws://[::1]:7316/v1/ws",
+      "ws://127.0.0.1/v1/ws",
+    ]) {
+      expect(parseTransportTarget({ transportType: "rustTcp", url })).toEqual({
+        transportType: "rustTcp",
+        url,
+      });
+    }
     for (const url of [
       "ws://example.com:7316/v1/ws",
       "ws://127.0.0.1:7316/ws",
@@ -119,6 +138,21 @@ describe("Remote SSH desktop transport", () => {
     });
     h.manager.closeAll();
   });
+  it("requires SSH authentication and forwards it without changing the tunnel target", async () => {
+    const h = createManagerHarness(async () => createEndpoint(), [createConnectingSocket()]);
+    expect(() => h.manager.open({ ...SESSION_INPUT, bearerToken: undefined })).toThrow(
+      "Bearer token",
+    );
+    expect(h.createWebSocket).not.toHaveBeenCalled();
+    h.manager.open(SESSION_INPUT);
+    await Promise.resolve();
+    expect(h.createWebSocket).toHaveBeenCalledWith("ws://127.0.0.1:12345/v1/ws", {
+      headers: { Authorization: `Bearer ${SESSION_INPUT.bearerToken}` },
+    });
+    expect(buildSshArgs({ transportType: "ssh", host: "box" })).toContain("127.0.0.1:7316");
+    h.manager.closeAll();
+  });
+
   it("builds a batch-mode SSH stdio tunnel with optional connection settings", () => {
     expect(
       buildSshArgs({

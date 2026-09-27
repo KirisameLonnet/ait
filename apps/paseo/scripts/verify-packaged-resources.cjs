@@ -29,7 +29,7 @@ function verifyPackagedResources({ appOutDir, platform, version }) {
   const asar = path.join(resources, "app.asar");
   const pkg = JSON.parse(extractFile(asar, "package.json").toString());
   assert.equal(pkg.version, version, "Packaged desktop version differs from release version");
-  assert.equal(pkg.name, "@getpaseo/desktop", "Release must package apps/paseo");
+  assert.equal(pkg.name, "@ait/desktop", "Release must use Ait's independent package identity");
   assert(
     !listPackage(asar).some((entry) =>
       /\/node_modules\/@getpaseo\/(?:cli|server)(?:\/|$)/.test(entry),

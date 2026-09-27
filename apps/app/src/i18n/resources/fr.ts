@@ -1340,6 +1340,7 @@ export const fr: TranslationResources = {
       detail: "Arrêt du démon local.",
     },
     daemon: {
+      listen: en.desktop.daemon.listen,
       lifecycle: en.desktop.daemon.lifecycle,
       title: "Daemon",
       status: {
@@ -1739,6 +1740,7 @@ export const fr: TranslationResources = {
         connecting: "Connexion...",
       },
       errors: {
+        tokenRequired: "Saisissez le jeton du serveur Ait distant (32 à 256 caractères).",
         targetRequired: "L’hôte SSH est requis",
         invalidTarget: "Saisissez un hôte ssh:// valide",
         failedToConnect: "Connexion SSH impossible. {{detail}}",

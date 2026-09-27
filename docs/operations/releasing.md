@@ -78,7 +78,7 @@ Linux x86_64：
 npm ci
 cargo build --locked --release -p server-bin --bin server --target x86_64-unknown-linux-gnu
 AIT_SERVER_BIN="$PWD/target/x86_64-unknown-linux-gnu/release/server" \
-  PASEO_DESKTOP_SMOKE=1 npm run package:linux
+  AIT_DESKTOP_SMOKE=1 npm run package:linux
 ```
 
 Linux 需安装 `xvfb`、FUSE 和 Electron 的系统库；具体包名见 workflow。
@@ -88,13 +88,13 @@ macOS arm64（正式签名、公证）：
 ```bash
 npm ci
 # 配置 CSC_NAME 或 CSC_LINK，以及 Apple 公证凭据后：
-PASEO_DESKTOP_SMOKE=1 npm run package:mac
+AIT_DESKTOP_SMOKE=1 npm run package:mac
 ```
 
 `package:mac` 生成 DMG 与 ZIP；`package:linux` 生成 AppImage 与 tar.gz。省略 `AIT_SERVER_BIN`
 会从当前源码构建 release server；提供该变量时仍检查二进制版本。只允许原生目标平台、架构。
 
-无签名凭据时，本机开发验证使用 `PASEO_DESKTOP_SMOKE=1 npm run build:dmg`。它生成
+无签名凭据时，本机开发验证使用 `AIT_DESKTOP_SMOKE=1 npm run build:dmg`。它生成
 `Ait-VERSION-local-arm64.dmg`，不属于正式发布文件，不能通过正式资产收集门禁。
 
 输出位于 `apps/paseo/release/`，暂存输入位于 `apps/paseo/release-resources/server/`，均不提交。

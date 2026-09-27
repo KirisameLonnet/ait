@@ -25,7 +25,7 @@ const attachedBrowsers: Array<{
   webContentsId: number;
 }> = [];
 const profileHost: BrowserWebviewProfileHost = {
-  profilePartition: "persist:paseo-browser",
+  profilePartition: "persist:ait-browser",
   registerAttachedBrowser: async (input) => {
     attachedBrowsers.push(input);
   },
@@ -214,7 +214,7 @@ describe("resident browser webviews", () => {
     expect(webview).not.toBeNull();
     expect(webview?.isConnected).toBe(true);
     expect(webview?.getAttribute("data-paseo-browser-id")).toBe("browser-agent");
-    expect(webview?.getAttribute("partition")).toBe("persist:paseo-browser");
+    expect(webview?.getAttribute("partition")).toBe("persist:ait-browser");
     expect((webview as HTMLUnknownElement & { src?: string })?.src).toContain(
       "https://example.com",
     );
@@ -242,8 +242,8 @@ describe("resident browser webviews", () => {
     firstWebview.dispatchEvent(new Event("did-attach"));
     secondWebview.dispatchEvent(new Event("did-attach"));
 
-    expect(firstWebview.getAttribute("partition")).toBe("persist:paseo-browser");
-    expect(secondWebview.getAttribute("partition")).toBe("persist:paseo-browser");
+    expect(firstWebview.getAttribute("partition")).toBe("persist:ait-browser");
+    expect(secondWebview.getAttribute("partition")).toBe("persist:ait-browser");
     expect(attachedBrowsers).toEqual([
       { browserId: "browser-first", workspaceId: "workspace-a", webContentsId: 101 },
       { browserId: "browser-second", workspaceId: "workspace-b", webContentsId: 202 },

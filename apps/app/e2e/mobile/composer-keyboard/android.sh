@@ -5,7 +5,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)"
 STATE_DIR="${PASEO_COMPOSER_KEYBOARD_STATE_DIR:-${REPO_ROOT}/.dev/agent-device-composer-keyboard}"
 ARTIFACTS_DIR="${REPO_ROOT}/.dev/agent-device-artifacts/composer-keyboard-android"
 SESSION="${PASEO_COMPOSER_KEYBOARD_SESSION:-composer-keyboard-android}"
-APP_ID="${PASEO_COMPOSER_KEYBOARD_APP_ID:-sh.paseo.debug}"
+APP_ID="${PASEO_COMPOSER_KEYBOARD_APP_ID:-dev.ait.mobile.debug}"
 DEVICE="${PASEO_COMPOSER_KEYBOARD_DEVICE:-paseo-api35}"
 HELPER_IME="com.callstack.agentdevice.imehelper/.TestInputMethodService"
 GBOARD_IME="com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME"
@@ -191,14 +191,14 @@ sleep 3
 
 adb shell am start \
   -a android.intent.action.VIEW \
-  -d "paseo://h/${SERVER_ID}/agent/${agent_id}" \
+  -d "ait://h/${SERVER_ID}/agent/${agent_id}" \
   "${APP_ID}" >/dev/null
 sleep 5
 # The development-client bootstrap can consume the first link while Expo Router is mounting.
 # Deliver the target again after the root navigator is live.
 adb shell am start \
   -a android.intent.action.VIEW \
-  -d "paseo://h/${SERVER_ID}/agent/${agent_id}" \
+  -d "ait://h/${SERVER_ID}/agent/${agent_id}" \
   "${APP_ID}" >/dev/null
 ad wait "text=\"${AGENT_TITLE}\"" 45000
 ad wait 'editable=true' 10000
@@ -656,7 +656,7 @@ run_host_scenario() {
   run_host_scroll "${host}"
 }
 
-adb shell am start -a android.intent.action.VIEW -d "paseo://h/${SERVER_ID}/agent/${agent_id}" "${APP_ID}" >/dev/null
+adb shell am start -a android.intent.action.VIEW -d "ait://h/${SERVER_ID}/agent/${agent_id}" "${APP_ID}" >/dev/null
 ad wait "text=\"${AGENT_TITLE}\"" 10000
 run_host_scenario chat
 ad keyboard dismiss || true

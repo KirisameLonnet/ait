@@ -1,5 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { createServer, type Server, type Socket } from "node:net";
+import { createServer, isIP, type Server, type Socket } from "node:net";
 import {
   buildSshTunnelArgs,
   DEFAULT_SSH_DAEMON_PORT,
@@ -134,15 +134,15 @@ export function parseTransportTarget(value: unknown): TransportTarget {
     const url = new URL(typeof value.url === "string" ? value.url : "");
     if (
       url.protocol !== "ws:" ||
-      !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) ||
-      !url.port ||
+      (url.hostname !== "localhost" && !isIP(url.hostname.replace(/^\[|\]$/g, ""))) ||
+      url.port === "0" ||
       url.pathname !== "/v1/ws" ||
       url.username ||
       url.password ||
       url.search ||
       url.hash
     ) {
-      throw new Error("Rust server requires a loopback ws:// endpoint at /v1/ws");
+      throw new Error("Rust server requires an IP or localhost ws:// endpoint at /v1/ws");
     }
     return { transportType: "rustTcp", url: url.toString() };
   }
@@ -193,7 +193,7 @@ function parseOpenTransportSessionInput(value: unknown): OpenTransportSessionInp
   }
 
   const target = parseTransportTarget(value.target);
-  if (target.transportType === "rustTcp") {
+  if (target.transportType === "rustTcp" || target.transportType === "ssh") {
     if (typeof value.bearerToken !== "string" || !/^[\x21-\x7e]{32,256}$/.test(value.bearerToken)) {
       throw new Error("Rust server requires a 32–256 character Bearer token");
     }
@@ -288,7 +288,7 @@ function createSshProxy(target: SshTransportTarget): Promise<TransportEndpoint> 
         return;
       }
       resolve({
-        url: `ws://127.0.0.1:${address.port}${WS_ENDPOINT_PATH}`,
+        url: `ws://127.0.0.1:${address.port}/v1/ws`,
         close,
         failureDetail: () => resolveSshFailureDetail(failure, stderr),
       });

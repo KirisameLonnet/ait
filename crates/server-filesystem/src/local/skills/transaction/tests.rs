@@ -16,8 +16,16 @@ fn put(path: &Path, text: &str) {
     fs::write(path, text).unwrap();
 }
 
+fn mark_owned(path: &Path) {
+    put(
+        &path.join(tree::MANIFEST),
+        r#"{"version":1,"owner":"ait","files":{}}"#,
+    );
+}
+
 fn plan(store: &LocalSkills) -> Journal {
     let mut journal = Journal {
+        namespace: "ait-v1".to_owned(),
         id: Uuid::new_v4().to_string(),
         roots: store.targets.clone(),
         previous: store.selection().unwrap(),
@@ -34,28 +42,29 @@ fn interrupted_update_restores_backup_and_previous_selection_idempotently() {
     for published in [false, true] {
         let (_root, mut store) = fixture();
         put(&store.source.join("alpha/SKILL.md"), "new");
-        put(&store.targets[0].join("alpha/SKILL.md"), "old");
-        put(&store.targets[0].join("alpha/notes"), "user");
+        put(&store.targets[0].join("ait-alpha/SKILL.md"), "old");
+        mark_owned(&store.targets[0].join("ait-alpha"));
+        put(&store.targets[0].join("ait-alpha/notes"), "user");
         let previous = Selection::Custom {
             skills: vec!["alpha".into()],
         };
         store.import(&previous).unwrap();
         let journal = plan(&store);
         let stage = stage(&journal, 0, "alpha");
-        fs::rename(store.targets[0].join("alpha"), stage.join("before")).unwrap();
+        fs::rename(store.targets[0].join("ait-alpha"), stage.join("before")).unwrap();
         if published {
-            fs::rename(stage.join("after"), store.targets[0].join("alpha")).unwrap();
+            fs::rename(stage.join("after"), store.targets[0].join("ait-alpha")).unwrap();
         }
         store.import(&Selection::All {}).unwrap();
         recover(&mut store).unwrap();
         recover(&mut store).unwrap();
         assert_eq!(store.selection().unwrap(), Some(previous));
         assert_eq!(
-            fs::read_to_string(store.targets[0].join("alpha/SKILL.md")).unwrap(),
+            fs::read_to_string(store.targets[0].join("ait-alpha/SKILL.md")).unwrap(),
             "old"
         );
         assert_eq!(
-            fs::read_to_string(store.targets[0].join("alpha/notes")).unwrap(),
+            fs::read_to_string(store.targets[0].join("ait-alpha/notes")).unwrap(),
             "user"
         );
         assert!(!store.state.join("transaction.json").exists());
@@ -69,14 +78,14 @@ fn interrupted_add_is_removed_but_unpublished_external_directory_is_preserved() 
     let journal = plan(&store);
     fs::rename(
         stage(&journal, 0, "alpha").join("after"),
-        store.targets[0].join("alpha"),
+        store.targets[0].join("ait-alpha"),
     )
     .unwrap();
-    put(&store.targets[1].join("alpha/external"), "keep");
+    put(&store.targets[1].join("ait-alpha/external"), "keep");
     recover(&mut store).unwrap();
-    assert!(!store.targets[0].join("alpha").exists());
+    assert!(!store.targets[0].join("ait-alpha").exists());
     assert_eq!(
-        fs::read_to_string(store.targets[1].join("alpha/external")).unwrap(),
+        fs::read_to_string(store.targets[1].join("ait-alpha/external")).unwrap(),
         "keep"
     );
     assert_eq!(store.selection().unwrap(), None);
@@ -86,19 +95,20 @@ fn interrupted_add_is_removed_but_unpublished_external_directory_is_preserved() 
 fn external_changes_after_publication_preserve_backup_and_block_destructive_recovery() {
     let (_root, mut store) = fixture();
     put(&store.source.join("alpha/SKILL.md"), "new");
-    put(&store.targets[0].join("alpha/SKILL.md"), "old");
+    put(&store.targets[0].join("ait-alpha/SKILL.md"), "old");
+    mark_owned(&store.targets[0].join("ait-alpha"));
     let journal = plan(&store);
     let stage = stage(&journal, 0, "alpha");
-    fs::rename(store.targets[0].join("alpha"), stage.join("before")).unwrap();
-    fs::rename(stage.join("after"), store.targets[0].join("alpha")).unwrap();
-    put(&store.targets[0].join("alpha/user"), "external");
+    fs::rename(store.targets[0].join("ait-alpha"), stage.join("before")).unwrap();
+    fs::rename(stage.join("after"), store.targets[0].join("ait-alpha")).unwrap();
+    put(&store.targets[0].join("ait-alpha/user"), "external");
     assert_eq!(recover(&mut store), Err(ErrorCode::ResourceExhausted));
     assert_eq!(
         fs::read_to_string(stage.join("before/SKILL.md")).unwrap(),
         "old"
     );
-    assert!(store.targets[0].join("alpha/user").exists());
-    fs::remove_file(store.targets[0].join("alpha/user")).unwrap();
+    assert!(store.targets[0].join("ait-alpha/user").exists());
+    fs::remove_file(store.targets[0].join("ait-alpha/user")).unwrap();
     recover(&mut store).unwrap();
 }
 
@@ -124,9 +134,10 @@ fn committed_journal_only_cleans_staging_and_does_not_rollback() {
 fn changed_plan_before_publish_rolls_back_without_overwriting_external_files() {
     let (_root, mut store) = fixture();
     put(&store.source.join("alpha/SKILL.md"), "new");
-    put(&store.targets[0].join("alpha/SKILL.md"), "old");
+    put(&store.targets[0].join("ait-alpha/SKILL.md"), "old");
+    mark_owned(&store.targets[0].join("ait-alpha"));
     let mut journal = plan(&store);
-    put(&store.targets[0].join("alpha/SKILL.md"), "external");
+    put(&store.targets[0].join("ait-alpha/SKILL.md"), "external");
     assert_eq!(
         publish(
             &mut store,
@@ -138,7 +149,7 @@ fn changed_plan_before_publish_rolls_back_without_overwriting_external_files() {
     );
     recover(&mut store).unwrap();
     assert_eq!(
-        fs::read_to_string(store.targets[0].join("alpha/SKILL.md")).unwrap(),
+        fs::read_to_string(store.targets[0].join("ait-alpha/SKILL.md")).unwrap(),
         "external"
     );
 }
@@ -160,16 +171,20 @@ fn invalid_journal_paths_and_roots_are_rejected() {
 #[test]
 fn interrupted_deletion_restores_the_entire_directory() {
     let (_root, mut store) = fixture();
-    put(&store.targets[0].join("paseo-chat/nested/user"), "preserve");
+    put(
+        &store.targets[0].join("ait-retired/nested/user"),
+        "preserve",
+    );
+    mark_owned(&store.targets[0].join("ait-retired"));
     let journal = plan(&store);
     fs::rename(
-        store.targets[0].join("paseo-chat"),
-        stage(&journal, 0, "paseo-chat").join("before"),
+        store.targets[0].join("ait-retired"),
+        stage(&journal, 0, "retired").join("before"),
     )
     .unwrap();
     recover(&mut store).unwrap();
     assert_eq!(
-        fs::read_to_string(store.targets[0].join("paseo-chat/nested/user")).unwrap(),
+        fs::read_to_string(store.targets[0].join("ait-retired/nested/user")).unwrap(),
         "preserve"
     );
 }
@@ -178,6 +193,7 @@ fn interrupted_deletion_restores_the_entire_directory() {
 fn interrupted_preparation_is_cleaned_without_live_mutations() {
     let (_root, mut store) = fixture();
     let journal = Journal {
+        namespace: "ait-v1".to_owned(),
         id: Uuid::new_v4().to_string(),
         roots: store.targets.clone(),
         previous: None,
@@ -189,16 +205,18 @@ fn interrupted_preparation_is_cleaned_without_live_mutations() {
     put(&stage.join("after/SKILL.md"), "partial");
     recover(&mut store).unwrap();
     assert!(!stage.exists());
-    assert!(!store.targets[0].join("alpha").exists());
+    assert!(!store.targets[0].join("ait-alpha").exists());
 }
 
 #[test]
 fn new_removals_during_publish_prevent_commit_and_restore_previous_targets() {
     let (_root, mut store) = fixture();
     put(&store.source.join("alpha/SKILL.md"), "new");
-    put(&store.targets[0].join("alpha/SKILL.md"), "old");
+    put(&store.targets[0].join("ait-alpha/SKILL.md"), "old");
+    mark_owned(&store.targets[0].join("ait-alpha"));
     let mut journal = plan(&store);
-    put(&store.targets[1].join("paseo-chat/user"), "external");
+    put(&store.targets[1].join("ait-retired/user"), "external");
+    mark_owned(&store.targets[1].join("ait-retired"));
     assert_eq!(
         publish(
             &mut store,
@@ -210,9 +228,24 @@ fn new_removals_during_publish_prevent_commit_and_restore_previous_targets() {
     );
     recover(&mut store).unwrap();
     assert_eq!(
-        fs::read_to_string(store.targets[0].join("alpha/SKILL.md")).unwrap(),
+        fs::read_to_string(store.targets[0].join("ait-alpha/SKILL.md")).unwrap(),
         "old"
     );
-    assert!(store.targets[1].join("paseo-chat/user").exists());
+    assert!(store.targets[1].join("ait-retired/user").exists());
     assert_eq!(store.selection().unwrap(), None);
+}
+
+#[test]
+fn old_unscoped_journal_cannot_recover_into_a_foreign_skill() {
+    let (_root, mut store) = fixture();
+    put(&store.targets[0].join("paseo-chat/SKILL.md"), "foreign");
+    let legacy = serde_json::json!({"id": Uuid::new_v4().to_string(), "roots": store.targets,
+        "previous": null, "committed": false, "entries": [{"target":0,"name":"paseo-chat","before":null,"after":"hash"}]});
+    tree::save(&store.state.join("transaction.json"), &legacy).unwrap();
+    assert_eq!(recover(&mut store), Err(ErrorCode::RegistryIo));
+    assert_eq!(
+        fs::read_to_string(store.targets[0].join("paseo-chat/SKILL.md")).unwrap(),
+        "foreign"
+    );
+    assert!(store.state.join("transaction.json").exists());
 }

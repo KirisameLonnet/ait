@@ -1303,6 +1303,7 @@ export const ar: TranslationResources = {
       detail: "إيقاف البرنامج الخفي المحلي.",
     },
     daemon: {
+      listen: en.desktop.daemon.listen,
       lifecycle: en.desktop.daemon.lifecycle,
       title: "Daemon",
       status: {
@@ -1688,6 +1689,7 @@ export const ar: TranslationResources = {
         connecting: "جارٍ الاتصال...",
       },
       errors: {
+        tokenRequired: "أدخل رمز خادم Ait البعيد (32–256 حرفًا).",
         targetRequired: "مضيف SSH مطلوب",
         invalidTarget: "أدخل مضيف ssh:// صالحًا",
         failedToConnect: "تعذر الاتصال عبر SSH. {{detail}}",

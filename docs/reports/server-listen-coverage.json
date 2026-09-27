@@ -1,0 +1,147 @@
+{
+  "revision": "4583883d4acf89f5ec57f7194cd0aa82a09613c7 + working tree listener changes",
+  "date": "2026-09-27",
+  "command": "cargo llvm-cov -p server-api -p server-bin --html --output-dir /tmp/ait-listen-coverage",
+  "scope": [
+    "server-api",
+    "server-bin"
+  ],
+  "features": "default",
+  "platform": "macOS aarch64",
+  "baseline": null,
+  "totals": {
+    "count": 1965,
+    "covered": 1870,
+    "percent": 95.16539440203562
+  },
+  "files": [
+    {
+      "path": "bins/server/src/config.rs",
+      "lines": {
+        "count": 66,
+        "covered": 59,
+        "percent": 89.39393939393939
+      }
+    },
+    {
+      "path": "bins/server/src/host.rs",
+      "lines": {
+        "count": 314,
+        "covered": 303,
+        "percent": 96.4968152866242
+      }
+    },
+    {
+      "path": "bins/server/src/host/catalog.rs",
+      "lines": {
+        "count": 23,
+        "covered": 23,
+        "percent": 100.0
+      }
+    },
+    {
+      "path": "bins/server/src/host/schedule.rs",
+      "lines": {
+        "count": 254,
+        "covered": 228,
+        "percent": 89.76377952755905
+      }
+    },
+    {
+      "path": "bins/server/src/host/voice.rs",
+      "lines": {
+        "count": 79,
+        "covered": 75,
+        "percent": 94.93670886075948
+      }
+    },
+    {
+      "path": "bins/server/src/instance.rs",
+      "lines": {
+        "count": 40,
+        "covered": 39,
+        "percent": 97.5
+      }
+    },
+    {
+      "path": "bins/server/src/main.rs",
+      "lines": {
+        "count": 51,
+        "covered": 49,
+        "percent": 96.07843137254902
+      }
+    },
+    {
+      "path": "crates/server-api/src/auth.rs",
+      "lines": {
+        "count": 93,
+        "covered": 93,
+        "percent": 100.0
+      }
+    },
+    {
+      "path": "crates/server-api/src/browser_auth.rs",
+      "lines": {
+        "count": 82,
+        "covered": 82,
+        "percent": 100.0
+      }
+    },
+    {
+      "path": "crates/server-api/src/capabilities.rs",
+      "lines": {
+        "count": 72,
+        "covered": 72,
+        "percent": 100.0
+      }
+    },
+    {
+      "path": "crates/server-api/src/connection.rs",
+      "lines": {
+        "count": 322,
+        "covered": 298,
+        "percent": 92.54658385093167
+      }
+    },
+    {
+      "path": "crates/server-api/src/connection/dispatch.rs",
+      "lines": {
+        "count": 93,
+        "covered": 87,
+        "percent": 93.54838709677419
+      }
+    },
+    {
+      "path": "crates/server-api/src/connection/routing.rs",
+      "lines": {
+        "count": 69,
+        "covered": 69,
+        "percent": 100.0
+      }
+    },
+    {
+      "path": "crates/server-api/src/files.rs",
+      "lines": {
+        "count": 72,
+        "covered": 66,
+        "percent": 91.66666666666666
+      }
+    },
+    {
+      "path": "crates/server-api/src/lib.rs",
+      "lines": {
+        "count": 310,
+        "covered": 302,
+        "percent": 97.41935483870968
+      }
+    },
+    {
+      "path": "crates/server-api/src/listener.rs",
+      "lines": {
+        "count": 25,
+        "covered": 25,
+        "percent": 100.0
+      }
+    }
+  ]
+}

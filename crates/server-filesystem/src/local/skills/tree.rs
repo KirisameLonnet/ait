@@ -7,7 +7,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use server_model::ErrorCode;
 use sha2::{Digest, Sha256};
 
-pub(super) const MANIFEST: &str = ".paseo-managed-files.json";
+pub(super) const MANIFEST: &str = ".ait-managed-files.json";
 const MAX_BYTES: usize = 32 * 1024 * 1024;
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -148,7 +148,27 @@ pub(super) fn valid_relative(name: &str) -> bool {
             .all(|part| matches!(part, Component::Normal(_)))
 }
 
+/// Inspect a bounded Ait ownership manifest without reading unrelated skill contents.
+/// Returns filesystem or malformed-manifest errors without changing the directory.
+pub(super) fn owned_path(path: &Path) -> Result<bool, ErrorCode> {
+    let manifest: Option<serde_json::Value> = load(&path.join(MANIFEST))?;
+    Ok(manifest.as_ref().is_some_and(owned_manifest))
+}
+
+fn owned_manifest(value: &serde_json::Value) -> bool {
+    value["version"] == 1 && value["owner"] == "ait" && value["files"].is_object()
+}
+
 impl Tree {
+    /// Whether this snapshot contains an explicit Ait ownership manifest.
+    pub fn is_owned(&self) -> bool {
+        self.files
+            .get(MANIFEST)
+            .and_then(|bytes| serde_json::from_slice(bytes).ok())
+            .as_ref()
+            .is_some_and(owned_manifest)
+    }
+
     pub fn fingerprint(&self) -> String {
         let mut hash = Sha256::new();
         for name in &self.directories {
@@ -176,7 +196,7 @@ impl Tree {
     pub fn overlay(&mut self, bundle: &Self) -> Result<(), ErrorCode> {
         if let Some(bytes) = self.files.get(MANIFEST)
             && let Ok(value) = serde_json::from_slice::<serde_json::Value>(bytes)
-            && value["version"] == 1
+            && owned_manifest(&value)
             && let Some(previous) = value["files"].as_object()
         {
             let mut removed = Vec::new();
@@ -207,8 +227,10 @@ impl Tree {
         self.directories.extend(bundle.directories.iter().cloned());
         self.files.insert(
             MANIFEST.to_owned(),
-            serde_json::to_vec_pretty(&serde_json::json!({"version":1,"files":hashes}))
-                .map_err(|_| ErrorCode::RegistryIo)?,
+            serde_json::to_vec_pretty(
+                &serde_json::json!({"version":1,"owner":"ait","files":hashes}),
+            )
+            .map_err(|_| ErrorCode::RegistryIo)?,
         );
         Ok(())
     }

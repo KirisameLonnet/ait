@@ -1,0 +1,188 @@
+{
+  "date": "2026-09-27",
+  "command": "cargo llvm-cov --workspace --html --output-dir target/coverage/ait-paseo-isolation",
+  "scope": "Current Rust workspace, including existing working-tree changes; branch coverage not instrumented",
+  "tests": {
+    "passed": 1704,
+    "failed": 0,
+    "ignored": 8
+  },
+  "totals": {
+    "branches": {
+      "count": 0,
+      "covered": 0,
+      "notcovered": 0,
+      "percent": 0
+    },
+    "functions": {
+      "count": 7428,
+      "covered": 6104,
+      "percent": 82.1755519655358
+    },
+    "instantiations": {
+      "count": 33321,
+      "covered": 14504,
+      "percent": 43.52810539899763
+    },
+    "lines": {
+      "count": 67613,
+      "covered": 57642,
+      "percent": 85.25283599307828
+    },
+    "mcdc": {
+      "count": 0,
+      "covered": 0,
+      "notcovered": 0,
+      "percent": 0
+    },
+    "regions": {
+      "count": 99894,
+      "covered": 83262,
+      "notcovered": 16632,
+      "percent": 83.3503513724548
+    }
+  },
+  "changed_implementation_files": {
+    "crates/server-filesystem/src/local/checkout.rs": {
+      "branches": {
+        "count": 0,
+        "covered": 0,
+        "notcovered": 0,
+        "percent": 0.0
+      },
+      "mcdc": {
+        "count": 0,
+        "covered": 0,
+        "notcovered": 0,
+        "percent": 0.0
+      },
+      "functions": {
+        "count": 166,
+        "covered": 141,
+        "percent": 84.93975903614458
+      },
+      "instantiations": {
+        "count": 334,
+        "covered": 262,
+        "percent": 78.44311377245509
+      },
+      "lines": {
+        "count": 1445,
+        "covered": 1228,
+        "percent": 84.98269896193771
+      },
+      "regions": {
+        "count": 2257,
+        "covered": 1906,
+        "notcovered": 351,
+        "percent": 84.44838280903855
+      }
+    },
+    "crates/server-filesystem/src/local/skills.rs": {
+      "branches": {
+        "count": 0,
+        "covered": 0,
+        "notcovered": 0,
+        "percent": 0.0
+      },
+      "mcdc": {
+        "count": 0,
+        "covered": 0,
+        "notcovered": 0,
+        "percent": 0.0
+      },
+      "functions": {
+        "count": 15,
+        "covered": 15,
+        "percent": 100.0
+      },
+      "instantiations": {
+        "count": 30,
+        "covered": 30,
+        "percent": 100.0
+      },
+      "lines": {
+        "count": 176,
+        "covered": 168,
+        "percent": 95.45454545454545
+      },
+      "regions": {
+        "count": 285,
+        "covered": 261,
+        "notcovered": 24,
+        "percent": 91.57894736842105
+      }
+    },
+    "crates/server-filesystem/src/local/skills/transaction.rs": {
+      "branches": {
+        "count": 0,
+        "covered": 0,
+        "notcovered": 0,
+        "percent": 0.0
+      },
+      "mcdc": {
+        "count": 0,
+        "covered": 0,
+        "notcovered": 0,
+        "percent": 0.0
+      },
+      "functions": {
+        "count": 11,
+        "covered": 11,
+        "percent": 100.0
+      },
+      "instantiations": {
+        "count": 22,
+        "covered": 21,
+        "percent": 95.45454545454545
+      },
+      "lines": {
+        "count": 167,
+        "covered": 159,
+        "percent": 95.20958083832335
+      },
+      "regions": {
+        "count": 329,
+        "covered": 291,
+        "notcovered": 38,
+        "percent": 88.44984802431611
+      }
+    },
+    "crates/server-filesystem/src/local/skills/tree.rs": {
+      "branches": {
+        "count": 0,
+        "covered": 0,
+        "notcovered": 0,
+        "percent": 0.0
+      },
+      "mcdc": {
+        "count": 0,
+        "covered": 0,
+        "notcovered": 0,
+        "percent": 0.0
+      },
+      "functions": {
+        "count": 21,
+        "covered": 21,
+        "percent": 100.0
+      },
+      "instantiations": {
+        "count": 49,
+        "covered": 48,
+        "percent": 97.95918367346938
+      },
+      "lines": {
+        "count": 247,
+        "covered": 236,
+        "percent": 95.54655870445345
+      },
+      "regions": {
+        "count": 489,
+        "covered": 440,
+        "notcovered": 49,
+        "percent": 89.97955010224949
+      }
+    }
+  },
+  "html": "target/coverage/ait-paseo-isolation/html/index.html"
+}

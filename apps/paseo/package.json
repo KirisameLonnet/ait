@@ -26,6 +26,7 @@
     "test": "install-electron && vitest run --exclude \"e2e/**\"",
     "typecheck": "tsgo --noEmit -p tsconfig.json",
     "test:e2e:lifecycle": "npm run build:main && node ./e2e/daemon-lifecycle.e2e.mjs",
+    "test:e2e:server-listen": "install-electron && npm run build:main && node e2e/server-listen.e2e.mjs",
     "test:e2e:settings-rust": "install-electron && node e2e/settings-rust.e2e.mjs",
     "test:e2e:rust-startup": "install-electron && npm run build:main && node e2e/rust-startup.e2e.mjs",
     "build:dmg": "node scripts/build-macos.mjs",

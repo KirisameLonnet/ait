@@ -20,9 +20,9 @@ const it = test.runIf(process.platform === "linux");
 
 const require = createRequire(import.meta.url);
 const afterPack = require("../../scripts/after-pack.js").default;
-const { name, version } = require("../../package.json");
+const { version } = require("../../package.json");
 
-beforeEach(() => vi.stubEnv("PASEO_DESKTOP_SMOKE", "0"));
+beforeEach(() => vi.stubEnv("AIT_DESKTOP_SMOKE", "0"));
 afterEach(() => vi.unstubAllEnvs());
 
 async function createPackagedApp(root: string) {
@@ -32,7 +32,7 @@ async function createPackagedApp(root: string) {
   mkdirSync(join(resources, "bin"), { recursive: true });
   mkdirSync(join(resources, "app-dist"));
   mkdirSync(source);
-  writeFileSync(join(source, "package.json"), JSON.stringify({ name, version }));
+  writeFileSync(join(source, "package.json"), JSON.stringify({ name: "@ait/desktop", version }));
   await createPackage(source, join(resources, "app.asar"));
   writeFileSync(join(resources, "app-dist", "index.html"), "<!doctype html><title>Ait</title>");
   writeFileSync(join(resources, "bin", "server"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
@@ -65,7 +65,7 @@ test("validates Linux package resources before installing the launcher on any ho
     rmSync(legacyBin);
     await afterPack(context);
     expect(readFileSync(`${executable}.bin`)).toEqual(original);
-    expect(readFileSync(executable, "utf8")).toContain("PASEO_DESKTOP_SANDBOX_REASON");
+    expect(readFileSync(executable, "utf8")).toContain("AIT_DESKTOP_SANDBOX_REASON");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -110,7 +110,7 @@ async function launch(
         FORCE_COLOR: undefined,
         PATH: `${commands}:${process.env.PATH}`,
         APPIMAGE: "/tmp/Ait.AppImage",
-        PASEO_DESKTOP_SMOKE: "0",
+        AIT_DESKTOP_SMOKE: "0",
         ...options.env,
       },
     });
@@ -169,8 +169,8 @@ it("does not depend on APPIMAGE being present for an extracted portable app", as
 it("applies a debugging environment sandbox override before Chromium starts", async () => {
   const result = await launch({
     namespaces: true,
-    env: { PASEO_ELECTRON_FLAGS: "--disable-gpu\t--no-sandbox" },
+    env: { AIT_ELECTRON_FLAGS: "--disable-gpu\t--no-sandbox" },
   });
   expect(result.args).toEqual(["--no-sandbox", ...result.input]);
-  expect(result.stderr).toContain("requested by PASEO_ELECTRON_FLAGS");
+  expect(result.stderr).toContain("requested by AIT_ELECTRON_FLAGS");
 });

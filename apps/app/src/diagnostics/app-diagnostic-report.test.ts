@@ -19,6 +19,12 @@ function makeHost(): HostProfile {
     updatedAt: "2026-06-25T00:00:00.000Z",
     connections: [
       {
+        id: "ssh:deploy%40private-host::",
+        type: "remoteSsh",
+        host: "deploy@private-host",
+        password: "ssh-server-token",
+      },
+      {
         id: "direct:secret.example.test:6767",
         type: "directTcp",
         endpoint: "secret.example.test:6767",
@@ -88,6 +94,9 @@ describe("app diagnostics report", () => {
 
     expect(report).toContain("direct TCP");
     expect(report).toContain("relay");
+    expect(report).toContain("remote SSH");
+    expect(report).not.toContain("ssh-server-token");
+    expect(report).not.toContain("deploy@private-host");
     expect(report).toContain("local socket");
     expect(report).toContain("local pipe");
     expect(report).not.toContain("secret.example.test");
@@ -102,6 +111,7 @@ describe("app diagnostics report", () => {
     const redacted = redactAppDiagnosticReport(
       [
         "Desktop app log tail",
+        "unstructured ssh-server-token from deploy@private-host",
         "secret.example.test:6767",
         "relay.secret.test:443",
         "daemon-public-key-secret",
@@ -109,6 +119,7 @@ describe("app diagnostics report", () => {
         "\\\\.\\pipe\\paseo-secret",
         "password=tcp-password",
         "paseo://pairing-secret",
+        "ait://ait-pairing-secret",
       ].join("\n"),
       [host],
     );
@@ -119,6 +130,9 @@ describe("app diagnostics report", () => {
     expect(redacted).not.toContain("/tmp/paseo-secret.sock");
     expect(redacted).not.toContain("\\\\.\\pipe\\paseo-secret");
     expect(redacted).not.toContain("tcp-password");
+    expect(redacted).not.toContain("ssh-server-token");
+    expect(redacted).not.toContain("deploy@private-host");
     expect(redacted).not.toContain("pairing-secret");
+    expect(redacted).toContain("ait://[redacted]");
   });
 });

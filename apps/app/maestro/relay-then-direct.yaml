@@ -1,4 +1,4 @@
-appId: sh.paseo
+appId: dev.ait.mobile
 ---
 - launchApp:
     clearState: true

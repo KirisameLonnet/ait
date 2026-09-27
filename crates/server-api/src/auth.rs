@@ -1,4 +1,6 @@
-use axum::http::{HeaderMap, StatusCode, Uri};
+use std::net::{IpAddr, SocketAddr};
+
+use axum::http::{HeaderMap, StatusCode, Uri, uri::Authority};
 use secrecy::{ExposeSecret, SecretString};
 use subtle::ConstantTimeEq;
 
@@ -38,7 +40,7 @@ pub(super) fn validate_source(
     let host = single_header(headers, "host")?.ok_or(ApiError(StatusCode::BAD_REQUEST))?;
     if !authorities
         .iter()
-        .any(|allowed| allowed.eq_ignore_ascii_case(host))
+        .any(|allowed| authority_matches(allowed, host))
     {
         return Err(ApiError(StatusCode::FORBIDDEN));
     }
@@ -50,11 +52,9 @@ pub(super) fn validate_source(
             .parse()
             .map_err(|_| ApiError(StatusCode::FORBIDDEN))?;
         if origin.scheme_str() != Some("http")
-            || !origin.authority().is_some_and(|a| {
-                authorities
-                    .iter()
-                    .any(|v| v.eq_ignore_ascii_case(a.as_str()))
-            })
+            || !origin
+                .authority()
+                .is_some_and(|a| authorities.iter().any(|v| authority_matches(v, a.as_str())))
             || origin
                 .path_and_query()
                 .is_some_and(|v| !v.as_str().is_empty() && v.as_str() != "/")
@@ -63,6 +63,31 @@ pub(super) fn validate_source(
         }
     }
     Ok(())
+}
+
+fn authority_matches(allowed: &str, requested: &str) -> bool {
+    allowed.eq_ignore_ascii_case(requested)
+        || ip_authority(allowed).is_some_and(|address| ip_authority(requested) == Some(address))
+}
+
+fn ip_authority(value: &str) -> Option<SocketAddr> {
+    if value.contains('@') {
+        return None;
+    }
+    let authority: Authority = value.parse().ok()?;
+    let suffix = value.strip_prefix(authority.host())?;
+    let port = if suffix.is_empty() {
+        80
+    } else {
+        suffix.strip_prefix(':')?.parse().ok()?
+    };
+    let ip: IpAddr = authority
+        .host()
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .parse()
+        .ok()?;
+    Some(SocketAddr::new(ip.to_canonical(), port))
 }
 
 pub(super) fn authenticate(headers: &HeaderMap, expected: &SecretString) -> Result<(), ApiError> {

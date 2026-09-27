@@ -362,7 +362,7 @@ describe("login shell env retry behavior", () => {
   it("uses the configured shell env timeout", () => {
     const env = {
       ...createEnv(fakeHome),
-      PASEO_SHELL_ENV_TIMEOUT_MS: "1234",
+      AIT_SHELL_ENV_TIMEOUT_MS: "1234",
     };
     const logger = new RecordingLoginShellLogger();
     const clock = createTestClock();

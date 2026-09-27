@@ -346,3 +346,21 @@ it("preserves the managed connection id across storage and replaces its endpoint
   expect(next[0].connections).toEqual([{ ...connection, endpoint: "localhost:49124" }]);
   expect(next[0].preferredConnectionId).toBe(connection.id);
 });
+
+it("persists SSH server tokens separately from identity and updates rotated tokens", () => {
+  const connection = createRemoteSshHostConnection({
+    host: "box",
+    daemonPort: 7316,
+    password: "a".repeat(32),
+  });
+  expect(connection.id).toBe("ssh:box::");
+  const profile = normalizeStoredHostProfile({ serverId: "server", connections: [connection] })!;
+  expect(profile.connections[0]).toEqual(connection);
+  const rotated = { ...connection, password: "b".repeat(32) };
+  const updated = upsertHostConnectionInProfiles({
+    profiles: [profile],
+    serverId: "server",
+    connection: rotated,
+  });
+  expect(updated[0].connections).toEqual([rotated]);
+});

@@ -28,7 +28,7 @@ export async function upsertDesktopDaemonConnection(
     return { ok: true };
   }
 
-  const listenAddress = daemon.listen?.trim() ?? "";
+  const listenAddress = (daemon.connectAddress ?? daemon.listen)?.trim() ?? "";
   if (!listenAddress) {
     return { ok: false, error: "Desktop daemon did not return a listen address." };
   }

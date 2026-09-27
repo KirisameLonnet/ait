@@ -37,7 +37,7 @@ async fn skills_are_installed_confirmed_and_persisted_through_websocket() {
     assert_eq!(installed["result"]["state"], "up-to-date", "{installed}");
     for target in [".agents", ".claude", ".codex"] {
         assert_eq!(
-            std::fs::read_to_string(root.path().join(target).join("skills/example/SKILL.md"))
+            std::fs::read_to_string(root.path().join(target).join("skills/ait-example/SKILL.md"))
                 .unwrap(),
             "example skill"
         );

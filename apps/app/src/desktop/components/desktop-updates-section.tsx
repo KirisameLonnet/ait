@@ -23,6 +23,8 @@ import { useDesktopSettings, type DesktopSettings } from "@/desktop/settings/des
 import { resolveAppVersion } from "@/utils/app-version";
 import { CODE_SURFACE_DATASET } from "@/styles/code-surface";
 
+import { DaemonListenRows } from "./daemon-listen-rows";
+
 type DesktopDaemonSettings = DesktopSettings["daemon"];
 
 function useDaemonCliStatusModal() {
@@ -181,6 +183,8 @@ function DaemonCliStatusModal({
 interface DaemonInfoCardProps {
   daemonStatusStateText: string;
   daemonStatusDetailText: string;
+  daemonListen: string | null;
+  children: ReactElement;
   isDaemonManagementPaused: boolean;
   copyIcon: ReactElement;
   fileTextIcon: ReactElement;
@@ -199,6 +203,8 @@ function DaemonInfoCard(props: DaemonInfoCardProps) {
   const {
     daemonStatusStateText,
     daemonStatusDetailText,
+    daemonListen,
+    children,
     isDaemonManagementPaused,
     copyIcon,
     fileTextIcon,
@@ -214,16 +220,22 @@ function DaemonInfoCard(props: DaemonInfoCardProps) {
 
   return (
     <View style={settingsStyles.card}>
-      <View style={settingsStyles.row}>
+      <View style={settingsStyles.row} testID="daemon-status-row">
         <View style={settingsStyles.rowContent}>
           <Text style={settingsStyles.rowTitle}>{t("desktop.daemon.status.title")}</Text>
           <Text style={settingsStyles.rowHint}>{t("desktop.daemon.status.builtInOnly")}</Text>
         </View>
         <View style={styles.statusValueGroup}>
           <Text style={styles.valueText}>{daemonStatusStateText}</Text>
+          {daemonListen ? (
+            <Text style={styles.valueSubtext} testID="daemon-status-listen">
+              {daemonListen}
+            </Text>
+          ) : null}
           <Text style={styles.valueSubtext}>{daemonStatusDetailText}</Text>
         </View>
       </View>
+      {children}
       <View style={[settingsStyles.row, settingsStyles.rowBorder]}>
         <View style={settingsStyles.rowContent}>
           <Text style={settingsStyles.rowTitle}>{t("desktop.daemon.management.title")}</Text>
@@ -284,11 +296,20 @@ export function LocalDaemonSection() {
   const { theme } = useUnistyles();
   const showSection = shouldUseDesktopDaemon();
   const appVersion = resolveAppVersion();
-  const { settings, updateSettings, isLoading: isLoadingSettings } = useDesktopSettings();
+  const {
+    settings,
+    updateSettings,
+    isLoading: isLoadingSettings,
+    error: settingsError,
+  } = useDesktopSettings();
   const daemonSettings = settings.daemon;
   const updateDaemonSettings = useCallback(
     (updates: Partial<DesktopDaemonSettings>) => updateSettings({ daemon: updates }),
     [updateSettings],
+  );
+  const updateListen = useCallback(
+    (listen: string) => updateDaemonSettings({ listen }),
+    [updateDaemonSettings],
   );
   const { data, isLoading, error: statusError, setStatus, refetch } = useDaemonStatus();
 
@@ -400,6 +421,7 @@ export function LocalDaemonSection() {
           <DaemonInfoCard
             daemonStatusStateText={daemonStatusStateText}
             daemonStatusDetailText={daemonStatusDetailText}
+            daemonListen={daemonStatus?.listen ?? null}
             isDaemonManagementPaused={isDaemonManagementPaused}
             copyIcon={copyIcon}
             fileTextIcon={fileTextIcon}
@@ -411,7 +433,14 @@ export function LocalDaemonSection() {
             handleOpenLogs={handleOpenLogs}
             handleRunCliStatus={handleRunCliStatus}
             isLoadingCliStatus={isLoadingCliStatus}
-          />
+          >
+            <DaemonListenRows
+              listen={daemonSettings.listen}
+              override={daemonStatus?.listenOverride ?? null}
+              onChangeListen={updateListen}
+              disabled={Boolean(settingsError)}
+            />
+          </DaemonInfoCard>
 
           {daemonStatus?.pid ? (
             <View style={settingsStyles.card}>

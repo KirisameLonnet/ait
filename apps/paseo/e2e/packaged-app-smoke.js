@@ -134,8 +134,8 @@ function createIsolatedDesktopEnv({ home, listen, userData, cdpPort }) {
     ...createDefaultDaemonEnv({ HOME: home, USERPROFILE: home }),
     PASEO_HOME: home,
     PASEO_LISTEN: listen,
-    PASEO_ELECTRON_USER_DATA_DIR: userData,
-    PASEO_ELECTRON_FLAGS: `--remote-debugging-address=127.0.0.1 --remote-debugging-port=${cdpPort}`,
+    AIT_ELECTRON_USER_DATA_DIR: userData,
+    AIT_ELECTRON_FLAGS: `--remote-debugging-address=127.0.0.1 --remote-debugging-port=${cdpPort}`,
   };
 }
 
@@ -278,7 +278,7 @@ function formatLogs({ stdout, stderr, userData, daemonHome }) {
 }
 
 async function writeSmokeArtifacts({ page, stdout, stderr, userData, daemonHome, error }) {
-  const artifactDir = process.env.PASEO_DESKTOP_SMOKE_ARTIFACT_DIR?.trim();
+  const artifactDir = process.env.AIT_DESKTOP_SMOKE_ARTIFACT_DIR?.trim();
   if (!artifactDir) {
     return;
   }
@@ -437,13 +437,13 @@ async function waitForPackagedAppPage(browser, deadline) {
     const page = browser
       .contexts()
       .flatMap((context) => context.pages())
-      .find((candidate) => candidate.url().startsWith("paseo://app/"));
+      .find((candidate) => candidate.url().startsWith("ait://app/"));
     if (page) {
       return page;
     }
     await delay(250);
   }
-  throw new Error("Timed out waiting for the packaged paseo://app/ renderer");
+  throw new Error("Timed out waiting for the packaged ait://app/ renderer");
 }
 
 async function assertPackagedRendererLoaded(page, deadline) {

@@ -1,11 +1,14 @@
 npmRebuild: false
 appId: dev.ait.desktop
 productName: Ait
+copyright: "Copyright © 2026 Necokeine"
 executableName: Ait
+extraMetadata:
+  name: "@ait/desktop"
 protocols:
   - name: Ait agent link
     schemes:
-      - paseo
+      - ait
 afterPack: ./scripts/after-pack.js
 afterSign: ./scripts/after-sign.js
 directories:

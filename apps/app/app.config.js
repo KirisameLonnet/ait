@@ -69,7 +69,7 @@ function resolveSecretFile(params) {
 const variants = {
   production: {
     name: "Ait",
-    packageId: "sh.paseo",
+    packageId: "dev.ait.mobile",
     googleServicesFile: resolveSecretFile({
       envKey: "GOOGLE_SERVICES_FILE_PROD",
       fallbackRelativePath: "./.secrets/google-services.prod.json",
@@ -81,7 +81,7 @@ const variants = {
   },
   development: {
     name: "Ait Debug",
-    packageId: "sh.paseo.debug",
+    packageId: "dev.ait.mobile.debug",
     googleServicesFile: resolveSecretFile({
       envKey: "GOOGLE_SERVICES_FILE_DEBUG",
       fallbackRelativePath: "./.secrets/google-services.debug.json",
@@ -103,7 +103,7 @@ export default {
     version: nativeReleaseVersion.appVersion,
     orientation: "portrait",
     icon: "./assets/images/icon.png",
-    scheme: "paseo",
+    scheme: "ait",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     ios: {

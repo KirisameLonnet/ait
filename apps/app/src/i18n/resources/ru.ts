@@ -1323,6 +1323,7 @@ export const ru: TranslationResources = {
       detail: "Остановка локального демона.",
     },
     daemon: {
+      listen: en.desktop.daemon.listen,
       lifecycle: en.desktop.daemon.lifecycle,
       title: "Демон",
       status: {
@@ -1718,6 +1719,7 @@ export const ru: TranslationResources = {
         connecting: "Подключение...",
       },
       errors: {
+        tokenRequired: "Введите токен удалённого сервера Ait (32–256 символов).",
         targetRequired: "Укажите хост SSH",
         invalidTarget: "Укажите корректный хост ssh://",
         failedToConnect: "Не удалось подключиться по SSH. {{detail}}",

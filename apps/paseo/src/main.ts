@@ -5,11 +5,11 @@ log.transports.console.level = "info";
 log.initialize({ spyRendererConsole: true });
 
 import { inheritLoginShellEnv } from "./login-shell-env.js";
-import { setDesktopDisplayName } from "./branding.js";
+import { configureDesktopProfile, desktopProfileOptions } from "./branding.js";
 
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import {
   app,
@@ -99,19 +99,20 @@ import { BrowserKeyboard } from "./features/browser-keyboard/index.js";
 import { installAppUpdateOnQuit } from "./features/auto-updater.js";
 import {
   buildAgentDeepLinkRoute,
+  APP_SCHEME,
   parseAgentDeepLink,
   type AgentDeepLinkTarget,
 } from "@getpaseo/protocol/agent-deep-link";
 import { AgentNavigationInbox, parseAgentDeepLinkFromArgv } from "./agent-navigation.js";
 
 const DEV_SERVER_URL = process.env.EXPO_DEV_URL ?? "http://localhost:8081";
-const APP_SCHEME = "paseo";
-const PASEO_DEBUG = process.env.PASEO_DEBUG === "1";
-const DISABLE_SINGLE_INSTANCE_LOCK = process.env.PASEO_DISABLE_SINGLE_INSTANCE_LOCK === "1";
-const APP_NAME = process.env.PASEO_TEST_APP_NAME?.trim() || "Ait";
+const AIT_DEBUG = process.env.AIT_DEBUG === "1";
+const DISABLE_SINGLE_INSTANCE_LOCK = process.env.AIT_DISABLE_SINGLE_INSTANCE_LOCK === "1";
+const profileOptions = desktopProfileOptions();
+const APP_NAME = profileOptions.name;
 const DESKTOP_WINDOW_CHROME_MODE = resolveDesktopWindowChromeMode({
   platform: process.platform,
-  override: process.env.PASEO_DESKTOP_WINDOW_CONTROLS,
+  override: process.env.AIT_DESKTOP_WINDOW_CONTROLS,
   isPackaged: app.isPackaged,
 });
 const UPDATE_QUIT_DEADLINE_MS = 5_000;
@@ -127,11 +128,47 @@ const bootstrapComplete = new Promise<void>((resolve) => {
 });
 let bootstrapIsComplete = false;
 
-// Keep the existing profile namespace, including isolated test profiles.
-const legacyProfileName = process.env.PASEO_TEST_APP_NAME?.trim() || "Paseo";
-const legacyProfilePath = path.join(app.getPath("appData"), legacyProfileName);
-mkdirSync(legacyProfilePath, { recursive: true });
-app.setPath("userData", legacyProfilePath);
+// In dev mode, detect git worktrees and isolate each instance so multiple
+// Electron windows can run side-by-side (separate userData = separate lock).
+let devWorktreeName: string | null = null;
+const forcedUserDataDir = profileOptions.userDataPath;
+if (forcedUserDataDir) {
+  log.info("[dev-user-data] forced userData dir:", forcedUserDataDir);
+} else if (!app.isPackaged) {
+  try {
+    const topLevel = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+      encoding: "utf-8",
+      timeout: 3000,
+      windowsHide: true,
+    }).trim();
+    devWorktreeName = path.basename(topLevel);
+    // Worktrees use their own Ait profile; the main checkout uses the default.
+    const commonDir = path.resolve(
+      topLevel,
+      execFileSync("git", ["rev-parse", "--git-common-dir"], {
+        cwd: topLevel,
+        encoding: "utf-8",
+        timeout: 3000,
+        windowsHide: true,
+      }).trim(),
+    );
+    const isWorktree = path.resolve(topLevel, ".git") !== commonDir;
+    if (isWorktree) {
+      log.info("[worktree] isolated userData for worktree:", devWorktreeName);
+    } else {
+      devWorktreeName = null;
+    }
+  } catch {
+    devWorktreeName = null;
+  }
+}
+
+configureDesktopProfile(app, {
+  name: APP_NAME,
+  userDataPath: forcedUserDataDir,
+  worktreeName: devWorktreeName,
+});
+
 log.info("[desktop] app startup", {
   version: app.getVersion(),
   platform: process.platform,
@@ -294,50 +331,10 @@ function installBrowserWindowOpenHandler(input: {
   });
 }
 
-// In dev mode, detect git worktrees and isolate each instance so multiple
-// Electron windows can run side-by-side (separate userData = separate lock).
-let devWorktreeName: string | null = null;
-const forcedUserDataDir = process.env.PASEO_ELECTRON_USER_DATA_DIR?.trim();
-if (forcedUserDataDir) {
-  app.setPath("userData", forcedUserDataDir);
-  log.info("[dev-user-data] forced userData dir:", forcedUserDataDir);
-} else if (!app.isPackaged) {
-  try {
-    const topLevel = execFileSync("git", ["rev-parse", "--show-toplevel"], {
-      encoding: "utf-8",
-      timeout: 3000,
-      windowsHide: true,
-    }).trim();
-    devWorktreeName = path.basename(topLevel);
-    // Main checkout (e.g. "paseo") gets default userData — only worktrees diverge.
-    const commonDir = path.resolve(
-      topLevel,
-      execFileSync("git", ["rev-parse", "--git-common-dir"], {
-        cwd: topLevel,
-        encoding: "utf-8",
-        timeout: 3000,
-        windowsHide: true,
-      }).trim(),
-    );
-    const isWorktree = path.resolve(topLevel, ".git") !== commonDir;
-    if (isWorktree) {
-      app.setPath("userData", path.join(app.getPath("appData"), `Paseo-${devWorktreeName}`));
-      log.info("[worktree] isolated userData for worktree:", devWorktreeName);
-    } else {
-      devWorktreeName = null;
-    }
-  } catch {
-    devWorktreeName = null;
-  }
-}
-
-app.setPath("sessionData", app.getPath("userData"));
-setDesktopDisplayName(app, APP_NAME);
-
-// Allow users to pass Chromium flags via PASEO_ELECTRON_FLAGS for debugging
+// Allow users to pass Chromium flags via AIT_ELECTRON_FLAGS for debugging
 // rendering issues (e.g. "--disable-gpu --ozone-platform=x11").
 // Must run before app.whenReady().
-const electronFlags = process.env.PASEO_ELECTRON_FLAGS?.trim();
+const electronFlags = process.env.AIT_ELECTRON_FLAGS?.trim();
 if (electronFlags) {
   for (const token of electronFlags.split(/\s+/)) {
     const [key, ...rest] = token.replace(/^--/, "").split("=");
@@ -352,7 +349,7 @@ if (process.platform === "linux") {
   if (!app.commandLine.hasSwitch("class")) app.commandLine.appendSwitch("class", "Ait");
   log.info("[linux-sandbox]", {
     enabled: !app.commandLine.hasSwitch("no-sandbox"),
-    reason: process.env.PASEO_DESKTOP_SANDBOX_REASON ?? "Chromium default",
+    reason: process.env.AIT_DESKTOP_SANDBOX_REASON ?? "Chromium default",
   });
 }
 
@@ -368,7 +365,7 @@ let pendingAgentNavigation = parseAgentDeepLinkFromArgv(process.argv);
 // racing a global.
 let desktopWindowOwner: DesktopWindowOwner<AgentDeepLinkTarget>;
 
-if (PASEO_DEBUG) {
+if (AIT_DEBUG) {
   log.info("[open-project] argv:", process.argv);
   log.info("[open-project] isDefaultApp:", process.defaultApp);
   log.info("[open-project] pendingOpenProjectPath:", pendingOpenProjectPath);
@@ -616,7 +613,7 @@ function getDevBuildLabel(): string | null {
   if (app.isPackaged) {
     return null;
   }
-  return process.env.EXPO_PUBLIC_PASEO_DEV_BUILD_LABEL?.trim() || null;
+  return process.env.EXPO_PUBLIC_AIT_DEV_BUILD_LABEL?.trim() || null;
 }
 
 let cachedEffectiveIconPath: string | null = null;
@@ -866,7 +863,7 @@ app.on("open-url", (event, url) => {
 
 function setupSingleInstanceLock(): boolean {
   if (DISABLE_SINGLE_INSTANCE_LOCK) {
-    log.info("[single-instance] disabled by PASEO_DISABLE_SINGLE_INSTANCE_LOCK");
+    log.info("[single-instance] disabled by AIT_DISABLE_SINGLE_INSTANCE_LOCK");
     return true;
   }
 

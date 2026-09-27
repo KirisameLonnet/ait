@@ -1,5 +1,11 @@
 # 概念与架构文档
 
+- [ADR-056：Ait 与 Paseo 共享资源隔离](decisions/adr-056-paseo-coexistence.md)：技能所有权、自动 stash、启动环境变量、Rust SSH 和移动端应用 ID；[验证报告](reports/paseo-coexistence.md)。
+
+- [ADR-055：Ait 与 Paseo 桌面隔离](decisions/adr-055-desktop-profile-isolation.md)：独立用户目录、浏览器会话、`ait://` 链接和更新缓存；旧共享目录保留，见[验证报告](reports/desktop-profile-isolation.md)。
+
+- [ADR-054：桌面服务监听配置与网络地址](decisions/adr-054-desktop-server-listen.md)：Host 概览保存监听 IP/端口、启动读取配置、通配连接地址与请求来源校验；[验证报告](reports/desktop-server-listen.md)。
+
 - [ADR-053：Ait 0.0.7 桌面发布](decisions/adr-053-paseo-desktop-release.md)：正式发布切换到 `apps/paseo`，仅 Linux x86_64/macOS arm64，内置二进制只有 `server`；[操作指南](operations/releasing.md)、[验证报告](reports/release-0.0.7.md)。
 
 - [Ait 设置页修复](reports/ait-settings-repair.md)：移除插件配置，修复项目目录与 Provider 快照适配、Agent profiles 能力识别和设置加载错误；包含真实 Rust 服务的桌面回归。

@@ -29,6 +29,28 @@ describe("desktop-settings", () => {
     directories.clear();
   });
 
+  it("persists listener changes across launches and preserves them during other settings writes", async () => {
+    const userDataPath = await createTempUserDataDir();
+    directories.add(userDataPath);
+    const store = createDesktopSettingsStore({ userDataPath });
+    await expect(store.patch({ daemon: { listen: "invalid" } })).rejects.toThrow();
+    expect(await readdir(userDataPath)).toEqual([]);
+    await Promise.all([
+      store.patch({ daemon: { listen: "0.0.0.0:7317" } }),
+      store.patch({ notifications: { playSound: false } }),
+    ]);
+    const restarted = await createDesktopSettingsStore({
+      userDataPath,
+    }).get();
+    expect(restarted.daemon.listen).toBe("0.0.0.0:7317");
+    expect(restarted.notifications.playSound).toBe(false);
+    const contents = await readFile(settingsFilePath(userDataPath), "utf8");
+    await expect(store.patch({ daemon: { listen: "127.0.0.1:65536" } })).rejects.toThrow();
+    expect(await readFile(settingsFilePath(userDataPath), "utf8")).toBe(contents);
+    await store.patch({ daemon: { listen: "[::]:0" } });
+    expect((await createDesktopSettingsStore({ userDataPath }).get()).daemon.listen).toBe("[::]:0");
+  });
+
   it("persists default settings for new users", async () => {
     const userDataPath = await createTempUserDataDir();
     directories.add(userDataPath);
@@ -85,6 +107,7 @@ describe("desktop-settings", () => {
       daemon: {
         manageBuiltInDaemon: true,
         keepRunningAfterQuit: false,
+        listen: "127.0.0.1:0",
       },
     });
   });
@@ -107,6 +130,7 @@ describe("desktop-settings", () => {
       daemon: {
         manageBuiltInDaemon: true,
         keepRunningAfterQuit: false,
+        listen: "127.0.0.1:0",
       },
     });
     expect(files).toEqual(["desktop-settings.json"]);
@@ -274,6 +298,7 @@ describe("desktop-settings", () => {
       daemon: {
         manageBuiltInDaemon: false,
         keepRunningAfterQuit: false,
+        listen: "127.0.0.1:0",
       },
     });
     expect(ignoredSecondMigration).toEqual(migrated);
@@ -304,7 +329,11 @@ describe("desktop-settings", () => {
     const next = await store.patch({ notifications: { playSound: false } });
     const persisted = JSON.parse(await readFile(settingsFilePath(userDataPath), "utf8")) as {
       futureDocumentKey: string;
-      settings: { releaseChannel: string; tray: unknown; daemon: Record<string, unknown> };
+      settings: {
+        releaseChannel: string;
+        tray: unknown;
+        daemon: Record<string, unknown>;
+      };
       migrations: Record<string, boolean>;
     };
 
@@ -316,7 +345,11 @@ describe("desktop-settings", () => {
     expect(next).toEqual({
       releaseChannel: "beta",
       notifications: { playSound: false },
-      daemon: { manageBuiltInDaemon: true, keepRunningAfterQuit: false },
+      daemon: {
+        manageBuiltInDaemon: true,
+        keepRunningAfterQuit: false,
+        listen: "127.0.0.1:0",
+      },
     });
   });
 

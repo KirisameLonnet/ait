@@ -33,7 +33,7 @@ describe("desktop dev runtime isolation", () => {
 
   test("lets Chromium atomically allocate the default CDP port", async () => {
     const runtime = await resolveDevRuntime({
-      PASEO_DEV_RUNTIME_FALLBACK_ROOT: "/checkouts/paseo",
+      AIT_DEV_RUNTIME_FALLBACK_ROOT: "/checkouts/paseo",
     });
 
     expect(runtime.electronFlags).toBe("--remote-debugging-port=0");
@@ -41,10 +41,25 @@ describe("desktop dev runtime isolation", () => {
 
   test("honors an explicit CDP port without silently changing it", async () => {
     const runtime = await resolveDevRuntime({
-      PASEO_DEV_RUNTIME_FALLBACK_ROOT: "/checkouts/paseo",
-      PASEO_ELECTRON_REMOTE_DEBUGGING_PORT: "9333",
+      AIT_DEV_RUNTIME_FALLBACK_ROOT: "/checkouts/paseo",
+      AIT_ELECTRON_REMOTE_DEBUGGING_PORT: "9333",
     });
 
     expect(runtime.electronFlags).toBe("--remote-debugging-port=9333");
+  });
+});
+
+test("ignores inherited Paseo configuration", () => {
+  expect(
+    resolveDevRuntime({
+      AIT_DEV_RUNTIME_FALLBACK_ROOT: "/ait",
+      PASEO_DEV_ROOT: "/paseo",
+      PASEO_ELECTRON_USER_DATA_DIR: "/foreign",
+      PASEO_ELECTRON_FLAGS: "--no-sandbox",
+      PASEO_ELECTRON_REMOTE_DEBUGGING_PORT: "9333",
+    }),
+  ).toEqual({
+    electronFlags: "--remote-debugging-port=0",
+    userDataDir: path.join("/ait", ".dev", "user-data"),
   });
 });

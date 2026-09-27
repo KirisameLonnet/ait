@@ -1,3 +1,5 @@
+export const APP_SCHEME = "ait";
+
 export interface AgentDeepLinkTarget {
   serverId: string;
   agentId: string;
@@ -24,7 +26,7 @@ export function buildAgentDeepLinkRoute(
 }
 
 export function buildAgentDeepLink(target: AgentDeepLinkTarget): string {
-  return `paseo:/${buildAgentDeepLinkRoute(target)}`;
+  return `${APP_SCHEME}:/${buildAgentDeepLinkRoute(target)}`;
 }
 
 export function parseAgentDeepLink(input: string): AgentDeepLinkTarget | null {
@@ -36,7 +38,7 @@ export function parseAgentDeepLink(input: string): AgentDeepLinkTarget | null {
   }
 
   if (
-    url.protocol !== "paseo:" ||
+    url.protocol !== `${APP_SCHEME}:` ||
     url.hostname !== "h" ||
     url.username ||
     url.password ||

@@ -41,7 +41,7 @@ jobs:
       CARGO_TERM_COLOR: always
       CI: "1"
       EXPO_NO_TELEMETRY: "1"
-      PASEO_DESKTOP_SMOKE: "1"
+      AIT_DESKTOP_SMOKE: "1"
     steps:
       - name: Check out release source
         uses: actions/checkout@v4

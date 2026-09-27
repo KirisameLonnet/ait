@@ -79,7 +79,7 @@ import { projectIconCache } from "@/projects/icon-cache";
 import { nativePerformanceTrace } from "@/performance/native-trace";
 import { revokePushNotifications } from "@/push-notifications";
 import { createAppWebSocketFactory } from "./websocket-factory";
-import { buildRustClientConfig } from "./rust-server/connection";
+import { buildRustClientConfig, buildRustSshClientConfig } from "./rust-server/connection";
 
 export type HostRuntimeConnectionStatus = "idle" | "connecting" | "online" | "offline" | "error";
 export type HostRegistryStatus = "loading" | "ready";
@@ -529,18 +529,9 @@ function createDefaultDeps(): HostRuntimeControllerDeps {
         });
       }
       if (connection.type === "remoteSsh") {
-        if (!desktopTransportFactory) {
-          throw new Error("Remote SSH is only available in the desktop app.");
-        }
         return new DaemonClient({
           ...base,
-          transportFactory: desktopTransportFactory,
-          url: buildDesktopDaemonTransportUrl({
-            transportType: "ssh",
-            host: connection.host,
-            ...(connection.sshPort !== undefined ? { sshPort: connection.sshPort } : {}),
-            ...(connection.daemonPort !== undefined ? { daemonPort: connection.daemonPort } : {}),
-          }),
+          ...buildRustSshClientConfig(connection, desktopTransportFactory),
         });
       }
       if (connection.type === "directTcp") {
@@ -1785,6 +1776,7 @@ export class HostRuntimeStore {
     sshPort?: number;
     daemonPort?: number;
     label?: string;
+    password?: string;
   }): Promise<{ profile: HostProfile; serverId: string; hostname: string | null }> {
     return this.probeAndUpsertConnection({
       label: input.label,
@@ -2601,6 +2593,7 @@ export interface HostMutations {
     sshPort?: number;
     daemonPort?: number;
     label?: string;
+    password?: string;
   }) => Promise<{ profile: HostProfile; serverId: string; hostname: string | null }>;
   upsertRelayConnection: (input: {
     serverId: string;

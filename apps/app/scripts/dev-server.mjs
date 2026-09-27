@@ -16,7 +16,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 }
 const env = { ...process.env };
 delete env.AIT_SERVER_TOKEN;
-delete env.PASEO_WEB_PLATFORM;
+delete env.AIT_WEB_PLATFORM;
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
 for (const [command, args] of [
   [npm, ["run", "build:app-deps"]],

@@ -28,12 +28,18 @@ interface Pending {
 export function createRustServerTransportFactory(baseFactory: TransportFactory): TransportFactory {
   return ({ url, headers }) => {
     const parsed = new URL(url);
+    // SSH uses the desktop IPC URL; the main process validates its target and
+    // opens only the Rust /v1/ws endpoint inside the authenticated tunnel.
+    const ssh =
+      parsed.protocol === "ait+desktop:" &&
+      parsed.hostname === "ssh" &&
+      (parsed.pathname === "" || parsed.pathname === "/");
     if (
-      !/^(ws|wss):$/.test(parsed.protocol) ||
-      parsed.pathname !== "/v1/ws" ||
+      (!ssh && !/^(ws|wss):$/.test(parsed.protocol)) ||
+      (!ssh && parsed.pathname !== "/v1/ws") ||
       parsed.username ||
       parsed.password ||
-      parsed.search ||
+      (!ssh && parsed.search) ||
       parsed.hash
     ) {
       throw new Error("Invalid Rust server WebSocket endpoint");
