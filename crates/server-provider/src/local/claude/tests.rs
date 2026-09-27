@@ -17,15 +17,11 @@ fn spec(cwd: &std::path::Path) -> AgentSessionSpec {
 
 #[cfg(unix)]
 fn fixture() -> (tempfile::TempDir, ClaudeClient, AgentSessionSpec) {
-    use std::os::unix::fs::PermissionsExt;
     let root = tempfile::tempdir().unwrap();
-    let program = root.path().join("claude");
-    std::fs::write(
-        &program,
-        include_str!("../../../tests/fixtures/claude_code.py"),
-    )
-    .unwrap();
-    std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o700)).unwrap();
+    // Execute an immutable fixture instead of writing an executable while other tests spawn.
+    // All mutable native state remains scoped to this test's cwd and configuration directory.
+    let program =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/claude_code.py");
     let mut client = ClaudeClient::new(program);
     client.config_dir = Some(root.path().join("config"));
     client.deadline = Duration::from_secs(2);

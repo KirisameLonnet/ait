@@ -1,5 +1,9 @@
 # 概念与架构文档
 
+- [main CI 进程与文件订阅修复](reports/main-ci-process-subscriptions.md)：同步轮询许可竞争回归、Claude 固定测试替身，以及 rebase 后的完整验证。
+
+- [Server 会话空标题修复](reports/server-session-titles.md)：新会话首条消息命名、原生导入/刷新标题回退、旧记录补齐，以及自动 AI metadata 尚未接入的限制。
+
 - [ADR-056：Ait 与 Paseo 共享资源隔离](decisions/adr-056-paseo-coexistence.md)：技能所有权、自动 stash、启动环境变量、Rust SSH 和移动端应用 ID；[验证报告](reports/paseo-coexistence.md)。
 
 - [ADR-055：Ait 与 Paseo 桌面隔离](decisions/adr-055-desktop-profile-isolation.md)：独立用户目录、浏览器会话、`ait://` 链接和更新缓存；旧共享目录保留，见[验证报告](reports/desktop-profile-isolation.md)。

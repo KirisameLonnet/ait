@@ -140,6 +140,30 @@ impl Timeline {
         Ok((epoch, progress::read(&database, agent)?))
     }
 
+    /// Read the first nonempty user text for `agent` from the current durable generation.
+    /// Returns `None` for absent text and an I/O error for unreadable storage.
+    pub(crate) fn first_user_text(&self, agent: &str) -> Result<Option<String>, ErrorCode> {
+        let database = self.database.lock().map_err(io)?;
+        let mut statement = database
+            .prepare(
+                "SELECT json_extract(entry, '$.item.text') FROM entries
+                 WHERE agent = ?1 AND json_extract(entry, '$.item.type') = 'user_message'
+                 AND json_type(entry, '$.item.text') = 'text' ORDER BY seq",
+            )
+            .map_err(io)?;
+        let mut rows = statement.query([agent]).map_err(io)?;
+        while let Some(row) = rows.next().map_err(io)? {
+            let text: String = row.get(0).map_err(io)?;
+            if text
+                .chars()
+                .any(|character| !character.is_whitespace() && !character.is_control())
+            {
+                return Ok(Some(text));
+            }
+        }
+        Ok(None)
+    }
+
     /// Atomically reconcile a complete native history, retaining plugin rows and retired generations.
     /// An unchanged native prefix keeps its cursor; rewrites retire the old generation and publish
     /// a replacement event only after the transaction commits. No domain Message is changed.

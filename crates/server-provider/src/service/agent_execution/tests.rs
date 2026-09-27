@@ -522,6 +522,7 @@ mod delivery;
 mod fork_context;
 mod streaming;
 mod subscriptions;
+mod titles;
 mod voice;
 
 mod rich_input;

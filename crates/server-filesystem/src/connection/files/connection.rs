@@ -7,6 +7,7 @@ use crate::service::files::Files;
 use crate::service::uploads::{UploadStep, Uploads};
 use serde_json::{Value, json};
 use server_model::{ErrorCode, ServerMessage, valid_id};
+use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
@@ -275,8 +276,9 @@ fn start_polling(observation: Observation, state: &Shared, outbound: &Outbound) 
                 () = outbound.failure().cancelled_owned() => break,
                 _ = interval.tick() => {},
             }
-            let Ok(permit) = jobs.clone().try_acquire_owned() else {
-                continue;
+            let Some(permit) = poll_permit(jobs.clone(), &cancel, &server_cancel, &outbound).await
+            else {
+                break;
             };
             let service = service.clone();
             let cwd_read = cwd.clone();
@@ -319,3 +321,22 @@ fn start_polling(observation: Observation, state: &Shared, outbound: &Outbound) 
     });
     subscription
 }
+
+async fn poll_permit(
+    jobs: Arc<Semaphore>,
+    cancel: &CancellationToken,
+    server_cancel: &CancellationToken,
+    outbound: &Outbound,
+) -> Option<OwnedSemaphorePermit> {
+    // Queue behind the current read: aligned polling intervals must not starve one observer.
+    tokio::select! {
+        biased;
+        () = cancel.cancelled() => None,
+        () = server_cancel.cancelled() => None,
+        () = outbound.failure().cancelled_owned() => None,
+        permit = jobs.acquire_owned() => permit.ok(),
+    }
+}
+
+#[cfg(test)]
+mod tests;

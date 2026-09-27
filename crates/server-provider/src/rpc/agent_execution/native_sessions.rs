@@ -180,7 +180,7 @@ fn new_record(
         updated_at: history.descriptor.last_activity_at.clone(),
         last_activity_at: None,
         last_user_message_at: None,
-        title: history.descriptor.title.clone(),
+        title: None,
         labels: BTreeMap::new(),
         last_status: AgentRuntimeStatus::Idle,
         last_mode_id: Some("read-only".to_owned()),
