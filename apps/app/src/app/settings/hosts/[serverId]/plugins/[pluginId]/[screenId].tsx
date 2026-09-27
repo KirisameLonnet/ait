@@ -1,22 +1,6 @@
-import { useMemo } from "react";
+import { Redirect } from "expo-router";
 
-import { useLocalSearchParams } from "expo-router";
-import { HostRouteBootstrapBoundary } from "@/components/host-route-bootstrap-boundary";
-import SettingsScreen from "@/screens/settings-screen";
-
-export default function PluginSettingsRoute() {
-  const { serverId, pluginId, screenId } = useLocalSearchParams<{
-    serverId: string;
-    pluginId: string;
-    screenId: string;
-  }>();
-  const view = useMemo(
-    () => ({ kind: "plugin" as const, serverId, pluginId, screenId }),
-    [serverId, pluginId, screenId],
-  );
-  return (
-    <HostRouteBootstrapBoundary>
-      <SettingsScreen view={view} />
-    </HostRouteBootstrapBoundary>
-  );
+// Old bookmarks must not revive plugin configuration: Ait has no plugin runtime.
+export default function RemovedPluginSettingsRoute() {
+  return <Redirect href="/settings/general" />;
 }

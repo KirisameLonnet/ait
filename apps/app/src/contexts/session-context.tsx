@@ -517,17 +517,21 @@ function SessionProviderInternal({ children, serverId, client }: SessionProvider
 
   // Daemon message handlers - directly update Zustand store
   useEffect(() => {
+    const availableEvents = client.getLastServerInfoMessage()?.sessionEventTypes;
+    const requestedEvents: Parameters<typeof client.observeEvents>[0] = [
+      "agent_attention_required",
+      "terminal_attention_required",
+      "agent_permission_request",
+      "agent_permission_resolved",
+      "agent.provider_subagents.update",
+      "checkout_status_update",
+      "workspace_setup_progress",
+      "status.server_info",
+    ];
     const feeds = client.observeEvents(
-      [
-        "agent_attention_required",
-        "terminal_attention_required",
-        "agent_permission_request",
-        "agent_permission_resolved",
-        "agent.provider_subagents.update",
-        "checkout_status_update",
-        "workspace_setup_progress",
-        "status.server_info",
-      ],
+      availableEvents
+        ? requestedEvents.filter((event) => availableEvents.includes(event))
+        : requestedEvents,
       { notifications: true },
     );
     const onFeed = (

@@ -1,3 +1,5 @@
+import type { TFunction } from "i18next";
+import { i18n } from "@/i18n/i18next";
 import type { ScheduleCadence, ScheduleSummary } from "@getpaseo/protocol/schedule/types";
 import { validateCronExpression } from "@getpaseo/protocol/schedule/cron-expression";
 
@@ -15,24 +17,26 @@ const UNIT_MS: Record<IntervalUnit, number> = {
 };
 
 const DAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
 ] as const;
 
 export function isNewAgentSchedule(schedule: ScheduleSummary): boolean {
   return schedule.target.type === "new-agent";
 }
 
-export function scheduleProductName(schedule: ScheduleSummary): "Heartbeat" | "Schedule" {
-  return schedule.target.type === "agent" ? "Heartbeat" : "Schedule";
+export function scheduleProductName(schedule: ScheduleSummary, t: TFunction = i18n.t): string {
+  return t(
+    schedule.target.type === "agent" ? "schedules.product.heartbeat" : "schedules.product.schedule",
+  );
 }
 
-export function resolveScheduleTitle(schedule: ScheduleSummary): string {
+export function resolveScheduleTitle(schedule: ScheduleSummary, t: TFunction = i18n.t): string {
   const name = schedule.name?.trim();
   if (name) {
     return name;
@@ -47,11 +51,10 @@ export function resolveScheduleTitle(schedule: ScheduleSummary): string {
     .split("\n")
     .map((line) => line.trim())
     .find((line) => line.length > 0);
-  return firstPromptLine || `Untitled ${scheduleProductName(schedule).toLowerCase()}`;
-}
-
-function pluralize(value: number, noun: string): string {
-  return value === 1 ? `1 ${noun}` : `${value} ${noun}s`;
+  return (
+    firstPromptLine ||
+    t("schedules.untitled", { product: scheduleProductName(schedule, t).toLowerCase() })
+  );
 }
 
 export function everyMsToParts(ms: number): { value: number; unit: IntervalUnit } {
@@ -72,22 +75,16 @@ export function partsToEveryMs(value: number, unit: IntervalUnit): number {
   return normalized * UNIT_MS[unit];
 }
 
-const UNIT_NOUN: Record<IntervalUnit, string> = {
-  minutes: "minute",
-  hours: "hour",
-  days: "day",
-};
-
-function formatEvery(everyMs: number): string {
+function formatEvery(everyMs: number, t: TFunction): string {
   const { value, unit } = everyMsToParts(everyMs);
-  return `Every ${pluralize(value, UNIT_NOUN[unit])}`;
+  return t(`schedules.cadence.${unit}`, { count: value });
 }
 
-export function formatCadence(cadence: ScheduleCadence): string {
+export function formatCadence(cadence: ScheduleCadence, t: TFunction = i18n.t): string {
   if (cadence.type === "every") {
-    return formatEvery(cadence.everyMs);
+    return formatEvery(cadence.everyMs, t);
   }
-  return describeCron(cadence) ?? cadence.expression;
+  return describeCron(cadence, t) ?? cadence.expression;
 }
 
 /**
@@ -95,7 +92,7 @@ export function formatCadence(cadence: ScheduleCadence): string {
  * expression is valid but not one of the recognized patterns (callers fall
  * back to showing the raw expression).
  */
-export function describeCron(cadence: CronCadence): string | null {
+export function describeCron(cadence: CronCadence, t: TFunction = i18n.t): string | null {
   const trimmed = cadence.expression.trim();
   if (validateCron(trimmed) !== null) {
     return null;
@@ -111,7 +108,7 @@ export function describeCron(cadence: CronCadence): string | null {
   const isWildcardDom = dayOfMonth === "*";
 
   if (minute === "*" && hour === "*" && isWildcardMonth && isWildcardDom && dayOfWeek === "*") {
-    return "Every minute";
+    return t("schedules.cadence.presets.every-minute");
   }
 
   if (!isLiteralMinute || !isWildcardMonth || !isWildcardDom) {
@@ -123,7 +120,9 @@ export function describeCron(cadence: CronCadence): string | null {
     if (dayOfWeek !== "*") {
       return null;
     }
-    return minuteNum === 0 ? "Every hour" : `Every hour at :${pad2(minuteNum)}`;
+    return minuteNum === 0
+      ? t("schedules.cadence.presets.every-hour")
+      : t("schedules.cadence.hourAt", { minute: pad2(minuteNum) });
   }
 
   if (!/^\d+$/.test(hour)) {
@@ -131,35 +130,50 @@ export function describeCron(cadence: CronCadence): string | null {
   }
   const time = `${pad2(Number.parseInt(hour, 10))}:${pad2(minuteNum)}`;
   const timezone = cadence.timezone ?? "UTC";
-  const dayLabel = describeCronDay(dayOfWeek);
-  return dayLabel ? `${dayLabel} at ${time} ${timezone}` : null;
+  const dayLabel = describeCronDay(dayOfWeek, t);
+  return dayLabel ? t("schedules.cadence.at", { day: dayLabel, time, timezone }) : null;
 }
 
-function describeCronDay(dayOfWeek: string): string | null {
+function describeCronDay(dayOfWeek: string, t: TFunction): string | null {
   if (dayOfWeek === "*") {
-    return "Daily";
+    return t("schedules.cadence.daily");
   }
   if (dayOfWeek === "1-5") {
-    return "Weekdays";
+    return t("schedules.cadence.weekdays");
   }
   if (dayOfWeek === "0,6" || dayOfWeek === "6,0") {
-    return "Weekends";
+    return t("schedules.cadence.weekends");
   }
   if (/^\d$/.test(dayOfWeek)) {
     const day = DAY_NAMES[Number.parseInt(dayOfWeek, 10)];
-    return day ? `${day}s` : null;
+    return day ? t(`schedules.cadence.${day}`) : null;
   }
   return null;
 }
 
-export function validateCron(expr: string): string | null {
+export function validateCron(expr: string, t: TFunction = i18n.t): string | null {
   const trimmed = expr.trim();
   if (!trimmed) {
-    return "Enter a cron expression";
+    return t("schedules.cronErrors.required");
   }
 
   const error = validateCronExpression(trimmed);
-  return error?.replace(/^Invalid cron /, "Invalid ") ?? null;
+  if (!error) {
+    return null;
+  }
+  if (error === "Cron expressions must have 5 fields") {
+    return t("schedules.cronErrors.fields");
+  }
+  const match =
+    /^Invalid cron (minute|hour|day-of-month|month|day-of-week) (step|range|value|field)$/.exec(
+      error,
+    );
+  if (match) {
+    const field = match[1] as "minute" | "hour" | "day-of-month" | "month" | "day-of-week";
+    const kind = match[2] as "step" | "range" | "value" | "field";
+    return t(`schedules.cronErrors.${field}.${kind}`);
+  }
+  return t("schedules.cronErrors.invalid");
 }
 
 function pad2(value: number): string {
@@ -170,7 +184,7 @@ function pad2(value: number): string {
  * Forward-relative description of the next run, e.g. "in 3h", "in 2d", "soon".
  * Returns "" when there is no scheduled next run.
  */
-export function formatNextRun(iso: string | null): string {
+export function formatNextRun(iso: string | null, t: TFunction = i18n.t): string {
   if (!iso) {
     return "";
   }
@@ -181,16 +195,35 @@ export function formatNextRun(iso: string | null): string {
 
   const diffMs = target - Date.now();
   if (diffMs <= 0) {
-    return "soon";
+    return t("schedules.time.soon");
   }
   if (diffMs < MS_PER_MINUTE) {
-    return "soon";
+    return t("schedules.time.soon");
   }
   if (diffMs < MS_PER_HOUR) {
-    return `in ${Math.round(diffMs / MS_PER_MINUTE)}m`;
+    return t("schedules.time.nextMinutes", { count: Math.round(diffMs / MS_PER_MINUTE) });
   }
   if (diffMs < MS_PER_DAY) {
-    return `in ${Math.round(diffMs / MS_PER_HOUR)}h`;
+    return t("schedules.time.nextHours", { count: Math.round(diffMs / MS_PER_HOUR) });
   }
-  return `in ${Math.round(diffMs / MS_PER_DAY)}d`;
+  return t("schedules.time.nextDays", { count: Math.round(diffMs / MS_PER_DAY) });
+}
+
+/** Localized timestamps for schedule creation and run history. */
+export function formatScheduleTimeAgo(
+  date: Date,
+  t: TFunction = i18n.t,
+  locale = i18n.resolvedLanguage,
+): string {
+  const diffMs = Date.now() - date.getTime();
+  if (diffMs < 10_000) return t("schedules.time.now");
+  if (diffMs < MS_PER_MINUTE)
+    return t("schedules.time.secondsAgo", { count: Math.floor(diffMs / 1000) });
+  if (diffMs < MS_PER_HOUR)
+    return t("schedules.time.minutesAgo", { count: Math.floor(diffMs / MS_PER_MINUTE) });
+  if (diffMs < MS_PER_DAY)
+    return t("schedules.time.hoursAgo", { count: Math.floor(diffMs / MS_PER_HOUR) });
+  if (diffMs < 7 * MS_PER_DAY)
+    return t("schedules.time.daysAgo", { count: Math.floor(diffMs / MS_PER_DAY) });
+  return date.toLocaleDateString(locale, { month: "short", day: "numeric" });
 }

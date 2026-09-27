@@ -280,7 +280,11 @@ describe("the repository's own CHANGELOG.md", () => {
   const releases = parseChangelog(markdown);
 
   it("parses every release heading", () => {
-    expect(releases.length).toBeGreaterThan(50);
+    expect(releases.length).toBeGreaterThan(0);
+    const appPackage = JSON.parse(
+      readFileSync(fileURLToPath(new URL("../../../package.json", import.meta.url)), "utf8"),
+    );
+    expect(releases[0].version).toBe(appPackage.version);
     for (const release of releases) {
       expect(release.version).toMatch(/^\d+\.\d+\.\d+/);
       expect(release.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);

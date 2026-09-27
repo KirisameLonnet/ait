@@ -1,25 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
-import Animated, {
-  cancelAnimation,
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from "react-native-reanimated";
-import MaskedView from "@react-native-masked-view/masked-view";
-import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from "react-native-svg";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
 import { openExternalUrl } from "@/utils/open-external-url";
 import { BookOpen, Copy, RotateCw, TriangleAlert } from "lucide-react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { PaseoLogo } from "@/components/icons/paseo-logo";
+import { AitLogo } from "@/components/icons/ait-logo";
 import { Button } from "@/components/ui/button";
 import { getDesktopDaemonLogs, type DesktopDaemonLogs } from "@/desktop/daemon/desktop-daemon";
 import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
-import { isNative, isWeb } from "@/constants/platform";
+import { isWeb } from "@/constants/platform";
 import { CODE_SURFACE_DATASET } from "@/styles/code-surface";
 
 interface StartupSplashScreenProps {
@@ -29,12 +19,10 @@ interface StartupSplashScreenProps {
   };
 }
 
-const GITHUB_ISSUE_URL = "https://github.com/getpaseo/paseo/issues/new";
-const DOCS_URL = "https://paseo.sh/docs";
+const GITHUB_ISSUE_URL = "https://github.com/necokeine/ait/issues/new";
+const DOCS_URL = "https://github.com/necokeine/ait/blob/main/docs/README.md";
 
-const LOGO_SIZE = 96;
-const SHIMMER_PEAK_WIDTH = 120;
-const SHIMMER_DURATION_MS = 1800;
+const LOGO_SIZE = 160;
 
 function openGithubIssue(): void {
   void openExternalUrl(GITHUB_ISSUE_URL);
@@ -42,141 +30,6 @@ function openGithubIssue(): void {
 
 function openDocs(): void {
   void openExternalUrl(DOCS_URL);
-}
-
-const WEB_SPLASH_SHIMMER_KEYFRAME_ID = "paseo-splash-shimmer-keyframes";
-const WEB_SPLASH_SHIMMER_ANIMATION_NAME = "paseo-splash-shimmer";
-
-const WEB_SPLASH_SHIMMER_KEYFRAME_CSS = `
-  @keyframes ${WEB_SPLASH_SHIMMER_ANIMATION_NAME} {
-    0% {
-      background-position: -${LOGO_SIZE + SHIMMER_PEAK_WIDTH}px 0;
-    }
-    100% {
-      background-position: ${LOGO_SIZE + SHIMMER_PEAK_WIDTH}px 0;
-    }
-  }
-`;
-
-let webSplashShimmerRegistered = false;
-
-function ensureWebSplashShimmerKeyframes() {
-  if (isNative) {
-    return;
-  }
-  if (webSplashShimmerRegistered) {
-    return;
-  }
-  const existing = document.getElementById(WEB_SPLASH_SHIMMER_KEYFRAME_ID);
-  if (existing) {
-    webSplashShimmerRegistered = true;
-    return;
-  }
-  const styleElement = document.createElement("style");
-  styleElement.id = WEB_SPLASH_SHIMMER_KEYFRAME_ID;
-  styleElement.textContent = WEB_SPLASH_SHIMMER_KEYFRAME_CSS;
-  document.head.appendChild(styleElement);
-  webSplashShimmerRegistered = true;
-}
-
-function LogoShimmer() {
-  const { theme } = useUnistyles();
-
-  if (isWeb) {
-    return <WebLogoShimmer color={theme.colors.foreground} />;
-  }
-
-  return <NativeLogoShimmer color={theme.colors.foreground} />;
-}
-
-function WebLogoShimmer({ color }: { color: string }) {
-  useEffect(() => {
-    ensureWebSplashShimmerKeyframes();
-  }, []);
-
-  const shimmerStyle = useMemo(
-    () => ({
-      width: LOGO_SIZE,
-      height: LOGO_SIZE,
-      WebkitMaskImage: `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'><path d='M280 728 484 296Q512 240 540 296L744 728' fill='none' stroke='black' stroke-width='88' stroke-linecap='round' stroke-linejoin='round'/><path d='M392 568H632' stroke='black' stroke-width='72' stroke-linecap='round'/><circle cx='512' cy='568' r='52'/></svg>`)}")`,
-      WebkitMaskSize: "contain",
-      WebkitMaskRepeat: "no-repeat",
-      WebkitMaskPosition: "center",
-      background: `linear-gradient(90deg, ${color} 0%, ${color}88 40%, ${color}FF 50%, ${color}88 60%, ${color} 100%)`,
-      backgroundSize: `${LOGO_SIZE + SHIMMER_PEAK_WIDTH * 2}px ${LOGO_SIZE}px`,
-      animationName: WEB_SPLASH_SHIMMER_ANIMATION_NAME,
-      animationDuration: `${SHIMMER_DURATION_MS}ms`,
-      animationTimingFunction: "linear",
-      animationIterationCount: "infinite",
-    }),
-    [color],
-  );
-
-  return <View style={shimmerStyle as never} />;
-}
-
-function NativeLogoShimmer({ color }: { color: string }) {
-  const shimmerTranslateX = useSharedValue(-SHIMMER_PEAK_WIDTH);
-
-  useEffect(() => {
-    shimmerTranslateX.value = -SHIMMER_PEAK_WIDTH;
-    shimmerTranslateX.value = withRepeat(
-      withTiming(LOGO_SIZE + SHIMMER_PEAK_WIDTH, {
-        duration: SHIMMER_DURATION_MS,
-        easing: Easing.linear,
-      }),
-      -1,
-      false,
-    );
-    return () => {
-      cancelAnimation(shimmerTranslateX);
-    };
-  }, [shimmerTranslateX]);
-
-  const peakStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: shimmerTranslateX.value }],
-  }));
-
-  const trackStyle = useMemo(
-    () => [styles.nativeShimmerTrack, { width: LOGO_SIZE, height: LOGO_SIZE }],
-    [],
-  );
-
-  const peakCombinedStyle = useMemo(
-    () => [styles.nativeShimmerPeak, peakStyle, { width: SHIMMER_PEAK_WIDTH, height: LOGO_SIZE }],
-    [peakStyle],
-  );
-
-  const maskElement = useMemo(
-    () => (
-      <View style={styles.shimmerMask}>
-        <PaseoLogo size={LOGO_SIZE} color="#000000" />
-      </View>
-    ),
-    [],
-  );
-
-  return (
-    <MaskedView style={trackStyle} maskElement={maskElement}>
-      <View style={trackStyle}>
-        <View style={styles.nativeShimmerBase}>
-          <PaseoLogo size={LOGO_SIZE} color={color} />
-        </View>
-        <Animated.View style={peakCombinedStyle}>
-          <Svg width="100%" height="100%" preserveAspectRatio="none">
-            <Defs>
-              <SvgLinearGradient id="splashShimmer" x1="0" y1="0" x2="1" y2="0">
-                <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0" />
-                <Stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0.4" />
-                <Stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
-              </SvgLinearGradient>
-            </Defs>
-            <Rect x="0" y="0" width="100%" height="100%" fill="url(#splashShimmer)" />
-          </Svg>
-        </Animated.View>
-      </View>
-    </MaskedView>
-  );
 }
 
 const styles = StyleSheet.create((theme) => ({
@@ -273,27 +126,6 @@ const styles = StyleSheet.create((theme) => ({
     gap: theme.spacing[3],
     flexWrap: "wrap",
   },
-  shimmerMask: {
-    width: LOGO_SIZE,
-    height: LOGO_SIZE,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  nativeShimmerTrack: {
-    overflow: "hidden",
-  },
-  nativeShimmerBase: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  nativeShimmerPeak: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-  },
 }));
 
 export function StartupSplashScreen({ bootstrapState }: StartupSplashScreenProps) {
@@ -385,7 +217,7 @@ export function StartupSplashScreen({ bootstrapState }: StartupSplashScreenProps
     return (
       <View testID="startup-splash" style={styles.container}>
         <TitlebarDragRegion />
-        <LogoShimmer />
+        <AitLogo size={LOGO_SIZE} variant="stacked" wordmarkColor={theme.colors.foreground} />
       </View>
     );
   }
@@ -400,7 +232,7 @@ export function StartupSplashScreen({ bootstrapState }: StartupSplashScreenProps
       >
         <View style={styles.errorContent}>
           <View style={styles.errorHeader}>
-            <PaseoLogo size={64} />
+            <AitLogo size={64} />
             <Text style={styles.title}>{t("startup.errorTitle")}</Text>
           </View>
 

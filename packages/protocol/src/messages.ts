@@ -3522,6 +3522,8 @@ export const ServerInfoStatusPayloadSchema = z
     // COMPAT(desktopManaged): added in v0.1.X, remove optional parsing after 2027-01-16.
     desktopManaged: z.boolean().optional(),
     capabilities: ServerCapabilitiesFromUnknownSchema.optional(),
+    // Hosts may expose only a subset of the legacy session event producers.
+    sessionEventTypes: z.array(z.string()).optional(),
     // COMPAT(providersSnapshot): added in v0.1.48, remove gating when all clients use snapshot
     features: z
       .object({
@@ -3537,6 +3539,12 @@ export const ServerInfoStatusPayloadSchema = z
         providersSnapshotCwd: z.boolean().optional(),
         // COMPAT(directorySync): added in v0.3.x, remove gate after 2027-02-12.
         directorySync: z.boolean().optional(),
+        // False when directories are fetched as snapshots instead of live subscriptions.
+        directorySubscriptions: z.boolean().optional(),
+        // False when the host has no pairing transport installed.
+        daemonPairing: z.boolean().optional(),
+        // False when providers are managed by their native CLIs, not daemon overrides.
+        providerConfiguration: z.boolean().optional(),
         // COMPAT(workspaceLabels): added in v0.5.0, remove after 2027-08-14.
         workspaceLabels: z.boolean().optional(),
         // COMPAT(workspaceSetupRun): added in v0.8.0, remove gate after 2027-09-02.

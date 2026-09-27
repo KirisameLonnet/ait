@@ -1,105 +1,100 @@
 # Ait 发布操作指南
 
-GitHub Release 是 Ait 的唯一正式发布入口。推送语义化版本标签后，
-`.github/workflows/release.yml` 在原生 GitHub-hosted runner 上分别构建 Rust daemon 与
-Electron 桌面外壳，所有平台成功后才创建 Release。
+从 0.0.7 起，GitHub Release 构建 `apps/paseo` Electron 桌面、`apps/app` 的 Web 导出和
+Rust `server`。`apps/desktop` 是旧实现，不再发布。决策见 [ADR-053](../decisions/adr-053-paseo-desktop-release.md)。
 
 ## 发布产物
 
-| 平台 | 架构 | 文件 | 用途 |
-| --- | --- | --- | --- |
-| Linux | x86_64 | `Ait-VERSION-linux-x86_64.AppImage` | 免安装运行包 |
-| Linux | x86_64 | `Ait-VERSION-linux-x86_64.tar.gz` | 解压运行包 |
-| macOS | Apple Silicon (arm64) | `Ait-VERSION-macos-arm64.dmg` | 图形化安装镜像 |
-| macOS | Apple Silicon (arm64) | `Ait-VERSION-macos-arm64.zip` | 压缩应用包 |
-| 全部 | — | `SHA256SUMS` | 上述四个文件的 SHA-256 校验值 |
+| 平台 | 架构 | 文件 |
+| --- | --- | --- |
+| Linux | x86_64 | `Ait-linux-x64.AppImage` |
+| Linux | x86_64 | `Ait-VERSION-linux-x64.tar.gz` |
+| macOS | Apple Silicon arm64 | `Ait-VERSION-macos-arm64.dmg` |
+| macOS | Apple Silicon arm64 | `Ait-VERSION-macos-arm64.zip` |
+| 自动更新 | 各平台 | `latest-linux.yml`、`latest-mac.yml`、生成的 `.blockmap` |
+| 校验 | 全部资产 | `SHA256SUMS` |
 
-GitHub 还会自动提供当前标签的源码 ZIP 与 tarball。Release Note 根据合并的 PR 自动生成；
-`.github/release.yml` 按 breaking change、feature、fix 和其他变更分组，带
-`skip-changelog` 标签的 PR 不进入说明。
-
-macOS 发布构建启用 Hardened Runtime，并对应用、内置 daemon 和 worker 签名后进行 Apple
-公证。GitHub Actions 需要配置 `MAC_CSC_LINK`、`MAC_CSC_KEY_PASSWORD`、`APPLE_ID`、
-`APPLE_BUILD_APP_SECRET` 和 `APPLE_TEAM_ID`；凭据缺失或签名、公证失败时不会发布 Release。
-历史版本 v0.0.1 的 macOS 产物未签名或公证。
+AppImage 文件名保持稳定，版本体现在 Release 标签和应用内部。Windows、deb/rpm、其他架构
+和独立 CLI 不属于本次发布。安装包 `resources/bin/` 中只有 `server`；Electron 主程序与
+Helper 是必需运行时。GitHub 仍自动提供标签对应的源码归档。
 
 ## 准备版本
 
-发布提交中的三处版本必须一致：Git 标签、根 `Cargo.toml` 的
-`workspace.package.version`、`apps/desktop/package.json` 的 `version`。
-
-以准备 `0.0.2` 为例：
+同步根 `Cargo.toml` 的 `workspace.package.version`、带版本约束的本地 Cargo path 依赖、
+Cargo.lock、根 package.json、所有活跃 npm workspace 及其 lockfile。然后运行：
 
 ```bash
-# 修改 Cargo.toml 中的 workspace.package.version 后：
-cd apps/desktop
-npm version 0.0.2 --no-git-tag-version --ignore-scripts
-cd ../..
-cargo check --workspace
-node apps/desktop/scripts/verify-release-version.mjs v0.0.2
+npm ci
+npm run verify:release -- v0.0.7
+npm run test:release
+npm run build:paseo
+npm run typecheck --workspace=@getpaseo/desktop --workspace=@getpaseo/app
 ```
 
-提交更新后的 `Cargo.toml`、`Cargo.lock`、`apps/desktop/package.json` 与
-`apps/desktop/package-lock.json`，通过 PR 合并到 `main`。不要从未合并的工作分支发布。
+`apps/desktop` 的独立 manifest/lockfile 不参与新发布校验。更新根 CHANGELOG.md：该文件
+会打入应用，供“新功能”页面读取。把版本与发布变更经 PR 合并到 `main` 后，再创建标签。
 
 ## 创建 Release
-
-从最新 `main` 创建并推送标签：
 
 ```bash
 git switch main
 git pull --ff-only
-git tag -a v0.0.2 -m "Ait v0.0.2"
-git push origin v0.0.2
+git tag -a v0.0.7 -m "Ait v0.0.7"
+git push origin v0.0.7
 ```
 
-`Release Ait` 工作流会执行以下门禁：
+`.github/workflows/release.yml` 在 Linux x86_64 和 macOS arm64 原生 runner 上执行：
 
-1. 标签与 Rust、desktop 版本完全一致；
-2. 用 `Cargo.lock` 构建 release 模式的 `ait-daemon` 与 `ait-worker`；
-3. 把对应架构的 daemon 和 worker 放入应用的 `resources/bin/`；
-4. 完成 macOS 签名和公证，生成四个预期包并确认没有缺失；
-5. 写出 `SHA256SUMS`，用 GitHub 自动生成的 Release Note 发布全部文件。
+1. 校验标签和全部活跃版本，安装根 npm workspace，验证发布脚本。
+2. 用锁定依赖只构建 `server-bin` 的 `server`。
+3. 导出界面、编译 Electron 主进程，验证 server 版本并暂存单个可执行文件。
+4. 检查打包内容；macOS 签名、公证；隔离启动成品应用并验证真实 server 生命周期。
+5. 收集两种平台的安装包和自动更新资产，核对更新摘要。
+6. 两个平台都成功后生成 SHA256SUMS，再创建或修复 GitHub Release。
 
-工作流也支持手动重跑：在 Actions → **Release Ait** → **Run workflow** 输入已经存在的
-标签。手动运行不会创建标签；它检出该标签并重建产物。如果 Release 已存在，工作流会保留
-Release Note，并用本次构建覆盖同名产物。
+macOS 需要 GitHub Secrets：`MAC_CSC_LINK`、`MAC_CSC_KEY_PASSWORD`、`APPLE_ID`、
+`APPLE_BUILD_APP_SECRET`、`APPLE_TEAM_ID`。缺失签名、公证凭据会阻止发布；不会降级为未签名包。
+Release Note 由 `.github/release.yml` 根据合并 PR 分组生成。
 
-## 本地验证打包
+手动重跑：Actions → Release Ait → Run workflow，输入已存在的标签。工作流不会创建标签。
+已有 Release 保留说明，覆盖同名资产；不要移动已经公开使用的标签。
 
-必须在目标操作系统和目标架构上构建；不要把其他架构的 daemon 放入桌面包。
+## 本地验证
 
 Linux x86_64：
 
 ```bash
-cargo build --locked --release -p ait-daemon -p ait-worker --target x86_64-unknown-linux-gnu
-cd apps/desktop
 npm ci
-npm run stage:daemon -- ../../target/x86_64-unknown-linux-gnu/release/ait-daemon
-npm run package:linux
+cargo build --locked --release -p server-bin --bin server --target x86_64-unknown-linux-gnu
+AIT_SERVER_BIN="$PWD/target/x86_64-unknown-linux-gnu/release/server" \
+  PASEO_DESKTOP_SMOKE=1 npm run package:linux
 ```
 
-Apple Silicon：
+Linux 需安装 `xvfb`、FUSE 和 Electron 的系统库；具体包名见 workflow。
+
+macOS arm64（正式签名、公证）：
 
 ```bash
-cargo build --locked --release -p ait-daemon -p ait-worker --target aarch64-apple-darwin
-cd apps/desktop
 npm ci
-npm run stage:daemon -- ../../target/aarch64-apple-darwin/release/ait-daemon
-npm run package:mac
+# 配置 CSC_NAME 或 CSC_LINK，以及 Apple 公证凭据后：
+PASEO_DESKTOP_SMOKE=1 npm run package:mac
 ```
 
-产物写入 `apps/desktop/release/`，暂存的 daemon 写入
-`apps/desktop/release-resources/`；两者都已忽略，不应提交。
+`package:mac` 生成 DMG 与 ZIP；`package:linux` 生成 AppImage 与 tar.gz。省略 `AIT_SERVER_BIN`
+会从当前源码构建 release server；提供该变量时仍检查二进制版本。只允许原生目标平台、架构。
 
-下载 Release 后，在 Linux 上运行 `sha256sum -c SHA256SUMS`，或在 macOS 上运行
-`shasum -a 256 -c SHA256SUMS`，确认下载内容与 GitHub 上的校验文件一致。
+无签名凭据时，本机开发验证使用 `PASEO_DESKTOP_SMOKE=1 npm run build:dmg`。它生成
+`Ait-VERSION-local-arm64.dmg`，不属于正式发布文件，不能通过正式资产收集门禁。
 
-## 失败恢复
+输出位于 `apps/paseo/release/`，暂存输入位于 `apps/paseo/release-resources/server/`，均不提交。
+下载后用 Linux `sha256sum -c SHA256SUMS` 或 macOS `shasum -a 256 -c SHA256SUMS` 校验。
 
-- **版本检查失败**：删除错误标签，修正三个版本与 lockfile，在新提交上重新创建并推送标签。
-  已公开使用的标签不要移动，应发布新的补丁版本。
-- **任一平台构建失败**：Release job 不会运行，因此不会发布残缺的 Release。修复后发布新补丁版；
-  仅当标签从未对外使用且提交未变化时，才使用手动工作流重跑原标签。
-- **发布阶段失败**：用手动工作流输入相同标签。已有 Release 的同名文件会被覆盖，缺失文件会补齐。
-- **校验失败**：不要运行下载文件；重新下载后仍失败时删除本地文件，并在仓库中报告该 Release。
+## 兼容性与失败恢复
+
+新应用沿用 Ait 正式应用 ID `dev.ait.desktop`。独立 server 默认使用
+`~/.ait-server-desktop`；旧桌面的 SQLite 数据保留，但本次不自动迁移到新 server。
+
+- 版本或包内容验证失败：修复 manifest、锁文件或暂存输入，重新运行门禁。
+- 任一平台构建、签名或启动失败：Release job 不会运行。
+- 发布阶段失败：在同一不可变标签上手动重跑，补齐资产。
+- 已公开的错误版本：发布新的补丁版本，不移动标签。

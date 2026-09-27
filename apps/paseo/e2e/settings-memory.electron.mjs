@@ -27,7 +27,6 @@ const SETTINGS_DESTINATIONS = [
   "Providers",
   "Usage",
   "Terminals",
-  "Plugins",
 ];
 
 function assert(condition, message) {

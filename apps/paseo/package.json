@@ -1,9 +1,9 @@
 {
   "name": "@getpaseo/desktop",
-  "version": "0.9.0-beta.2",
+  "version": "0.0.7",
   "private": true,
-  "description": "Paseo desktop app (Electron wrapper)",
-  "homepage": "https://paseo.sh",
+  "description": "Ait desktop app (Electron wrapper)",
+  "homepage": "https://github.com/necokeine/ait",
   "license": "Apache-2.0",
   "author": {
     "name": "Mohamed Boudra",
@@ -11,11 +11,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/getpaseo/paseo.git"
+    "url": "https://github.com/necokeine/ait.git"
   },
   "main": "dist/main.js",
   "scripts": {
-    "build": "node scripts/prepare-server.mjs && npm run build:main && electron-builder --config electron-builder.yml",
+    "build": "node scripts/prepare-server.mjs && npm run build:main && electron-builder --config electron-builder.yml --publish never",
     "build:main": "tsc -p tsconfig.json",
     "capture-harness": "npm run build:main && ./capture-harness/run.sh",
     "dev": "./scripts/dev.sh",
@@ -26,9 +26,12 @@
     "test": "install-electron && vitest run --exclude \"e2e/**\"",
     "typecheck": "tsgo --noEmit -p tsconfig.json",
     "test:e2e:lifecycle": "npm run build:main && node ./e2e/daemon-lifecycle.e2e.mjs",
+    "test:e2e:settings-rust": "install-electron && node e2e/settings-rust.e2e.mjs",
     "test:e2e:rust-startup": "install-electron && npm run build:main && node e2e/rust-startup.e2e.mjs",
     "build:dmg": "node scripts/build-macos.mjs",
-    "build:dmg:release": "node scripts/build-macos.mjs --signed"
+    "build:dmg:release": "node scripts/build-macos.mjs --signed",
+    "package:linux": "node scripts/package-release.mjs linux",
+    "package:mac": "node scripts/package-release.mjs mac"
   },
   "dependencies": {
     "@getpaseo/protocol": "file:../../packages/protocol",
@@ -48,5 +51,5 @@
     "vitest": "^4.1.6",
     "wait-on": "8.0.5"
   },
-  "desktopName": "Paseo.desktop"
+  "desktopName": "Ait.desktop"
 }

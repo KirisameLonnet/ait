@@ -18,7 +18,7 @@ Electron 主进程 → electron-builder DMG。当前命令只构建宿主架构�
 Intel 是 x64。Rust binary 和 Electron 必须同架构，不支持直接生成 universal 包。
 `AIT_SERVER_BIN` 可指定已有的同架构 binary；默认从当前仓库编译。
 
-输出：`apps/paseo/release/Paseo-<version>-local-<arch>.dmg`，其中包含 `Paseo.app`。
+输出：`apps/paseo/release/Ait-<version>-local-<arch>.dmg`，其中包含 `Ait.app`。
 Rust server 位于 App 的 `Contents/Resources/bin/server`，Web 页面位于 `app-dist`。
 本地构建使用 ad-hoc 签名，关闭 notarization 和上游自动更新源；适合本机验证，不等同于
 通过 Gatekeeper 公证的正式分发包。构建始终传入 `--publish never`。
@@ -35,8 +35,9 @@ npm run build:dmg:release
 也支持 electron-builder 的 `CSC_LINK` 和 `CSC_KEY_PASSWORD`，以及完整的 Apple ID 或
 App Store Connect API key 公证环境变量。正式命令会提交给 Apple 公证服务，不上传到 GitHub。
 `CSC_NAME` 填写证书名称中冒号之后的部分，不包含 `Developer ID Application:` 前缀。
-它使用 `electron-builder.yml` 的发布配置；对外分发前应把其中上游 `getpaseo/paseo` 更新源
-换成自己维护的发布源。Rust 可执行文件也列入签名范围。
+它使用 `electron-builder.yml` 的发布配置，更新源已指向 `necokeine/ait`。
+Rust 可执行文件也列入签名范围。本机钥匙串 profile 不会自动同步到 GitHub；CI 的签名与
+公证 Secrets 见 [发布操作指南](releasing.md)。
 
 ## iOS 模拟器 App
 

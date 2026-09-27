@@ -1,5 +1,9 @@
 # 概念与架构文档
 
+- [ADR-053：Ait 0.0.7 桌面发布](decisions/adr-053-paseo-desktop-release.md)：正式发布切换到 `apps/paseo`，仅 Linux x86_64/macOS arm64，内置二进制只有 `server`；[操作指南](operations/releasing.md)、[验证报告](reports/release-0.0.7.md)。
+
+- [Ait 设置页修复](reports/ait-settings-repair.md)：移除插件配置，修复项目目录与 Provider 快照适配、Agent profiles 能力识别和设置加载错误；包含真实 Rust 服务的桌面回归。
+
 - [工作区改动整合](reports/local-workspace-consolidation.md)：PR #109 合并后，server 回归修复、
   本地 SDK、主题同步与品牌资产的提交范围及独立验证结果。
 
@@ -8,7 +12,8 @@
 
 - [ADR-051：AIT 品牌识别与日间视觉系统](decisions/adr-051-ait-brand-identity.md)（Accepted）：
   飞鸟主标、跨端与多种云端 Agent 服务的品牌定位、字标、配色、留白、跨端应用和资产规则；
-  含完整候选图、日间精修稿与提示词归档，生产矢量资产及客户端接入待实施。
+  含完整候选图、日间精修稿与提示词归档；已完成统一矢量源、各端图标与客户端接入，
+  界面名称与版本统一为 Ait 0.0.6；见 [生产资产](../assets/brand/README.md) 和 [落地验证报告](reports/ait-brand-rollout.md)。
 
 - [ADR-050：Claude Code Provider](decisions/adr-050-claude-code-provider.md)：独立 Rust server 的
   本机 Claude Code 协议、模型发现、流式输出、审批及会话恢复；

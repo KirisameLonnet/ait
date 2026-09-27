@@ -1,7 +1,7 @@
 extends: ./electron-builder.yml
 publish: null
 mac:
-  artifactName: "Paseo-${version}-local-${arch}.${ext}"
+  artifactName: "Ait-${version}-local-${arch}.${ext}"
   identity: "-"
   hardenedRuntime: false
   notarize: false

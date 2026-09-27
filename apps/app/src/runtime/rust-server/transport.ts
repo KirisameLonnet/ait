@@ -18,6 +18,9 @@ interface Pending {
   spec: MethodSpec;
   channel: number;
   rawPing: boolean;
+  wire: string;
+  retries: number;
+  retryTimer?: ReturnType<typeof setTimeout>;
   timer: ReturnType<typeof setTimeout>;
 }
 
@@ -61,7 +64,10 @@ export function createRustServerTransportFactory(baseFactory: TransportFactory):
       if (disposed) return;
       disposed = true;
       clearTimeout(setupTimer);
-      for (const item of pending.values()) clearTimeout(item.timer);
+      for (const item of pending.values()) {
+        clearTimeout(item.timer);
+        clearTimeout(item.retryTimer);
+      }
       pending.clear();
       subscriptions.clear();
       for (const remove of cleanup) remove();
@@ -138,8 +144,31 @@ export function createRustServerTransportFactory(baseFactory: TransportFactory):
       const item = pending.get(id);
       if (!item) return; // A timed-out request can complete after its SDK waiter is gone.
       if (item.channel !== channel) throw new Error("Rust response came from the wrong connection");
+      // Admission failures have no side effects. Respect the server's retryability
+      // instead of losing settings reads when the shared worker is briefly busy.
+      if (
+        message.type === "error" &&
+        message.code === "resource_exhausted" &&
+        message.retryable === true &&
+        item.retries < 5
+      ) {
+        item.retryTimer = setTimeout(
+          () => {
+            item.retryTimer = undefined;
+            if (disposed || pending.get(id) !== item) return;
+            try {
+              channels[channel].send(item.wire);
+            } catch (error) {
+              fail(error instanceof Error ? error : new Error("Rust request retry failed"));
+            }
+          },
+          100 * 2 ** item.retries++,
+        );
+        return;
+      }
       pending.delete(id);
       clearTimeout(item.timer);
+      clearTimeout(item.retryTimer);
       if (message.type === "error") {
         emit(
           rpcError(
@@ -216,8 +245,11 @@ export function createRustServerTransportFactory(baseFactory: TransportFactory):
       }
       if (pending.size >= 256) throw new Error("Too many pending Rust server requests");
       const id = `rust-${++sequence}`;
+      const wire = JSON.stringify({ type: "request", request_id: id, method: spec.method, params });
       const timer = setTimeout(() => {
+        const timedOut = pending.get(id);
         if (!pending.delete(id) || disposed) return;
+        clearTimeout(timedOut?.retryTimer);
         emit(rpcError(sourceId, name, "timeout", "Rust server request timed out"));
       }, 300_000);
       pending.set(id, {
@@ -226,17 +258,12 @@ export function createRustServerTransportFactory(baseFactory: TransportFactory):
         spec,
         channel,
         rawPing,
+        wire,
+        retries: 0,
         timer,
       });
       try {
-        channels[channel].send(
-          JSON.stringify({
-            type: "request",
-            request_id: id,
-            method: spec.method,
-            params,
-          }),
-        );
+        channels[channel].send(wire);
       } catch (error) {
         pending.delete(id);
         clearTimeout(timer);

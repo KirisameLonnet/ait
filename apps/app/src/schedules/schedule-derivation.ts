@@ -1,3 +1,5 @@
+import type { TFunction } from "i18next";
+import { i18n } from "@/i18n/i18next";
 import type { ScheduleSummary } from "@getpaseo/protocol/schedule/types";
 import { describeScheduleCwd } from "@/schedules/schedule-project-targets";
 
@@ -61,14 +63,17 @@ function isAgentTargetGone(input: ResolveScheduleInput): boolean {
   return !agentsByKey.has(agentKey(serverId, schedule.target.agentId));
 }
 
-function resolveTarget(input: ResolveScheduleInput): ScheduleTargetResolution {
+function resolveTarget(input: ResolveScheduleInput, t: TFunction): ScheduleTargetResolution {
   const { schedule, serverId, agentsByKey, projectNameByCwd } = input;
   if (schedule.target.type === "agent") {
     const agent = agentsByKey.get(agentKey(serverId, schedule.target.agentId));
     if (agent) {
-      return { label: agent.title?.trim() || "Untitled agent", provider: agent.provider };
+      return {
+        label: agent.title?.trim() || t("schedules.untitledAgent"),
+        provider: agent.provider,
+      };
     }
-    return { label: "Agent unavailable", provider: null };
+    return { label: t("schedules.agentUnavailable"), provider: null };
   }
   return {
     label: describeScheduleCwd({ serverId, cwd: schedule.target.config.cwd, projectNameByCwd }),
@@ -99,11 +104,14 @@ export function scheduleBucket(state: ScheduleDerivedState): ScheduleBucket {
   return state === "active" || state === "paused" ? "runnable" : "ended";
 }
 
-export function resolveSchedule(input: ResolveScheduleInput): ResolvedSchedule {
+export function resolveSchedule(
+  input: ResolveScheduleInput,
+  t: TFunction = i18n.t,
+): ResolvedSchedule {
   const state = deriveState(input);
   return {
     state,
     bucket: scheduleBucket(state),
-    target: resolveTarget(input),
+    target: resolveTarget(input, t),
   };
 }

@@ -5,10 +5,11 @@ log.transports.console.level = "info";
 log.initialize({ spyRendererConsole: true });
 
 import { inheritLoginShellEnv } from "./login-shell-env.js";
+import { setDesktopDisplayName } from "./branding.js";
 
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import {
   app,
@@ -107,7 +108,7 @@ const DEV_SERVER_URL = process.env.EXPO_DEV_URL ?? "http://localhost:8081";
 const APP_SCHEME = "paseo";
 const PASEO_DEBUG = process.env.PASEO_DEBUG === "1";
 const DISABLE_SINGLE_INSTANCE_LOCK = process.env.PASEO_DISABLE_SINGLE_INSTANCE_LOCK === "1";
-const APP_NAME = process.env.PASEO_TEST_APP_NAME?.trim() || "Paseo";
+const APP_NAME = process.env.PASEO_TEST_APP_NAME?.trim() || "Ait";
 const DESKTOP_WINDOW_CHROME_MODE = resolveDesktopWindowChromeMode({
   platform: process.platform,
   override: process.env.PASEO_DESKTOP_WINDOW_CONTROLS,
@@ -126,7 +127,11 @@ const bootstrapComplete = new Promise<void>((resolve) => {
 });
 let bootstrapIsComplete = false;
 
-app.setName(APP_NAME);
+// Keep the existing profile namespace, including isolated test profiles.
+const legacyProfileName = process.env.PASEO_TEST_APP_NAME?.trim() || "Paseo";
+const legacyProfilePath = path.join(app.getPath("appData"), legacyProfileName);
+mkdirSync(legacyProfilePath, { recursive: true });
+app.setPath("userData", legacyProfilePath);
 log.info("[desktop] app startup", {
   version: app.getVersion(),
   platform: process.platform,
@@ -326,6 +331,9 @@ if (forcedUserDataDir) {
   }
 }
 
+app.setPath("sessionData", app.getPath("userData"));
+setDesktopDisplayName(app, APP_NAME);
+
 // Allow users to pass Chromium flags via PASEO_ELECTRON_FLAGS for debugging
 // rendering issues (e.g. "--disable-gpu --ozone-platform=x11").
 // Must run before app.whenReady().
@@ -340,8 +348,8 @@ if (electronFlags) {
 
 if (process.platform === "linux") {
   // Keep the desktop/dock identity independent of the wrapped Electron filename.
-  app.setDesktopName("Paseo.desktop");
-  if (!app.commandLine.hasSwitch("class")) app.commandLine.appendSwitch("class", "Paseo");
+  app.setDesktopName("Ait.desktop");
+  if (!app.commandLine.hasSwitch("class")) app.commandLine.appendSwitch("class", "Ait");
   log.info("[linux-sandbox]", {
     enabled: !app.commandLine.hasSwitch("no-sandbox"),
     reason: process.env.PASEO_DESKTOP_SANDBOX_REASON ?? "Chromium default",

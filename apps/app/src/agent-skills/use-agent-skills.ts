@@ -33,7 +33,7 @@ export function useAgentSkills(serverId: string) {
       if (!client) throw new Error(t("settings.host.skills.unavailable"));
       return client.getAgentSkillsStatus();
     },
-    enabled: supported && client !== null,
+    enabled: connected && supported && client !== null,
     retry: false,
     dataShape: "value",
     staleTimeMs: 0,
@@ -98,6 +98,7 @@ export function useAgentSkills(serverId: string) {
     connected,
     supported,
     status: query.data ?? null,
+    error: query.error,
     isLoading: query.isLoading,
     isWorking,
     refresh,

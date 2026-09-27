@@ -1,7 +1,7 @@
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
-const EXECUTABLE_NAME = "Paseo";
+const EXECUTABLE_NAME = "Ait";
 
 exports.default = async function afterSign(context) {
   if (process.env.PASEO_DESKTOP_SMOKE !== "1") {

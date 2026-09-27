@@ -49,7 +49,7 @@ export default function ProjectsScreen({ serverId }: ProjectsScreenProps) {
     projects: iconTargets,
   });
 
-  if (isLoading && hostProjects.length === 0) {
+  if (isLoading && hostProjects.length === 0 && scopedErrors.length === 0) {
     return (
       <View style={styles.centered} testID="projects-list">
         <LoadingSpinner size="large" color={styles.spinnerColor.color} />
@@ -60,6 +60,7 @@ export default function ProjectsScreen({ serverId }: ProjectsScreenProps) {
   if (hostProjects.length === 0) {
     return (
       <View style={styles.centered} testID="projects-list">
+        {scopedErrors.length > 0 ? <HostErrorsBanner errors={scopedErrors} /> : null}
         <Text style={styles.emptyText}>{t("sidebar.project.empty.title")}</Text>
       </View>
     );

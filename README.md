@@ -4,7 +4,7 @@
 
 Ait 是一个本地优先的多 Agent 管理器，目标是统一在线协作平台、本地 Agent 运行时和面向任务的管理界面。
 
-当前仓库处于工程初始化阶段，实现语言固定为 Rust。核心概念与边界以 `docs/README.md` 中列出的 ADR 为准。
+桌面应用由 `apps/paseo` 承载，界面位于 `apps/app`，内置服务实现语言固定为 Rust。核心概念与边界以 `docs/README.md` 中列出的 ADR 为准。
 
 ## 开始开发
 
@@ -13,12 +13,21 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 
-cd apps/desktop
-pnpm install
-pnpm run dev
+npm ci
+npm run dev:paseo
 ```
 
-## 本地 API 与 CLI
+## 本地 server
+
+```bash
+cargo run -p server-bin --bin server -- --help
+```
+
+正式桌面安装包只携带独立 `server`，详见 [server 说明](docs/operations/independent-server.md)。
+
+## 旧版 API 与 CLI（源码开发）
+
+以下入口仍保留在 Cargo workspace，但不随 0.0.7 桌面包发布。
 
 ```bash
 cargo run -p ait-daemon -- --database ./ait.sqlite3
@@ -31,7 +40,7 @@ cargo run -p ait-cli -- session send --session-id main --text-stdin < /path/to/p
 ```
 
 `--database` 指定全局目录数据库，默认是当前工作目录下的 `ait.sqlite3`；
-正式 Desktop 使用 `<Electron userData>/ait.sqlite3`，开发版使用独立的
+旧版 Desktop 使用 `<Electron userData>/ait.sqlite3`，开发版使用独立的
 `ait-development.sqlite3`。对话、Session、Run 和进度保存在各项目的
 `.ait/project.sqlite3`，并自动通过 Git `info/exclude` 排除。旧单文件库首次打开时
 先生成 `*.pre-split.sqlite3` 备份再迁移，迁移时所有已注册项目目录必须可访问。
@@ -89,7 +98,10 @@ GitHub Release 会为 Linux x86_64 与 Apple Silicon 构建名为 **Ait** 的桌
 - `crates/agent-adapters`：完整 Agent harness 适配器；首个实现为 Codex app-server。
 - `crates/tools`、`crates/sandbox`：工具与进程隔离适配器。
 - `crates/ipc`、`crates/api-http`：传输层。
-- `bins/daemon`、`bins/worker`、`bins/cli`：可执行入口。
-- `apps/desktop`：Electron 桌面工作台；main process 只通过 daemon 的本地 API 读写，renderer 只消费受限投影。
+- `bins/server`：当前桌面使用的独立 Rust server。
+- `bins/daemon`、`bins/worker`、`bins/cli`：保留的旧实现入口，不随桌面发布。
+- `apps/paseo`：当前 Electron 桌面与 Rust server 生命周期管理。
+- `apps/app`：桌面、Web 与移动端共享界面。
+- `apps/desktop`：保留的旧桌面实现，不再发布。
 
 更完整的依赖方向见 `docs/decisions/NEC-154/adr-002-rust-workspace-runtime-architecture.md`。

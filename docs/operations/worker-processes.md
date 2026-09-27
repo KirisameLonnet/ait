@@ -1,5 +1,8 @@
 # 受监督的 Run worker（NEC-248）
 
+本页描述旧 daemon/worker 架构；0.0.7 桌面发布改用独立 `server`，不携带 worker，见
+[发布操作指南](releasing.md)。
+
 生产 daemon 使用私有协议 3.0 启动 `ait-worker --stdio --protocol-major 3`。
 API Provider 经 `RunDispatcher` 注入；所有 Codex 请求通过同一个 `WorkerSupervisor` 的
 原生 Thread writer、history、model catalog 和 title ports 进入 worker。HTTP/SSE、设置、
@@ -19,7 +22,7 @@ target/debug/ait-daemon --database ./ait.sqlite3 --listen 127.0.0.1:7314
 ```
 
 两个可执行文件必须来自同一版本并放在同一目录。开发时可用 daemon 的
-`--worker-binary /trusted/path/ait-worker` 指定位置。Desktop release workflow 同时编译、
+`--worker-binary /trusted/path/ait-worker` 指定位置。旧版 Desktop release workflow 同时编译、
 stage 和打包二者；缺少 worker 时 staging 直接失败。不要手工将 worker 连接到终端；
 stdout 的任何普通文本都会被判为协议污染。
 
