@@ -10,17 +10,23 @@ permissions:
 
 jobs:
   changes:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pull-requests: read
     outputs:
       rust: ${{ steps.filter.outputs.rust }}
       ui: ${{ steps.filter.outputs.ui }}
     steps:
+      - uses: actions/checkout@v4
+        if: github.event_name == 'push'
+        with:
+          fetch-depth: 2
       - uses: dorny/paths-filter@v4
         id: filter
         with:
+          # PRs use their full diff; main pushes use the previous branch tip.
+          base: ${{ github.ref }}
           filters: |
             rust:
               - 'bins/**'
@@ -50,8 +56,7 @@ jobs:
 
   rust:
     needs: changes
-    # A skipped PR-only changes job must not skip CI on pushes to main.
-    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.changes.outputs.rust == 'true') }}
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     env:
       AIT_REQUIRE_SHELL_SANDBOX: "1"
@@ -75,7 +80,7 @@ jobs:
 
   ui:
     needs: changes
-    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.changes.outputs.ui == 'true') }}
+    if: needs.changes.outputs.ui == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
