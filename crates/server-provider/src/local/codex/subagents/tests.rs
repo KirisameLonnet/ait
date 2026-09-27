@@ -1,5 +1,7 @@
 use super::*;
 
+mod command_actions;
+
 fn spawn(sender: &str, receiver: &str) -> Value {
     json!({"threadId":sender,"turnId":"spawn-turn","item":{"id":"spawn","type":"collabAgentToolCall",
         "senderThreadId":sender,"receiverThreadIds":[receiver],"tool":"spawnAgent","status":"completed",

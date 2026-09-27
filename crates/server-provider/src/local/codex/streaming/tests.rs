@@ -1,5 +1,6 @@
 use super::*;
 
+mod command_actions;
 mod paseo;
 
 #[test]

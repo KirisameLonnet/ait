@@ -1,5 +1,7 @@
 use super::*;
 
+mod command_actions;
+
 #[test]
 fn generated_images_and_mcp_images_have_stable_sanitized_history() {
     let root = tempfile::tempdir().unwrap();

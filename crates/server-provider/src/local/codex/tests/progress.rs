@@ -1,5 +1,7 @@
 use super::*;
 
+mod command_actions;
+
 #[tokio::test]
 async fn native_plan_progress_is_a_durable_todo_snapshot_or_a_reviewable_plan() {
     let fixture = Fixture::new();

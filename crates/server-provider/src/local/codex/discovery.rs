@@ -121,6 +121,29 @@ pub(super) fn timeline_items(
     timestamp: &str,
     images: &crate::local::images::ImageStore,
 ) -> Result<Vec<NativeItem>, AgentSessionError> {
+    if native["type"] == "commandExecution" {
+        native["id"]
+            .as_str()
+            .filter(|id| !id.is_empty())
+            .ok_or(AgentSessionError::Failed)?;
+        if native["status"] == "inProgress" {
+            return Ok(Vec::new());
+        }
+        let status = if matches!(native["status"].as_str(), Some("failed" | "declined")) {
+            "failed"
+        } else {
+            "completed"
+        };
+        return Ok(crate::local::tool_detail::codex_tools(native, status)
+            .into_iter()
+            .map(|(id, item)| NativeItem {
+                key: format!("native:{turn}:{id}"),
+                turn_id: Some(turn.to_owned()),
+                timestamp: timestamp.to_owned(),
+                item,
+            })
+            .collect());
+    }
     if matches!(
         native["type"].as_str(),
         Some("imageView" | "imageGeneration")

@@ -51,7 +51,8 @@ pub(super) struct Stream {
     completed: BTreeSet<String>,
     text_bytes: BTreeMap<String, usize>,
     summary_indices: BTreeMap<String, u64>,
-    tools: BTreeMap<String, Value>,
+    tools: BTreeMap<String, Vec<(String, Value)>>,
+    tool_rows: usize,
 }
 
 impl Stream {
@@ -65,7 +66,9 @@ impl Stream {
         }
         self.text_bytes.remove(id);
         self.summary_indices.remove(id);
-        self.tools.remove(id);
+        if let Some(items) = self.tools.remove(id) {
+            self.tool_rows -= items.len();
+        }
         Ok(self.completed.insert(id.to_owned()))
     }
 
@@ -78,9 +81,9 @@ impl Stream {
             "item/agentMessage/delta" | "item/reasoning/summaryTextDelta" => {
                 self.text_delta(method, params)?
             }
-            "item/started" => self.tool_started(&params["item"])?,
+            "item/started" => return self.tool_started(params),
             "item/commandExecution/outputDelta" | "item/fileChange/outputDelta" => {
-                self.tool_output(params)?
+                return self.tool_output(params);
             }
             _ => None,
         };
@@ -142,8 +145,9 @@ impl Stream {
 
     fn tool_started(
         &mut self,
-        native: &Value,
-    ) -> Result<Option<(String, Value)>, AgentSessionError> {
+        params: &Value,
+    ) -> Result<Option<AgentTurnEvent>, AgentSessionError> {
+        let native = &params["item"];
         let kind = text(native, "type")?;
         if !matches!(
             kind,
@@ -160,28 +164,33 @@ impl Stream {
         if self.completed.contains(id) || self.tools.contains_key(id) {
             return Ok(None);
         }
-        if self.tools.len() >= MAX_ITEMS {
+        if self.tool_rows >= MAX_ITEMS {
             return Err(AgentSessionError::Failed);
         }
-        let item = json!({"type":"tool_call","callId":id,"name":kind,"status":"running",
-            "error":null,"detail":crate::local::tool_detail::codex(native)});
-        self.tools.insert(id.to_owned(), item.clone());
-        Ok(Some((id.to_owned(), item)))
+        let turn = text(params, "turnId")?;
+        let items = crate::local::tool_detail::codex_tools(native, "running");
+        if items.len() > MAX_ITEMS - self.tool_rows {
+            return Err(AgentSessionError::Failed);
+        }
+        self.tool_rows += items.len();
+        self.tools.insert(id.to_owned(), items.clone());
+        Ok(self.tool_events(turn, items))
     }
 
-    fn tool_output(
-        &mut self,
-        params: &Value,
-    ) -> Result<Option<(String, Value)>, AgentSessionError> {
+    fn tool_output(&mut self, params: &Value) -> Result<Option<AgentTurnEvent>, AgentSessionError> {
         let id = text(params, "itemId")?;
         let delta = params["delta"].as_str().ok_or(AgentSessionError::Failed)?;
-        let Some(item) = self.tools.get_mut(id) else {
+        let Some(items) = self.tools.get_mut(id) else {
             return Ok(None);
         };
         if delta.is_empty() {
             return Ok(None);
         }
-        let output = item["detail"]["output"].as_str().unwrap_or_default();
+        let turn = text(params, "turnId")?;
+        let output = items
+            .first()
+            .and_then(|(_, item)| item["detail"][output_field(item)].as_str())
+            .unwrap_or_default();
         // The live preview is a bounded tail. Complete native output remains in the final item.
         let mut tail = String::with_capacity(MAX_OUTPUT.min(output.len() + delta.len()));
         if delta.len() < MAX_OUTPUT {
@@ -199,8 +208,37 @@ impl Stream {
         if start > 0 {
             tail.drain(..start);
         }
-        item["detail"]["output"] = json!(tail);
-        Ok(Some((id.to_owned(), item.clone())))
+        for (_, item) in items.iter_mut() {
+            let field = output_field(item);
+            item["detail"][field] = json!(tail);
+        }
+        let items = items.clone();
+        Ok(self.tool_events(turn, items))
+    }
+
+    fn tool_events(&mut self, turn: &str, items: Vec<(String, Value)>) -> Option<AgentTurnEvent> {
+        let timestamp = discovery::timestamp();
+        let mut events = items
+            .into_iter()
+            .map(|(id, item)| AgentTurnEvent::Progress {
+                observation: Uuid::new_v4().to_string(),
+                entry: NativeItem {
+                    key: format!("native:{turn}:{id}"),
+                    turn_id: Some(turn.to_owned()),
+                    timestamp: timestamp.clone(),
+                    item,
+                },
+            });
+        let first = events.next();
+        self.events.extend(events);
+        first
+    }
+}
+
+fn output_field(item: &Value) -> &'static str {
+    match item["detail"]["type"].as_str() {
+        Some("read" | "search") => "content",
+        _ => "output",
     }
 }
 
