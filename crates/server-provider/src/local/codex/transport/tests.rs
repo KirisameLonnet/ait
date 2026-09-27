@@ -1,7 +1,5 @@
 //! Offline equivalents of Paseo's app-server transport and JSONL framing contracts.
 
-use std::os::unix::fs::PermissionsExt;
-
 use super::*;
 
 struct Fixture {
@@ -12,16 +10,16 @@ struct Fixture {
 impl Fixture {
     fn new(body: &str) -> Self {
         let root = tempfile::tempdir().unwrap();
-        let program = root.path().join("fake-app-server");
+        // Execute the stable interpreter; the per-test script is only read as data.
+        let script = root.path().join("app-server");
         let source = format!(
-            "#!/usr/bin/env python3\nimport json, os, sys, time\n\
+            "import json, os, sys, time\n\
              def receive(): return json.loads(sys.stdin.readline())\n\
              def send(value): print(json.dumps(value), flush=True)\n{body}\n"
         );
-        std::fs::write(&program, source).unwrap();
-        std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o700)).unwrap();
+        std::fs::write(script, source).unwrap();
         let transport = Transport::spawn(
-            &program,
+            std::path::Path::new("python3"),
             root.path().to_str().unwrap(),
             Duration::from_secs(3),
         )

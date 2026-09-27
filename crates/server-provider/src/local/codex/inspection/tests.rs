@@ -24,20 +24,21 @@ fn usage_preserves_buckets_reports_missing_windows_and_rejects_malformed_metrics
 #[tokio::test]
 async fn diagnostics_do_not_expose_private_account_fields() {
     let fixture = crate::test_support::Fixture::new();
-    let script = std::fs::read_to_string(&fixture.program).unwrap().replace(
-        "root = Path.cwd()",
-        &format!(
-            "root = Path({})",
-            serde_json::to_string(&fixture.cwd).unwrap()
-        ),
-    );
-    std::fs::write(&fixture.program, script).unwrap();
+    std::fs::write(
+        fixture.program.with_extension("cwd"),
+        fixture.cwd.to_str().unwrap(),
+    )
+    .unwrap();
     let diagnostic = fixture.client().diagnostic().await.unwrap();
     assert!(diagnostic.contains("ChatGPT login"));
     assert!(!diagnostic.contains("private@example.test"));
     let result = fixture.client().usage().await.unwrap();
     assert_eq!(result["status"], "available");
     assert_eq!(result["windows"][0]["usedPct"], 25);
+    let requests = fixture.requests();
+    for method in ["account/read", "account/rateLimits/read"] {
+        assert!(requests.iter().any(|request| request["method"] == method));
+    }
     let client = CodexClient::new(fixture.root.path().join("missing"));
     assert_eq!(
         client.diagnostic().await.unwrap(),

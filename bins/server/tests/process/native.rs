@@ -1,5 +1,5 @@
 use std::ffi::OsString;
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::symlink;
 use std::path::PathBuf;
 
 pub(super) struct NativeFixture {
@@ -12,12 +12,9 @@ impl NativeFixture {
     pub(super) fn new() -> Self {
         let root = tempfile::tempdir().unwrap();
         let native = root.path().join("codex");
-        std::fs::write(
-            &native,
-            include_str!("../../../../crates/server-provider/tests/fixtures/codex_app_server.py"),
-        )
-        .unwrap();
-        std::fs::set_permissions(&native, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../crates/server-provider/tests/fixtures/codex_app_server.py");
+        symlink(source, &native).unwrap();
         let cwd = root.path().join("work");
         std::fs::create_dir(&cwd).unwrap();
         let mut paths = vec![root.path().to_path_buf()];

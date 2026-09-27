@@ -14,7 +14,7 @@
   },
   "commands": [
     "CARGO_TARGET_DIR=/Users/necokeine/Documents/ait/target cargo llvm-cov --workspace --html -- --test-threads=4",
-    "CARGO_TARGET_DIR=/Users/necokeine/Documents/ait/target cargo llvm-cov report --json --summary-only --output-path /private/tmp/ait-workspace-create-checks/coverage-current.json"
+    "CARGO_TARGET_DIR=/Users/necokeine/Documents/ait/target cargo llvm-cov report --json --summary-only --output-path /private/tmp/ait-workspace-create-checks/fix-coverage.json"
   ],
   "test_execution": {
     "passed": 1267,
@@ -22,9 +22,9 @@
     "ignored": 3
   },
   "lines": {
-    "count": 39001,
-    "covered": 35724,
-    "percent": 91.59765134227328
+    "count": 39000,
+    "covered": 35725,
+    "percent": 91.6025641025641
   },
   "crate_lines": {
     "bins/server": {
@@ -68,9 +68,9 @@
       "percent": 100.0
     },
     "crates/server-provider": {
-      "count": 16415,
-      "covered": 15246,
-      "percent": 92.87846481876332
+      "count": 16414,
+      "covered": 15247,
+      "percent": 92.89021566955039
     },
     "crates/server-schedule": {
       "count": 820,
@@ -95,12 +95,13 @@
       "covered": 35498,
       "percent": 91.5581233396095
     },
-    "delta_percentage_points": 0.03952800266378631
+    "delta_percentage_points": 0.04444076295460775
   },
   "changed_source_sha256": {
     "bins/server/src/host/schedule.rs": "f8e37193d4d6f9d3429e9a20e25c811d7f03a09194c5c33d928cd19aaa4df059",
     "bins/server/tests/process/directory.rs": "62ad8bfb216b72015419e7baf54f6276700dc82a7f41d05e89a762f70301d8f7",
     "bins/server/tests/process/metadata_generation.rs": "df8fff7eb33f3bb15c95e93db9a789cf6d0b28fd4270fe55e927f8c24b55372e",
+    "bins/server/tests/process/native.rs": "e35b9e1fac0af8b9404d3a71eed589c20eb3c90cb3f12ff6d15a69b5deb36b6c",
     "bins/server/tests/process/worktrees.rs": "35c1f764cdc5e95830bb27a4a1fa8d9e94111f72819ca84e4e6c7b7132622ec8",
     "bins/server/tests/process/worktrees/creation.rs": "a412ec24ab872158872cc72f340641c616270cd4be3da094f2fdd317a1294d88",
     "crates/server-api/src/lib.rs": "472d1de6d69c942f5824c3e36fbdbfeb5455fa5a3bbcd537ef3e47013e3bf6da",
@@ -115,7 +116,10 @@
     "crates/server-metadata/src/protocol/directory.rs": "1aedcdf82cfbd91aa2859c308c0e7dca0b93afacf44520dd7ec02b141f46ecdf",
     "crates/server-metadata/src/protocol/directory/tests.rs": "28cb7ae02175dc1b25a53a49fe5b436758b5c1149eb12d18048577cfdae2c49e",
     "crates/server-metadata/src/rpc/directory.rs": "40f88b0aedc0ef43ea20dbb7b3c56dcf1d23315e4374e7055b9db6ef0c8c1d01",
-    "crates/server-metadata/src/service/directory.rs": "6a005557a52f4ddaca3a63d5ea3b85f94a33cf12423b6d725a1e969c3c353a6c"
+    "crates/server-metadata/src/service/directory.rs": "6a005557a52f4ddaca3a63d5ea3b85f94a33cf12423b6d725a1e969c3c353a6c",
+    "crates/server-provider/src/local/codex/inspection/tests.rs": "2fab6a3fb36507eeb59fed0b39f4f9dcc5f1e54f2046776a301e9c75a3e62c7e",
+    "crates/server-provider/src/local/codex/transport/tests.rs": "d3e752af74123f066292df3628bf9a81194d1c7bd7d8c3985ec8aab961d7ee9b",
+    "crates/server-provider/src/test_support.rs": "6dd09091b6924591b06e0f69561dd2a7342bcf7f43913049314128586086ce2a"
   },
   "files": [
     {
@@ -1491,8 +1495,8 @@
       "sha256": "ac9bac2df082acdcdd2717bb054e9c50ec89851e88c3d7e5cdf2f84679d525bd",
       "lines": {
         "count": 247,
-        "covered": 230,
-        "percent": 93.11740890688259
+        "covered": 232,
+        "percent": 93.92712550607287
       }
     },
     {
@@ -2055,10 +2059,10 @@
     },
     {
       "path": "crates/server-provider/src/test_support.rs",
-      "sha256": "10cb186e8e69781f3a25d5da664bc857817d7980e46d5154923dc49b7ac7e70b",
+      "sha256": "6dd09091b6924591b06e0f69561dd2a7342bcf7f43913049314128586086ce2a",
       "lines": {
-        "count": 32,
-        "covered": 32,
+        "count": 31,
+        "covered": 31,
         "percent": 100.0
       }
     },
@@ -2336,6 +2340,24 @@
   "validation": {
     "workspace_build": "passed with --locked without warnings",
     "workspace_clippy": "passed with --all-targets --locked -- -D warnings",
-    "rust_format": "cargo fmt --all --check passed"
+    "rust_format": "cargo fmt --all --check passed",
+    "focused_tests": {
+      "codex": {
+        "passed": 121,
+        "failed": 0,
+        "ignored": 1
+      },
+      "process": {
+        "passed": 59,
+        "failed": 0,
+        "ignored": 0
+      }
+    }
+  },
+  "fixture_source_sha256": {
+    "crates/server-provider/tests/fixtures/codex_app_server.py": "415ccdd81cc530f16141c37b2c430dd343e81c2897f009f1fcffe2b2edf449b5"
+  },
+  "fixture_executable_modes": {
+    "crates/server-provider/tests/fixtures/codex_app_server.py": "0o755"
   }
 }

@@ -10,7 +10,9 @@ import threading
 import time
 import uuid
 
-root = Path.cwd()
+# Diagnostic calls use the host cwd; their test-specific override is data beside the launcher link.
+cwd_override = Path(sys.argv[0]).with_suffix(".cwd")
+root = Path(cwd_override.read_text()) if cwd_override.exists() else Path.cwd()
 mode = (root / "behavior").read_text() if (root / "behavior").exists() else "normal"
 output_lock = threading.Lock()
 pending = None
