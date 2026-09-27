@@ -1,5 +1,7 @@
 # 概念与架构文档
 
+- [ADR-060：统一 Workspace 创建入口支持 Worktree](decisions/adr-060-workspace-create-worktree.md)：Paseo 来源参数、共享 Git 服务、预留身份、幂等回执与 setup；[验证报告](reports/workspace-create-worktree.md)。
+
 - [ADR-059：移除旧 Rust 运行时](decisions/adr-059-remove-legacy-rust-runtime.md)：删除 daemon、worker、CLI 和 16 个专用 crate；Cargo workspace 统一为 `bins/server` 与 11 个 `server-*` crate；[验证报告](reports/remove-legacy-rust-runtime.md)。
 
 - [ADR-058：Server metadata generation](decisions/adr-058-server-metadata-generation.md)：会话/工作区命名、分支、提交信息与 PR 文案的后台生成、Provider 回退和手工改名保护；[实施报告](reports/server-metadata-generation.md)。

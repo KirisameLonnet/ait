@@ -7,6 +7,8 @@ use server_metadata::ports::registry::{
 
 use super::*;
 
+mod provisioning;
+
 #[derive(Debug, Clone, Default)]
 struct Projects(Arc<Mutex<Vec<PersistedProjectRecord>>>);
 
@@ -318,6 +320,10 @@ fn create_reuses_source_project_and_records_paseo_placement() {
     let created = service
         .create(
             &CreateWorktree {
+                workspace_id: None,
+                title: None,
+                branch_name: None,
+                base_branch: None,
                 cwd: "/repo/app".to_owned(),
                 project_id: None,
                 worktree_slug: Some(" Topic Name! ".to_owned()),
@@ -619,6 +625,10 @@ fn service(projects: &Projects, workspaces: &Workspaces, managed: &Managed) -> W
 
 fn create_input(project_id: Option<&str>) -> CreateWorktree {
     CreateWorktree {
+        workspace_id: None,
+        title: None,
+        branch_name: None,
+        base_branch: None,
         cwd: "/repo/app".to_owned(),
         project_id: project_id.map(str::to_owned),
         worktree_slug: Some("topic".to_owned()),

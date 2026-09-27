@@ -124,3 +124,36 @@ fn rejects_malformed_first_agent_context() {
         );
     }
 }
+
+#[test]
+fn parses_and_validates_worktree_creation_source() {
+    let request: WorkspaceCreateRequest = serde_json::from_value(json!({
+        "source": {"kind":"worktree", "projectId":"prj_1", "worktreeSlug":"review",
+            "branchName":"feature/review", "baseBranch":"main", "refName":"develop",
+            "action":"branch-off", "githubPrNumber":42}
+    }))
+    .unwrap();
+    let WorkspaceCreateSource::Worktree(source) = request.source else {
+        panic!("expected worktree source");
+    };
+    assert_eq!(source.project_id.as_deref(), Some("prj_1"));
+    assert_eq!(source.branch_name.as_deref(), Some("feature/review"));
+    assert_eq!(source.base_branch.as_deref(), Some("main"));
+    assert_eq!(source.ref_name.as_deref(), Some("develop"));
+    assert_eq!(source.github_pr_number.unwrap().get(), 42);
+    for field in [
+        json!({"action":"invalid"}),
+        json!({"refName":""}),
+        json!({"branchName":""}),
+        json!({"githubPrNumber":0}),
+        json!({"githubPrNumber":-1}),
+        json!({"githubPrNumber":1.5}),
+        json!({"cwd":42}),
+    ] {
+        let mut source = field;
+        source["kind"] = json!("worktree");
+        assert!(
+            serde_json::from_value::<WorkspaceCreateRequest>(json!({"source":source})).is_err()
+        );
+    }
+}

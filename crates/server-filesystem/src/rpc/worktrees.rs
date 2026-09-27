@@ -75,6 +75,10 @@ fn list(worktrees: &Worktrees, request: WorktreeListRequest) -> Result<Dispatche
 fn create(worktrees: &Worktrees, request: WorktreeCreateRequest) -> Result<Dispatched, ErrorCode> {
     let context = request.normalized_first_agent_context();
     let input = CreateWorktree {
+        workspace_id: None,
+        title: None,
+        branch_name: None,
+        base_branch: None,
         cwd: request.cwd,
         project_id: request.project_id,
         worktree_slug: request.worktree_slug,

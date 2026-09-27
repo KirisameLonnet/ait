@@ -50,7 +50,9 @@ pub fn execute(directory: &mut Directory, method: &str, params: Value) -> Result
         "project.rename.request" => project_rename(directory, decode(params)?),
         "project.remove.request" => project_remove(directory, decode(params)?),
         "workspace.open.request" => workspace_open(directory, &decode(params)?),
-        "workspace.create.request" => workspace_creation(directory, params),
+        "workspace.create.request" => {
+            workspace_creation(directory, params).map(|reply| reply.value)
+        }
         "workspace.list.request" => workspace_list(directory, &decode(params)?),
         "workspace.archive.request" => workspace_archive(directory, decode(params)?),
         "workspace.title.set.request" => workspace_title_set(directory, decode(params)?),
@@ -296,11 +298,27 @@ fn workspace_open(
     }
 }
 
-fn workspace_creation(directory: &Directory, mut params: Value) -> Result<Value, ErrorCode> {
+/// Workspace creation reply and effects to run only for a fresh worktree creation.
+#[derive(Debug)]
+pub struct WorkspaceCreated {
+    /// Response including the durable creation receipt.
+    pub value: Value,
+    /// Newly created worktree whose setup and update should be dispatched.
+    pub created_worktree_id: Option<String>,
+}
+
+/// Create or replay a Workspace intent using the metadata creation coordinator.
+///
+/// # Errors
+/// Returns validation, unsupported service, receipt conflict, or persistence errors.
+pub fn workspace_creation(
+    directory: &Directory,
+    mut params: Value,
+) -> Result<WorkspaceCreated, ErrorCode> {
     use crate::protocol::creation::Kind;
     let mut request: WorkspaceCreateRequest = decode(params.clone())?;
-    if request.agent.is_some() || !matches!(request.source, WorkspaceCreateSource::Directory { .. })
-    {
+    let is_worktree = matches!(request.source, WorkspaceCreateSource::Worktree(_));
+    if request.agent.is_some() || (is_worktree && directory.worktrees().is_none()) {
         return Err(ErrorCode::UnsupportedCapability);
     }
     let key = request
@@ -314,9 +332,10 @@ fn workspace_creation(directory: &Directory, mut params: Value) -> Result<Value,
     let creations = directory.creations();
     let admission = creations.begin(Kind::Workspace, &key, params)?;
     if !admission.execute {
-        return Ok(
-            serde_json::json!({"workspace":admission.snapshot.workspace,"setupTerminalId":null,"error":admission.snapshot.error,"creation":admission.snapshot}),
-        );
+        return Ok(WorkspaceCreated {
+            value: serde_json::json!({"workspace":admission.snapshot.workspace,"setupTerminalId":null,"error":admission.snapshot.error,"creation":admission.snapshot}),
+            created_worktree_id: None,
+        });
     }
     request
         .workspace_id
@@ -338,7 +357,13 @@ fn workspace_creation(directory: &Directory, mut params: Value) -> Result<Value,
             };
             value["creation"] =
                 serde_json::to_value(progress).map_err(|_| ErrorCode::RegistryIo)?;
-            Ok(value)
+            let created_worktree_id = is_worktree
+                .then(|| value["workspace"]["id"].as_str().map(str::to_owned))
+                .flatten();
+            Ok(WorkspaceCreated {
+                value,
+                created_worktree_id,
+            })
         }
         Err(error) => {
             creations.advance(
@@ -359,8 +384,11 @@ fn workspace_create(
     if request.agent.is_some() {
         return Err(ErrorCode::UnsupportedCapability);
     }
-    let WorkspaceCreateSource::Directory { path, project_id } = request.source else {
-        return Err(ErrorCode::UnsupportedCapability);
+    let (path, project_id) = match request.source.clone() {
+        WorkspaceCreateSource::Directory { path, project_id } => (path, project_id),
+        WorkspaceCreateSource::Worktree(source) => {
+            return workspace_create_worktree(directory, request, source);
+        }
     };
     let timestamp = timestamp();
     match directory.create_workspace(crate::service::directory::WorkspaceCreation {
@@ -395,6 +423,69 @@ fn workspace_create(
             error_code: workspace_create_error_code(&error).map(str::to_owned),
         }),
     }
+}
+
+fn workspace_create_worktree(
+    directory: &Directory,
+    request: WorkspaceCreateRequest,
+    source: crate::protocol::directory::WorkspaceWorktreeSource,
+) -> Result<Value, ErrorCode> {
+    use crate::ports::worktrees::{WorktreeAction, WorktreeCreation};
+    use crate::protocol::directory::WorkspaceWorktreeAction;
+    let provisioning = directory
+        .worktrees()
+        .ok_or(ErrorCode::UnsupportedCapability)?;
+    let result = provisioning.create(
+        &WorktreeCreation {
+            cwd: source.cwd,
+            project_id: source.project_id,
+            workspace_id: request.workspace_id,
+            title: request.title,
+            worktree_slug: source.worktree_slug,
+            ref_name: source.ref_name,
+            base_branch: source.base_branch,
+            branch_name: source.branch_name,
+            action: match source.action.unwrap_or(WorkspaceWorktreeAction::BranchOff) {
+                WorkspaceWorktreeAction::BranchOff => WorktreeAction::BranchOff,
+                WorkspaceWorktreeAction::Checkout => WorktreeAction::Checkout,
+            },
+            has_change_request_source: source.checkout_source.is_some()
+                || source.github_pr_number.is_some(),
+            first_agent_prompt: request
+                .first_agent_context
+                .as_ref()
+                .and_then(|context| context.prompt.clone()),
+            expects_initial_agent: request.first_agent_context.is_some(),
+        },
+        &timestamp(),
+    );
+    encode(match result {
+        Ok(created) => {
+            if let Some(context) = request.first_agent_context
+                && let Some(source) = crate::service::workspace_names::first_agent_source(
+                    context.prompt.as_deref(),
+                    &context.attachments,
+                )
+            {
+                directory.name_workspace(created.workspace.workspace_id.clone(), source);
+            }
+            WorkspaceCreateResult {
+                workspace: Some(workspace_descriptor(
+                    &created.workspace,
+                    Some(&created.project),
+                )),
+                setup_terminal_id: None,
+                error: None,
+                error_code: None,
+            }
+        }
+        Err(error) => WorkspaceCreateResult {
+            workspace: None,
+            setup_terminal_id: None,
+            error_code: Some(error.code.to_owned()),
+            error: Some(error.message),
+        },
+    })
 }
 
 fn project_list(directory: &Directory, request: &ProjectListRequest) -> Result<Value, ErrorCode> {

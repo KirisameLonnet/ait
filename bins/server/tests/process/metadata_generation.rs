@@ -154,18 +154,37 @@ async fn metadata_generation_names_new_managed_worktree_and_preserves_explicit_b
         &[
             "daemon.config.set.request",
             "workspace.worktree.create.request",
+            "workspace.create.request",
             "workspace.list.request",
         ],
     )
     .await;
     request(&mut socket,"daemon.config.set.request",json!({"config":{"metadataGeneration":{"providers":[{"provider":"codex","model":"metadata-only"}]}}})).await;
-    for slug in [None, Some("explicit-branch")] {
-        let created = request(
-            &mut socket,
+    for (method, params, expected_branch) in [
+        (
             "workspace.worktree.create.request",
-            json!({"cwd":cwd,"worktreeSlug":slug,"firstAgentContext":{"prompt":"Fix metadata"}}),
-        )
-        .await;
+            json!({"cwd":cwd}),
+            None,
+        ),
+        (
+            "workspace.worktree.create.request",
+            json!({"cwd":cwd,"worktreeSlug":"explicit-branch"}),
+            Some("explicit-branch"),
+        ),
+        (
+            "workspace.create.request",
+            json!({"source":{"kind":"worktree","cwd":cwd,"branchName":"feature/explicit"}}),
+            Some("feature/explicit"),
+        ),
+        (
+            "workspace.create.request",
+            json!({"source":{"kind":"worktree","cwd":cwd}}),
+            None,
+        ),
+    ] {
+        let mut params = params;
+        params["firstAgentContext"] = json!({"prompt":"Fix metadata"});
+        let created = request(&mut socket, method, params).await;
         assert_eq!(created["result"]["error"], Value::Null, "{created}");
         let workspace = &created["result"]["workspace"];
         let id = workspace["id"].as_str().unwrap();
@@ -183,13 +202,15 @@ async fn metadata_generation_names_new_managed_worktree_and_preserves_explicit_b
         })
         .await;
         let working_directory = workspace["workspaceDirectory"].as_str().unwrap();
-        assert_eq!(
-            git(
-                std::path::Path::new(working_directory),
-                &["branch", "--show-current"]
-            ),
-            slug.unwrap_or("fix/metadata")
+        let actual = git(
+            std::path::Path::new(working_directory),
+            &["branch", "--show-current"],
         );
+        if let Some(expected) = expected_branch {
+            assert_eq!(actual, expected);
+        } else {
+            assert!(actual.starts_with("fix/metadata"), "{actual}");
+        }
     }
     terminate(&mut process).await;
 }

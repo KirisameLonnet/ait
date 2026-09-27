@@ -136,6 +136,7 @@ pub struct WorkspaceCreation<'a> {
 pub struct Directory {
     creations: super::creation::Creations,
     names: Option<super::workspace_names::WorkspaceNames>,
+    worktree_provisioning: Option<Arc<dyn crate::ports::worktrees::WorktreeProvisioning>>,
     projects: Arc<dyn ProjectRegistry>,
     workspaces: Arc<dyn WorkspaceRegistry>,
     source: Arc<dyn DirectorySource>,
@@ -168,6 +169,7 @@ impl Directory {
         Self {
             creations: super::creation::Creations::default(),
             names: None,
+            worktree_provisioning: None,
             projects: dependencies.projects.into(),
             workspaces: dependencies.workspaces.into(),
             source: dependencies.source.into(),
@@ -202,6 +204,22 @@ impl Directory {
     #[must_use]
     pub fn creations(&self) -> super::creation::Creations {
         self.creations.clone()
+    }
+
+    /// Install the filesystem-owned worktree creation adapter.
+    #[must_use]
+    pub fn with_worktrees(
+        mut self,
+        provisioning: Arc<dyn crate::ports::worktrees::WorktreeProvisioning>,
+    ) -> Self {
+        self.worktree_provisioning = Some(provisioning);
+        self
+    }
+
+    /// Return the installed worktree provisioning capability, when available.
+    #[must_use]
+    pub fn worktrees(&self) -> Option<&dyn crate::ports::worktrees::WorktreeProvisioning> {
+        self.worktree_provisioning.as_deref()
     }
 
     /// Register or refresh the oldest active project for a selected directory.

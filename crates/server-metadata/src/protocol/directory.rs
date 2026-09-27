@@ -96,12 +96,56 @@ pub enum WorkspaceCreateSource {
         #[serde(default, rename = "projectId")]
         project_id: Option<String>,
     },
-    /// New linked worktree workflow. The worktree service implements this source later.
-    Worktree {
-        /// Preserve the source payload for forward-compatible rejection.
-        #[serde(flatten)]
-        fields: std::collections::BTreeMap<String, Value>,
-    },
+    /// New linked worktree with Paseo's branch and project selection fields.
+    Worktree(WorkspaceWorktreeSource),
+}
+
+/// Paseo worktree source selection for the unified creation endpoint.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceWorktreeSource {
+    /// Selected source directory; optional when projectId is supplied.
+    pub cwd: Option<String>,
+    /// Active owning project.
+    pub project_id: Option<String>,
+    /// Managed worktree directory name seed.
+    pub worktree_slug: Option<String>,
+    /// Branch creation or checkout; defaults to branch-off.
+    pub action: Option<WorkspaceWorktreeAction>,
+    /// Selected base or checkout branch.
+    #[serde(default, deserialize_with = "optional_nonempty_ref")]
+    pub ref_name: Option<String>,
+    /// Default base branch override.
+    pub base_branch: Option<String>,
+    /// Explicit new branch name.
+    #[serde(default, deserialize_with = "optional_nonempty_ref")]
+    pub branch_name: Option<String>,
+    /// Forge checkout source, retained for an explicit unsupported response.
+    pub checkout_source: Option<Value>,
+    /// Legacy positive GitHub pull request number.
+    pub github_pr_number: Option<std::num::NonZeroU64>,
+}
+
+/// Supported worktree actions in Paseo's wire format.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum WorkspaceWorktreeAction {
+    /// Create a new branch.
+    BranchOff,
+    /// Check out an existing branch.
+    Checkout,
+}
+
+fn optional_nonempty_ref<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error> {
+    let value = Option::<String>::deserialize(deserializer)?;
+    if value.as_ref().is_some_and(String::is_empty) {
+        return Err(serde::de::Error::custom(
+            "branch reference must not be empty",
+        ));
+    }
+    Ok(value)
 }
 
 /// Context for the Agent that the client will create after its directory Workspace.

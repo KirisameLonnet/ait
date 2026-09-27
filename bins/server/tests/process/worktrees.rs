@@ -7,6 +7,9 @@ use server_filesystem::protocol::worktrees::CAPABILITIES;
 use super::transport::{Socket, connect, receive, request};
 use super::{ready, start, terminate};
 
+#[path = "worktrees/creation.rs"]
+mod creation;
+
 #[tokio::test]
 async fn binary_creates_lists_and_archives_canonical_worktrees() {
     let root = tempfile::tempdir().unwrap();

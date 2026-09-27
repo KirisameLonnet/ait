@@ -26,7 +26,7 @@ use server_filesystem::service::files::Files;
 use server_filesystem::service::forge::Forge;
 use server_filesystem::service::github_projects::GithubProjects;
 use server_filesystem::service::workspace_recovery::WorkspaceRecovery;
-use server_filesystem::service::worktrees::Worktrees;
+use server_filesystem::service::worktrees::{WorkspaceWorktrees, Worktrees};
 use server_metadata::service::daemon::Daemon;
 use server_metadata::service::directory::Directory;
 use server_metadata::service::workspace_automation::WorkspaceAutomation;
@@ -207,11 +207,19 @@ impl Api {
             implemented_capabilities,
             limits: Limits::default(),
         }));
+        let worktrees = services.worktrees.map(shared_service);
+        let directory = services.directory.map(|directory| {
+            if let Some(worktrees) = &worktrees {
+                directory.with_worktrees(Arc::new(WorkspaceWorktrees::new(worktrees.clone())))
+            } else {
+                directory
+            }
+        });
         let metadata = Arc::new(server_metadata::dispatch::State {
             push_tokens: services.push_tokens.map(shared_service),
             runtime: runtime.clone(),
             daemon: services.daemon.map(shared_service),
-            directory: services.directory.map(shared_service),
+            directory: directory.map(shared_service),
             workspace_labels: services.workspace_labels.map(shared_service),
             workspace_automation: services.workspace_automation.map(shared_service),
             workspace_state: services.workspace_state.map(shared_service),
@@ -226,7 +234,7 @@ impl Api {
             forge: services.forge.map(shared_service),
             files: services.files.map(shared_service),
             github_projects: services.github_projects.map(shared_service),
-            worktrees: services.worktrees.map(shared_service),
+            worktrees,
             workspace_recovery: services.workspace_recovery.map(shared_service),
             skills: services.skills.map(shared_service),
             workspace_automation: metadata.workspace_automation.clone(),

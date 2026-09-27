@@ -47,7 +47,7 @@ pub(crate) async fn dispatch(
             },
         )
         .await;
-    deliver(context, result, connection)
+    deliver(context, result, connection, None)
 }
 
 pub(crate) async fn create(
@@ -95,13 +95,33 @@ pub(crate) async fn create(
         .call(
             state.directory.clone(),
             ErrorCode::RegistryIo,
-            crate::rpc::directory::execute,
+            |directory, _, params| crate::rpc::directory::workspace_creation(directory, params),
         )
         .await;
+    let event = if let Ok(reply) = &result
+        && let Some(workspace_id) = reply.created_worktree_id.clone()
+    {
+        let _ = state
+            .run(
+                state.workspace_automation.clone(),
+                ErrorCode::RegistryIo,
+                move |automation| {
+                    automation
+                        .start_created_setup(&workspace_id)
+                        .map(|_| ())
+                        .map_err(|_| ErrorCode::RegistryIo)
+                },
+            )
+            .await;
+        Some(json!({"kind":"upsert", "workspace":reply.value["workspace"]}))
+    } else {
+        None
+    };
     deliver(
         context,
-        result.map(|value| (value, subscription)),
+        result.map(|reply| (reply.value, subscription)),
         connection,
+        event,
     )
 }
 
@@ -109,13 +129,14 @@ fn deliver(
     context: Context<'_>,
     result: Result<(Value, Option<Subscription>), ErrorCode>,
     connection: &mut Connection,
+    event: Option<Value>,
 ) -> Result<(), QueueError> {
     match result {
         Ok((mut value, subscription)) => {
             if let Some(subscription) = &subscription {
                 value["subscriptionId"] = json!(subscription.id());
             }
-            context.respond(Ok(value))?;
+            context.workspace(value, event)?;
             if let Some(subscription) = subscription {
                 subscription.activate()?;
                 connection
