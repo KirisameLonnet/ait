@@ -1,15 +1,75 @@
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, test } from "vitest";
+import { createPackage } from "@electron/asar";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 // The launcher reads Linux /proc state as well as POSIX command interfaces.
 const it = test.runIf(process.platform === "linux");
 
 const require = createRequire(import.meta.url);
 const afterPack = require("../../scripts/after-pack.js").default;
+const { name, version } = require("../../package.json");
+
+beforeEach(() => vi.stubEnv("PASEO_DESKTOP_SMOKE", "0"));
+afterEach(() => vi.unstubAllEnvs());
+
+async function createPackagedApp(root: string) {
+  const app = join(root, "app with spaces");
+  const resources = join(app, "resources");
+  const source = join(root, "asar-source");
+  mkdirSync(join(resources, "bin"), { recursive: true });
+  mkdirSync(join(resources, "app-dist"));
+  mkdirSync(source);
+  writeFileSync(join(source, "package.json"), JSON.stringify({ name, version }));
+  await createPackage(source, join(resources, "app.asar"));
+  writeFileSync(join(resources, "app-dist", "index.html"), "<!doctype html><title>Ait</title>");
+  writeFileSync(join(resources, "bin", "server"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  writeFileSync(
+    join(app, "Ait"),
+    `#!${process.execPath}\nconsole.log(JSON.stringify(process.argv.slice(2)));\n`,
+    { mode: 0o755 },
+  );
+  writeFileSync(join(app, "chrome-sandbox"), "helper", { mode: 0o755 });
+  return {
+    appOutDir: app,
+    electronPlatformName: "linux",
+    arch: 1,
+    packager: { appInfo: { version } },
+  };
+}
+
+test("validates Linux package resources before installing the launcher on any host", async () => {
+  const root = mkdtempSync(join(tmpdir(), "ait-linux-after-pack-"));
+  try {
+    const context = await createPackagedApp(root);
+    const executable = join(context.appOutDir, "Ait");
+    const original = readFileSync(executable);
+    const legacyBin = join(context.appOutDir, "resources", "bin", "ait-worker");
+    writeFileSync(legacyBin, "obsolete sidecar");
+    await expect(afterPack(context)).rejects.toThrow("must contain only server");
+    expect(existsSync(`${executable}.bin`)).toBe(false);
+    expect(readFileSync(executable)).toEqual(original);
+
+    rmSync(legacyBin);
+    await afterPack(context);
+    expect(readFileSync(`${executable}.bin`)).toEqual(original);
+    expect(readFileSync(executable, "utf8")).toContain("PASEO_DESKTOP_SANDBOX_REASON");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 async function launch(
   options: {
@@ -24,15 +84,10 @@ async function launch(
 ) {
   const root = mkdtempSync(join(tmpdir(), "paseo-launcher-"));
   try {
-    const app = join(root, "app with spaces");
+    const context = await createPackagedApp(root);
+    const app = context.appOutDir;
     const commands = join(root, "commands");
-    mkdirSync(app);
     mkdirSync(commands);
-    writeFileSync(
-      join(app, "Ait"),
-      `#!${process.execPath}\nconsole.log(JSON.stringify(process.argv.slice(2)));\n`,
-    );
-    chmodSync(join(app, "Ait"), 0o755);
     // The command interface represents the host's userns policy, independent of CI's host.
     writeFileSync(join(commands, "unshare"), `#!/bin/sh\nexit ${options.namespaces ? 0 : 1}\n`);
     chmodSync(join(commands, "unshare"), 0o755);
@@ -43,10 +98,8 @@ async function launch(
       writeFileSync(join(commands, name), `#!/bin/sh\nprintf '%s\\n' '${output}'\n`);
       chmodSync(join(commands, name), 0o755);
     }
-    writeFileSync(join(app, "chrome-sandbox"), "helper");
-    chmodSync(join(app, "chrome-sandbox"), 0o755);
-    await afterPack({ appOutDir: app, electronPlatformName: "linux", arch: 1 });
-    if (options.rerun) await afterPack({ appOutDir: app, electronPlatformName: "linux", arch: 1 });
+    await afterPack(context);
+    if (options.rerun) await afterPack(context);
     const executablePath = options.symlink ? join(root, "paseo") : join(app, "Ait");
     if (options.symlink) symlinkSync(join(app, "Ait"), executablePath);
     const args = options.args ?? ["path with spaces", "$(touch never)", "semi;colon", "*.txt"];

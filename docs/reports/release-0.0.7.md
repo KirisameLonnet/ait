@@ -60,6 +60,20 @@ hardened runtime，DMG、应用及 server 均有 Developer ID 签名和时间戳
 
 签名产物和验证明细保留在被忽略的本地输出目录，不纳入源码提交。
 
+## PR CI 的 Linux 启动器测试修复
+
+首轮 PR CI 的九项 Linux 启动器测试使用旧的最小安装目录，调用 `afterPack` 时缺少
+`packager.appInfo.version`，也没有新发布校验要求的 ASAR、Web 导出及 server，因而在
+执行启动器之前失败。依赖安装、版本校验、发布脚本测试、构建和类型检查均已通过。
+
+测试样本现包含真实生成的最小 ASAR、Web 入口、单个可执行 server 及 builder 版本上下文。
+新增可跨平台运行的用例，验证旧 sidecar 会阻止包装，而合法安装目录会保留原始可执行文件
+并安装 Linux 启动器；九项依赖 Linux `/proc` 的启动行为测试继续由 Linux CI 执行。
+生产打包校验保持启用，测试中单独关闭真实 GUI 冒烟入口。
+
+本机针对该文件的测试结果为 1 项通过、9 项因 macOS 跳过；oxfmt、oxlint 和差异空白检查通过。
+本次修复仅修改测试样本和报告，没有 Rust 源代码变化，不运行 Rust workspace tests。
+
 ## 发布前仍由 CI 验证的范围
 
 - Linux 原生编译、AppImage/tar.gz 生成与 Xvfb 成品启动测试；本机没有运行 Linux 二进制。
