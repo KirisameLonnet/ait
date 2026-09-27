@@ -6,6 +6,8 @@ use server_model::ErrorCode;
 use crate::protocol::timeline::{Direction, FetchRequest, SearchRequest};
 use crate::storage::timeline::Row;
 
+mod text_search;
+
 pub(crate) fn fetch(
     request: &FetchRequest,
     epoch: &str,
@@ -78,21 +80,20 @@ pub(crate) fn search(
     epoch: &str,
     rows: &[Row],
 ) -> Result<Value, ErrorCode> {
-    let query = normalize(&request.query);
-    if query.len() > 4096 {
-        return Err(ErrorCode::InvalidMessage);
-    }
+    let Some(pattern) = text_search::pattern(&request.query)? else {
+        return bounded(json!({"agentId":request.agent_id,"epoch":epoch,
+            "locations":[],"nextCursor":null,"error":null}));
+    };
     let offset = request.cursor.unwrap_or(0);
     let messages = searchable(rows);
     let mut matching = messages
         .iter()
-        .filter(|row| row.seq > offset as u64 && !query.is_empty())
+        .filter(|row| row.seq > offset as u64)
         .filter_map(|row| {
             let role = role(row)?;
-            row.entry.item["text"]
-                .as_str()
-                .filter(|text| normalize(text).contains(&query))
-                .map(|_| json!({"seq":row.seq,"role":role}))
+            let text = row.entry.item["text"].as_str()?;
+            let count = text_search::count(&pattern, text, role == "assistant");
+            (count > 0).then(|| json!({"seq":row.seq,"role":role,"count":count}))
         });
     let locations: Vec<_> = matching.by_ref().take(200).collect();
     let next = matching
@@ -151,13 +152,6 @@ fn preview(text: &str) -> String {
         .collect();
     preview.push('…');
     preview
-}
-
-fn normalize(text: &str) -> String {
-    text.split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .to_lowercase()
 }
 
 fn role(row: &Row) -> Option<&'static str> {

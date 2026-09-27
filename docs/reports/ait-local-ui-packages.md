@@ -1,6 +1,6 @@
 # Ait 本地 UI 包迁移与 Maestro 修复
 
-日期：2026-09-28。基线：`b04726a`，分支 `codex/ait-local-packages` 的本次工作区改动。
+日期：2026-09-28。开发阶段代码为 `22ade32`（基于 `b04726a`）；提交准备同步 `main` 的 `2f4f6a9`，保留聊天搜索更新及发布文档，只手工调整文档目录和测试中的包名导入。
 
 ## 结果
 
@@ -10,7 +10,7 @@
 - Maestro 使用 `apps/app/maestro` 正确路径，显式认证 Ait `/v1/server/info`、通过生产 Rust transport 连接 `/v1/ws`；Android 读取配置端口。共用项目创建/打开/清理和 YAML 渲染，原生 UI 接收 host、port、TLS、token，渲染文件权限为 0600 并在退出时删除。
 - 音频库为 Ait 私有本地模块，iOS/Android 保留原生 `ExpoTwoWayAudio` 标识与第三方许可；删除该库遗留独立 lockfile，版本验证统一检查根锁文件。
 
-## 验证
+## 开发阶段验证
 
 - `npm install --package-lock-only --ignore-scripts --offline`、`npm ci --offline --ignore-scripts`、`npm run postinstall`：通过；全新依赖图以本地链接安装六个 Ait workspace。
 - `npm run verify:local-packages`、`npm run verify:release`、`npm run test:release`：通过，12 项发布脚本测试通过。
@@ -23,6 +23,19 @@
 - Node/tsx CLI 的 Ait readiness 与 ADB 端口输出通过最终 Maestro E2E 复跑（1 项）；端口用 stdout 纯文本输出，避免彩色终端污染 shell 参数。
 - `expo-modules-autolinking resolve --platform apple --project-root apps/app --json` 与 Android 对应命令：均发现本仓库的 `@ait/expo-two-way-audio@0.0.7`。
 - 修改的 TS/JS 文件通过 `oxfmt --check` 与 `oxlint -A no-empty-pattern`；Maestro shell 通过 `bash -n`；`git diff --check` 通过。
+
+## 提交准备验证
+
+以下检查在同步 `2f4f6a9` 后的 PR 代码上运行：
+
+- `npm run verify:local-packages`、`npm run verify:release` 和 12 项发布脚本测试：通过。
+- `npm run build:desktop-main` 与六个 `@ait/*` workspace 类型检查：通过。
+- `npm run test --workspace=@ait/protocol`：66 文件 / 746 项通过。
+- `npm test --workspace=@ait/desktop`：53 文件 / 373 项通过，13 项跳过。
+- App 的 i18n、Rust adapter、Maestro、native release 和聊天搜索模型检查：8 文件 / 93 项通过。
+- 469 个修改的 TS/JS 文件通过 `oxfmt --check` 与 `oxlint -A no-empty-pattern`，无警告。
+- 重建最新 main 的 `server-bin` 后执行上述四个 E2E 文件：7 项通过，包含实际 Node/tsx Maestro CLI 入口。
+- 相对 `main` 没有 Rust 文件变化，按仓库规则跳过 Rust 测试；原生手势测试的环境限制仍适用。
 
 ## Test coverage
 

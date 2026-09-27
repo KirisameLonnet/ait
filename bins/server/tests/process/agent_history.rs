@@ -107,13 +107,7 @@ async fn durable_timeline_discovery_creation_and_connection_lifetimes_work_over_
         page["result"]["entries"][0]["item"]["text"],
         "first history"
     );
-    let search = request(
-        &mut client,
-        "agent.timeline.search.request",
-        json!({"agentId":id,"query":"FIRST   history"}),
-    )
-    .await;
-    assert_eq!(search["result"]["locations"].as_array().unwrap().len(), 2);
+    assert_search_counts(&mut client, &id).await;
     let prompts = request(
         &mut client,
         "agent.timeline.list_prompts.request",
@@ -286,4 +280,16 @@ async fn assert_restored(
         request(client, "agent.create.request", intent).await["result"]["agentId"],
         id
     );
+}
+
+async fn assert_search_counts(client: &mut super::transport::Socket, id: &str) {
+    let search = request(
+        client,
+        "agent.timeline.search.request",
+        json!({"agentId":id,"query":"FIRST   history"}),
+    )
+    .await;
+    assert_eq!(search["result"]["locations"].as_array().unwrap().len(), 2);
+    assert_eq!(search["result"]["locations"][0]["count"], 1, "{search}");
+    assert_eq!(search["result"]["locations"][1]["count"], 1, "{search}");
 }
