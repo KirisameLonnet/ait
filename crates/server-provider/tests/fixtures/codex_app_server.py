@@ -265,6 +265,19 @@ for line in sys.stdin:
                     (thread_id, "stale", "STALE"), (thread_id, pending, "Echo: ")]:
                 emit({"method": "item/agentMessage/delta", "params": {"threadId": source_thread,
                     "turnId": source_turn, "itemId": pending + "-assistant", "delta": delta}})
+        elif text == "command-actions":
+            tool = {"type": "commandExecution", "id": "command", "status": "inProgress",
+                "command": "/bin/zsh -lc 'cat file; echo done'", "cwd": str(root),
+                "commandActions": [
+                    {"type": "read", "command": "cat file", "path": "file", "name": "file"},
+                    {"type": "unknown", "command": "echo done"}]}
+            emit({"method": "item/started", "params": {"threadId": thread_id, "turnId": pending, "item": tool}})
+            emit({"method": "item/commandExecution/outputDelta", "params": {"threadId": thread_id,
+                "turnId": pending, "itemId": "command", "delta": "offline output"}})
+            tool = {**tool, "status": "completed", "aggregatedOutput": "offline output", "exitCode": 0}
+            stream_items.append(tool)
+            emit({"method": "item/completed", "params": {"threadId": thread_id, "turnId": pending, "item": tool}})
+            complete(pending, text)
         elif text != "hang":
             timer = threading.Timer(0.05, complete, args=(pending, text))
             timer.daemon = True

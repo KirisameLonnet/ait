@@ -5,6 +5,34 @@ use std::borrow::Cow;
 
 const PREVIEW_BYTES: usize = 128 * 1024;
 
+mod command_actions;
+
+/// Project a native tool into display rows, keeping parsed command actions in source order.
+///
+/// `native` is a Codex thread item with a validated ID; `status` is its canonical
+/// running, completed, or failed state. Returns stable call IDs paired with timeline
+/// items, falling back to one raw tool row when no usable command actions exist.
+pub(super) fn codex_tools(native: &Value, status: &str) -> Vec<(String, Value)> {
+    let details = command_actions::details(native).unwrap_or_else(|| vec![codex(native)]);
+    let multiple = details.len() > 1;
+    let native_id = native["id"].as_str().unwrap_or_default();
+    details
+        .into_iter()
+        .enumerate()
+        .map(|(index, detail)| {
+            let id = if multiple {
+                format!("{native_id}:{index}")
+            } else {
+                native_id.to_owned()
+            };
+            let error = (status == "failed").then_some("Native tool failed");
+            let item = json!({"type":"tool_call","callId":id,"name":native["type"],
+                "status":status,"error":error,"detail":detail});
+            (id, item)
+        })
+        .collect()
+}
+
 pub(super) fn claude(name: &str, input: &Value) -> Value {
     let mut detail = match name {
         "Bash" if input["command"].is_string() => {
@@ -71,17 +99,7 @@ pub(super) fn claude_result(detail: &mut Value, result: &Value) {
 pub(super) fn codex(native: &Value) -> Value {
     match native["type"].as_str() {
         Some("commandExecution") => {
-            let mut detail = json!({"type":"shell","command":native["command"].as_str().unwrap_or(""),"output":""});
-            if let Some(cwd) = native["cwd"].as_str() {
-                detail["cwd"] = json!(cwd);
-            }
-            if let Some(output) = native["aggregatedOutput"].as_str() {
-                detail["output"] = json!(preview(output));
-            }
-            if let Some(exit) = native["exitCode"].as_i64() {
-                detail["exitCode"] = json!(exit);
-            }
-            detail
+            command_actions::shell(native, native["command"].as_str().unwrap_or(""))
         }
         Some("fileChange") => file_change(native).unwrap_or_else(|| unknown(native)),
         Some("webSearch") => {

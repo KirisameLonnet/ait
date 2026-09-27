@@ -189,14 +189,15 @@ impl Live {
             child.stream = streaming::Stream::default();
             set_status(child, "running", &mut events);
         }
-        if let Some(AgentTurnEvent::Progress { observation, entry }) =
-            child.stream.progress(method, params)?
-        {
-            events.push(AgentTurnEvent::Subagent(SubagentEvent::Progress {
-                id: thread.to_owned(),
-                observation,
-                entry,
-            }));
+        let progress = child.stream.progress(method, params)?;
+        for event in progress.into_iter().chain(child.stream.events.drain(..)) {
+            if let AgentTurnEvent::Progress { observation, entry } = event {
+                events.push(AgentTurnEvent::Subagent(SubagentEvent::Progress {
+                    id: thread.to_owned(),
+                    observation,
+                    entry,
+                }));
+            }
         }
         if method == "item/completed" && child.stream.complete(&params["item"])? {
             for entry in
