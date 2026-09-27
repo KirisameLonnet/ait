@@ -9,7 +9,49 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+      ui: ${{ steps.filter.outputs.ui }}
+    steps:
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            rust:
+              - 'bins/**'
+              - 'crates/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - '.cargo/**'
+              - 'rust-toolchain*'
+              - 'rustfmt.toml'
+              - '.rustfmt.toml'
+              - 'clippy.toml'
+              - '.clippy.toml'
+              - '.github/workflows/ci.yml'
+            ui:
+              - 'apps/**'
+              - 'packages/**'
+              - 'scripts/**'
+              - 'patches/**'
+              - 'assets/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.npmrc'
+              - 'tsconfig.base.json'
+              - '.oxfmtrc.json'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/release.yml'
+
   rust:
+    needs: changes
+    # A skipped PR-only changes job must not skip CI on pushes to main.
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.changes.outputs.rust == 'true') }}
     runs-on: ubuntu-latest
     env:
       AIT_REQUIRE_SHELL_SANDBOX: "1"
@@ -31,7 +73,9 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
 
-  desktop:
+  ui:
+    needs: changes
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.changes.outputs.ui == 'true') }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
