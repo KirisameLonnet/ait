@@ -1,5 +1,8 @@
 # WF-05：保存和触发定时任务
 
+> 历史文档：旧 daemon、worker、CLI 及其测试入口已按 [ADR-059](../docs/decisions/adr-059-remove-legacy-rust-runtime.md) 移除。
+> 下文保留原操作记录，命令不适用于当前代码；当前服务见 [server 说明](../docs/operations/independent-server.md)。
+
 用户目标：让一个固定上下文配合指定 Agent 重复生成独立 Session 和结果，且不影响正在使用的 Session。
 前置条件：完成 WF-01，`ROOT_ID` 属于 p1，并选择已配置的 API Provider Agent。Codex Cron 当前返回 `CODEX_THREAD_CAPABILITY_UNSUPPORTED`，不走旧执行路径。此流程验证显式 occurrence 触发，不等待真实时钟。
 
@@ -39,5 +42,5 @@ ait run list --project-id p1
 当前 daemon 只暴露 Cron 配置与显式触发接口；保存 schedule 不保证之后会自动到点运行。
 时钟循环、并发策略和 misfire 需要后续独立接入和测试。
 
-自动化：[`wf05_codex_cron_is_rejected_without_legacy_fallback`](../bins/cli/tests/workflows.rs)，
+自动化：[`wf05_codex_cron_is_rejected_without_legacy_fallback`](https://github.com/necokeine/ait/blob/49478a7f600fde997339a8d36d368c72d3546c14/bins/cli/tests/workflows.rs)，
 覆盖 Codex occurrence 被明确拒绝、重复触发无事件增量，以及 Session 不受影响；API Cron 的独立性与去重由 application API tool loop 回归覆盖。

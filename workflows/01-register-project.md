@@ -1,5 +1,8 @@
 # WF-01：接入工作目录并开始一个 Session
 
+> 历史文档：旧 daemon、worker、CLI 及其测试入口已按 [ADR-059](../docs/decisions/adr-059-remove-legacy-rust-runtime.md) 移除。
+> 下文保留原操作记录，命令不适用于当前代码；当前服务见 [server 说明](../docs/operations/independent-server.md)。
+
 用户目标：把已有本地目录交给 AIT 管理，选择执行 Agent，得到可以交互的 Session。
 前置条件：完成 [演练准备](README.md#手工演练准备)，使用新的数据库及已存在的 `$WF_ROOT/project`。
 
@@ -35,9 +38,8 @@ WF-10，DeepSeek Provider 连接见 WF-11。
 当前 `create_session` 必须显式传 `agent_id`，即使 Project 已有默认值。
 后续可改善默认选择体验，但仍应保证返回的 Session 绑定明确的 Agent。
 
-自动化：[`wf01_register_project_and_agent`](../bins/cli/tests/workflows.rs)，另覆盖含空格路径、
+自动化：[`wf01_register_project_and_agent`](https://github.com/necokeine/ait/blob/49478a7f600fde997339a8d36d368c72d3546c14/bins/cli/tests/workflows.rs)，另覆盖含空格路径、
 实际 Git HEAD 校验、重复路径拒绝后各实体列表不变，以及 Project 范围的 Session/Message 查询。
-
 
 ## 仅名称新建项目（NEC-195）
 

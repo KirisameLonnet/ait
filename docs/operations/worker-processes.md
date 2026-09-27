@@ -1,5 +1,8 @@
 # 受监督的 Run worker（NEC-248）
 
+> 历史文档：旧 Rust 运行时与验收入口已按 [ADR-059](../decisions/adr-059-remove-legacy-rust-runtime.md) 移除。
+> 下文仅记录旧实现，当前服务操作见 [server 说明](independent-server.md)。
+
 本页描述旧 daemon/worker 架构；0.0.7 桌面发布改用独立 `server`，不携带 worker，见
 [发布操作指南](releasing.md)。
 

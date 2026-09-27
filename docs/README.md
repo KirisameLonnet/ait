@@ -1,8 +1,10 @@
 # 概念与架构文档
 
+- [ADR-059：移除旧 Rust 运行时](decisions/adr-059-remove-legacy-rust-runtime.md)：删除 daemon、worker、CLI 和 16 个专用 crate；Cargo workspace 统一为 `bins/server` 与 11 个 `server-*` crate；[验证报告](reports/remove-legacy-rust-runtime.md)。
+
 - [ADR-058：Server metadata generation](decisions/adr-058-server-metadata-generation.md)：会话/工作区命名、分支、提交信息与 PR 文案的后台生成、Provider 回退和手工改名保护；[实施报告](reports/server-metadata-generation.md)。
 
-- [ADR-057：移除旧版桌面实现](decisions/adr-057-remove-legacy-desktop.md)：删除旧桌面源码、测试与构建配置，桌面入口统一为 `apps/paseo` 和 `apps/app`；旧 Rust daemon/worker/CLI 保留。
+- [ADR-057：移除旧版桌面实现](decisions/adr-057-remove-legacy-desktop.md)：删除旧桌面源码、测试与构建配置，桌面入口统一为 `apps/paseo` 和 `apps/app`；其旧 Rust 入口保留条款已由 ADR-059 取代。
 
 - [main CI 进程与文件订阅修复](reports/main-ci-process-subscriptions.md)：同步轮询许可竞争回归、Claude 固定测试替身，以及 rebase 后的完整验证。
 
@@ -180,7 +182,7 @@
   [验证报告](reports/independent-server-m1-projects.md)记录恢复、隔离、WS 与覆盖率验证。
 
 - [ADR-022：独立 server 与全新内部 crate](decisions/adr-022-independent-server.md)（Accepted）：
-  独立 `server` binary 与旧 daemon 并存，内部依赖全部新建；定义进程隔离、数据命名空间、
+  独立 `server` binary 与全新内部依赖；并存旧 daemon 的条款已由 ADR-059 取代。定义进程隔离、数据命名空间、
   WebSocket、输入接纳与恢复边界。[实施计划](plans/independent-server.md)按服务骨架、离线闭环、
   单 Provider 接入和故障矩阵分期；M0 的服务骨架已扩展到 M1 项目打开切片，内部依赖仍全部独立。
   [使用说明](operations/independent-server.md)记录启动配置、鉴权、协议和关闭行为。
@@ -363,11 +365,14 @@
 
 ## 运维手册
 
+以下 worker、旧 API 与 CLI 文档仅供历史追溯，其源码和验收入口已由 ADR-059 移除。
+当前服务使用 `operations/independent-server.md`；历史 ADR 和报告不代表现存 crate 或功能。
+
 - `operations/worker-processes.md`：生产 daemon/worker 拓扑、ACK 与 fencing、恢复、进程树回收、权限/资源上限及凭证边界。
 
 - `operations/releasing.md`：Ait desktop 版本准备、双平台 GitHub Release、产物校验与失败恢复。
 - `operations/reliability-security-observability.md`：数据保留、附件 mark-and-sweep、数据库备份/恢复、可靠性测试矩阵与性能基线。
-- [CLI 用户流程](../workflows/README.md)：逐个用户目标的可执行步骤、可观察结果、失败恢复、当前差距与 CLI 集成测试映射。
+- [旧 CLI 用户流程（历史）](../workflows/README.md)：记录已移除 CLI 的操作、失败恢复与历史测试映射。
 
 配套设计仍保留各自原始评审状态；实现前若与 ADR-001 v4 冲突，以 v4 及明确列出的 Accepted 修订为准。同号 ADR 来自不同设计 issue，因此目录包含 issue 编号以避免歧义。
 

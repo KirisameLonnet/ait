@@ -1,8 +1,11 @@
 # API Provider 工具权限审批
 
+> 历史文档：旧 Rust 运行时与验收入口已按 [ADR-059](../decisions/adr-059-remove-legacy-rust-runtime.md) 移除。
+> 下文仅记录旧实现，当前服务操作见 [server 说明](independent-server.md)。
+
 本页描述旧 daemon/worker 的审批语义。旧桌面界面和 GUI 演示已随
 [ADR-057](../decisions/adr-057-remove-legacy-desktop.md) 移除，以下界面流程仅供历史追溯；
-Rust 后端的离线验收入口仍保留。
+Rust 后端的离线验收入口也已随 ADR-059 移除。
 
 OpenAI、DeepSeek 等普通 API Provider 使用 AIT HostTools。Settings 的 Sandbox 是新 Run 的
 权限基线；修改它不改变已有 Run。Approval mode 请选择 **on_request**：已在基线内的操作
