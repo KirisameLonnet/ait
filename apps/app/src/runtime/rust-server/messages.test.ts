@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { parseServerInfoStatusPayload } from "@getpaseo/protocol/messages";
+import {
+  AgentTimelineSearchResponseMessageSchema,
+  parseServerInfoStatusPayload,
+} from "@getpaseo/protocol/messages";
 import { METHODS } from "./methods";
 import { eventMessage, responseMessage, serverInfo } from "./messages";
 import { object } from "./types";
@@ -8,6 +11,21 @@ function info(methods: string[]) {
   const message = serverInfo({ server_id: "ait" }, new Set(methods));
   return parseServerInfoStatusPayload(object(object(message.message).payload));
 }
+
+it("preserves Rust timeline search counts in the SDK response envelope", () => {
+  const result = {
+    agentId: "agent",
+    epoch: "epoch",
+    locations: [{ seq: 1, role: "assistant", count: 3 }],
+    nextCursor: null,
+    error: null,
+  };
+  const envelope = responseMessage("agent.timeline.search.response", "search", result, {});
+  expect(AgentTimelineSearchResponseMessageSchema.parse(envelope.message).payload).toEqual({
+    ...result,
+    requestId: "search",
+  });
+});
 
 describe("Ait host capabilities", () => {
   it("exposes working settings and directory features without unsupported transports", () => {

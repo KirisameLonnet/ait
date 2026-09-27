@@ -1,0 +1,160 @@
+{
+  "date": "2026-09-28",
+  "base_revision": "b04726a1083fa4f0a6ee516242560c517eea77df",
+  "revision": "base_revision plus changed_source_sha256",
+  "upstream_revision": "30178c4f58b67f8472901356e1484022bd835de0",
+  "platform": "macOS aarch64-apple-darwin",
+  "tools": {
+    "rustc": "1.98.1",
+    "cargo-llvm-cov": "0.8.4"
+  },
+  "scope": {
+    "workspace": true,
+    "features": "default",
+    "profile": "debug",
+    "explicit_file_exclusions": [],
+    "test_source_exclusions": "cargo-llvm-cov defaults",
+    "doctests": "not instrumented by default; workspace has no doctest cases",
+    "unavailable_platforms": ["Linux", "Windows"]
+  },
+  "commands": [
+    "cargo llvm-cov --workspace --html --locked --offline -- --test-threads=4",
+    "cargo llvm-cov report --json --summary-only --output-path /tmp/ait-paseo-api-pr-coverage.json",
+    "cargo llvm-cov report --show-missing-lines"
+  ],
+  "test_execution": {
+    "rust": {
+      "passed": 1279,
+      "failed": 0,
+      "ignored": 3
+    },
+    "typescript": {
+      "passed": 63,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "ignored_tests": [
+    {
+      "name": "local::claude::tests::process::installed_claude_control_protocol_discovers_models_without_inference",
+      "reason": "requires a locally installed Claude Code CLI; sends no model request"
+    },
+    {
+      "name": "local::claude::tests::process::parity::installed_claude_completes_a_native_turn_and_reopens_history",
+      "reason": "requires installed Claude authentication and makes one small model request"
+    },
+    {
+      "name": "local::codex::tests::installed::installed_codex_completes_a_native_turn_and_reopens_history",
+      "reason": "requires installed Codex authentication and makes one small model request"
+    }
+  ],
+  "lines": {
+    "count": 39062,
+    "covered": 35787,
+    "percent": 91.61589268342635
+  },
+  "crate_lines": {
+    "bins/server": {
+      "count": 887,
+      "covered": 838,
+      "percent": 94.47576099210822
+    },
+    "crates/server-api": {
+      "count": 1156,
+      "covered": 1110,
+      "percent": 96.02076124567473
+    },
+    "crates/server-browser": {
+      "count": 726,
+      "covered": 707,
+      "percent": 97.38292011019284
+    },
+    "crates/server-domain": {
+      "count": 121,
+      "covered": 121,
+      "percent": 100.0
+    },
+    "crates/server-filesystem": {
+      "count": 8941,
+      "covered": 7881,
+      "percent": 88.14450285202997
+    },
+    "crates/server-metadata": {
+      "count": 6878,
+      "covered": 6178,
+      "percent": 89.82262285548124
+    },
+    "crates/server-model": {
+      "count": 310,
+      "covered": 296,
+      "percent": 95.48387096774194
+    },
+    "crates/server-protocol": {
+      "count": 57,
+      "covered": 57,
+      "percent": 100.0
+    },
+    "crates/server-provider": {
+      "count": 16455,
+      "covered": 15290,
+      "percent": 92.92008508052264
+    },
+    "crates/server-schedule": {
+      "count": 820,
+      "covered": 802,
+      "percent": 97.80487804878048
+    },
+    "crates/server-terminal": {
+      "count": 1436,
+      "covered": 1289,
+      "percent": 89.76323119777159
+    },
+    "crates/server-voice": {
+      "count": 1275,
+      "covered": 1218,
+      "percent": 95.52941176470588
+    }
+  },
+  "changed_production_lines": {
+    "crates/server-provider/src/rpc/timeline.rs": {
+      "count": 158,
+      "covered": 158,
+      "percent": 100.0
+    },
+    "crates/server-provider/src/rpc/timeline/text_search.rs": {
+      "count": 55,
+      "covered": 55,
+      "percent": 100.0
+    }
+  },
+  "baseline": {
+    "comparable": false,
+    "reason": "Existing reports on main measure earlier revisions before subsequent merges; no coverage measurement of the exact PR base is available, so no percentage-point delta is claimed."
+  },
+  "changed_source_sha256": {
+    "Cargo.lock": "ae7b34b5508741ee1acc614f2cfbefda8d0ce7a853c08d31cb7018cd34dbcf98",
+    "apps/app/src/agent-stream/chat-find/index.web.tsx": "60626cb48e3fa5ddb2a3a3e992385d880b13a16378a5c8cb4c1ebef8ee030c91",
+    "apps/app/src/agent-stream/chat-find/model.test.ts": "68ee927cf9aa96fc4848284d17fd3f91ee2207221227d74b20728fbc6fd36839",
+    "apps/app/src/agent-stream/chat-find/model.ts": "75c46c31a86a3acf672caf15d7b7a131b90013df86416fa24981a911ef6c184d",
+    "apps/app/src/i18n/resources/ar.ts": "297c64dbeee6d9d4905e83b0a62d94140954575cfcd83bf8615ea01ced1d33cb",
+    "apps/app/src/i18n/resources/en.ts": "e5d7c1b173e0cf13060422f368f769bfe5415022e836e1a0d2ca157f727fde7c",
+    "apps/app/src/i18n/resources/es.ts": "1b473d5b43f5dcd9ce626ea97b588b2ed526d072ac3cefa29e9eec605f28f5bc",
+    "apps/app/src/i18n/resources/fr.ts": "c416576adaf8dc2334d0fd30447a9136d9dcf31f2156d63b066cf411bae68894",
+    "apps/app/src/i18n/resources/ja.ts": "3abec0017f3933788fa497fac60ec99101f064240ec2d81cf68b348f7580d57c",
+    "apps/app/src/i18n/resources/ko.ts": "1314028d06e2bc71aada7e1a470adc662c2f6a6e58c120a56bb0c65b9c167215",
+    "apps/app/src/i18n/resources/pt-BR.ts": "5c926e12ba6baf019621f306d101c2d2f4df2696c9871080124f1b713376b8b1",
+    "apps/app/src/i18n/resources/ru.ts": "0d3a53ba9435ca9c674800efd94a3fd12babfe96bc4f64732815382a6ff539c9",
+    "apps/app/src/i18n/resources/zh-CN.ts": "b2e562cd83ff2ef0002232fa4b0cc9918f2feba364f4fea10740ebdcb040576a",
+    "apps/app/src/runtime/rust-server/messages.test.ts": "4f7bbff5f0b25431e4d18ceb76757fa03da6e933f86c1e0a3bb8a1e7f4a6ad20",
+    "bins/server/tests/process/agent_history.rs": "5d0b37a7483fddfbcc3abf15efc07b9b1d00a5b9a28c3788e8b5ebd4a66847ac",
+    "crates/server-provider/Cargo.toml": "c8ca8e3d7e8ae2e1bf01210d9b06d3d24315fc0c82c8a61f1fec3f34ea1e4954",
+    "crates/server-provider/src/rpc/timeline.rs": "ec5787dde3046d344e3b5de3c0f7cf242a1fab845e9b16c3c2f6165126bf6d4a",
+    "crates/server-provider/src/rpc/timeline/tests/paseo.rs": "472a662ba25e68e4166df8d597714d9ab6cfde188b679a3212c0f0a83b3a5082",
+    "crates/server-provider/src/rpc/timeline/text_search.rs": "18633979713877343609b5dde811dfd5781977b43ffd6dcc0898ba15b9c26e7a",
+    "crates/server-provider/src/rpc/timeline/text_search/tests.rs": "43d17c1b16bc0a28d710aafc1df968e34a3e4b144d6b35911d295c070633bb21",
+    "packages/protocol/src/messages.timeline-search.test.ts": "984db0d86676dc0785f17012ac77c2bc9770c08190f4205effced0de520e004d",
+    "packages/protocol/src/messages.ts": "e9c8e96d3a9cda2e5c7caf3f3d0c9aacae975fcc63416c50669c243896d20f90"
+  },
+  "raw_report_sha256": "b505ca545c8a199405e565c2ff6419db195a5891f36671b00bf62a3d6681ea5c",
+  "uncovered_behavior": "No uncovered executable lines in the changed timeline query and text-search modules. Line coverage does not establish exhaustive regex error, Markdown renderer, browser UI, or platform behavior. Complex renderer differences remain client-verified estimates."
+}
