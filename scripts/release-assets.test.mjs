@@ -4,8 +4,22 @@ import { mkdtemp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { Arch, getArtifactArchName } from "builder-util";
+import { expandMacro } from "app-builder-lib/out/util/macroExpander.js";
 import { stringify, parse } from "yaml";
 import { collectReleaseAssets, releaseAssetNames, verifyReleaseAssets } from "./release-assets.mjs";
+
+async function builderAssetNames(platform, version) {
+  const config = parse(
+    await readFile(new URL("../apps/paseo/electron-builder.yml", import.meta.url), "utf8"),
+  );
+  const arch = platform === "linux" ? Arch.x64 : Arch.arm64;
+  const installers = config[platform].target.map((ext) => {
+    const options = ext === "AppImage" ? config.appImage : config[platform];
+    return expandMacro(options.artifactName, getArtifactArchName(arch, ext), { version }, { ext });
+  });
+  return [...installers, `latest-${platform}.yml`];
+}
 
 async function fixture(t, platform) {
   const root = await mkdtemp(path.join(tmpdir(), "ait-release-assets-"));
@@ -14,7 +28,8 @@ async function fixture(t, platform) {
   const destination = path.join(root, "release");
   await mkdir(source);
   const version = "0.0.7";
-  const names = releaseAssetNames(platform, version);
+  // Generate fixtures from builder's naming rules, independently of the collector allowlist.
+  const names = await builderAssetNames(platform, version);
   const files = [];
   for (const name of names.slice(0, 2)) {
     const contents = Buffer.from(`packaged installer: ${name}`);
@@ -29,6 +44,15 @@ async function fixture(t, platform) {
   await writeFile(path.join(source, "old-server.exe"), "should never be collected");
   return { platform, version, source, destination };
 }
+
+test("release assets match electron-builder's target-specific architecture names", async () => {
+  for (const platform of ["linux", "mac"]) {
+    assert.deepEqual(
+      releaseAssetNames(platform, "0.0.7"),
+      await builderAssetNames(platform, "0.0.7"),
+    );
+  }
+});
 
 test("collects both platforms, updater metadata and blockmaps, then checksums every asset", async (t) => {
   const linux = await fixture(t, "linux");
@@ -55,7 +79,7 @@ test("collects both platforms, updater metadata and blockmaps, then checksums ev
 
 test("rejects stale updater checksums and missing installers", async (t) => {
   const input = await fixture(t, "linux");
-  await writeFile(path.join(input.source, "Ait-linux-x64.AppImage"), "changed");
+  await writeFile(path.join(input.source, "Ait-linux-x86_64.AppImage"), "changed");
   await assert.rejects(collectReleaseAssets(input), /checksum mismatch/);
   await rm(path.join(input.source, "Ait-0.0.7-linux-x64.tar.gz"));
   await assert.rejects(collectReleaseAssets(input), /ENOENT/);
