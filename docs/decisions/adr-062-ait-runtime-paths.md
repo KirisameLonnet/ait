@@ -19,4 +19,4 @@
 
 ## Test coverage
 
-本地迭代未测量行覆盖率；使用受影响模块的定向单测和 Ait API / 浏览器 E2E。工作区覆盖率按仓库要求延后至提交准备阶段。执行结果记录在本次交付报告中。
+提交准备已在代码版本 `a933517` 运行 `RUST_TEST_THREADS=4 cargo llvm-cov --workspace --html`：workspace 91.60%（35,744 / 39,021 行），server-filesystem 88.14%（7,881 / 8,941 行），server-metadata 89.82%（6,178 / 6,878 行）。无可比基线。测量范围、跳过项、共享覆盖率摘要和未覆盖行为见[覆盖率报告](../reports/ait-e2e-coverage.md)；测试执行结果见[迁移报告](../reports/ait-e2e-migration.md)。
