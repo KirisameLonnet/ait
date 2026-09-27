@@ -2,7 +2,7 @@
 
 ## Test coverage
 
-测量代码版本：[`a933517`](https://github.com/necokeine/ait/commit/a933517fe726f11e37eb8e38898e46b50daef580)，基于 `c03c42d`。后续提交只更新文档，未改变被测代码。测量日期：2026-09-29。没有同范围、同版本的可比基线，不计算覆盖率增量。
+测量代码版本：[`a933517`](https://github.com/necokeine/ait/commit/a933517fe726f11e37eb8e38898e46b50daef580)，基于 `c03c42d`。此测量对应该提交，不代表随后同步 main 的新代码已包含在同一份覆盖率中。测量日期：2026-09-29。没有同范围、同版本的可比基线，不计算覆盖率增量。
 
 范围为整个 Cargo workspace，默认 features，debug profile，macOS `aarch64-apple-darwin`；Rust 1.98.1、cargo-llvm-cov 0.8.4。未传入自定义文件排除参数，采用工具默认过滤；未开启 doctest coverage。Windows、Linux、移动端及真实在线 Provider 未在本次测量中运行。三个需要本地 Claude/Codex CLI 或认证的 Rust 测试按默认设置忽略。
 

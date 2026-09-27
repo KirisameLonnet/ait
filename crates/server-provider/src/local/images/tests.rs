@@ -60,16 +60,32 @@ fn paths_and_urls_escape_markdown_and_malformed_images_fail_closed() {
             .is_err()
     );
     assert!(store.render(&json!("/tmp/line\nbreak")).is_err());
-    assert!(
-        store
-            .render(&json!({"data":"x".repeat(2 * 1024 * 1024 + 1)}))
-            .is_err()
-    );
+    assert!(store.render(&json!({"data":""})).is_err());
     assert_eq!(
         store
             .render(&json!("data:image/png;base64,aGVsbG8="))
             .unwrap(),
         store.render(&json!({"data":"aGVsbG8="})).unwrap()
+    );
+}
+
+#[test]
+fn large_native_image_is_materialized_without_embedding_base64_in_markdown() {
+    let root = tempfile::tempdir().unwrap();
+    let directory = root.path().join("images");
+    let store = ImageStore::new(directory.clone());
+    let bytes = vec![0_u8; 2 * 1024 * 1024];
+    let data = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    assert!(data.len() > 2 * 1024 * 1024);
+    let block = json!({"data":data,"mimeType":"image/png"});
+    let markdown = store.render(&block).unwrap();
+    assert!(markdown.len() < 1024);
+    assert_eq!(store.render(&block).unwrap(), markdown);
+    let files: Vec<_> = std::fs::read_dir(directory).unwrap().collect();
+    assert_eq!(files.len(), 1);
+    assert_eq!(
+        std::fs::read(files[0].as_ref().unwrap().path()).unwrap(),
+        bytes
     );
 }
 

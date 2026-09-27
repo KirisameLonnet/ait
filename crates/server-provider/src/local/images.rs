@@ -69,7 +69,9 @@ impl ImageStore {
             "image/tiff" => "tiff",
             _ => return Err(AgentSessionError::Failed),
         };
-        if data.is_empty() || data.len() > 2 * 1024 * 1024 {
+        // Match Paseo's provider-image-output materialization: native image output
+        // is not subject to the size limit on client-uploaded prompt images.
+        if data.is_empty() {
             return Err(AgentSessionError::Failed);
         }
         let bytes = base64::engine::general_purpose::STANDARD
