@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { DaemonClient } from "@ait/client/internal/daemon-client";
+import {
+  decodeFileTransferFrame,
+  encodeFileTransferFrame,
+  FileTransferOpcode,
+} from "@ait/protocol/binary-frames/index";
 import { CHANNEL_CAPABILITIES, createRustServerTransportFactory } from "./transport";
 import { METHODS } from "./methods";
 import type { Payload, TransportFactory } from "./types";
@@ -111,6 +116,195 @@ function harness(
 }
 
 describe("Rust protocol adapter", () => {
+  it("completes interleaved SDK file reads using the original request IDs", async () => {
+    const h = harness();
+    h.stopHello();
+    const client = new DaemonClient({
+      url: "ws://127.0.0.1:7316/v1/ws",
+      clientId: "file-read-test",
+      transportFactory: () => h.transport,
+      reconnect: { enabled: false },
+    });
+    const completed = vi.fn();
+    const failed = vi.fn();
+    try {
+      const connected = client.connect();
+      h.ready();
+      await connected;
+      const first = client.readFile("/workspace", "one.rs", "file-one");
+      const firstId = h.last(2).request_id;
+      const second = client.readFile("/workspace", "two.rs", "file-two-longer");
+      const secondId = h.last(2).request_id;
+      void Promise.all([first, second]).then(completed, failed);
+      expect([firstId, secondId]).toEqual(["file-one", "file-two-longer"]);
+      for (const id of [firstId, secondId]) {
+        h.sockets[2].message(
+          encodeFileTransferFrame({
+            opcode: FileTransferOpcode.FileBegin,
+            requestId: id,
+            metadata: { mime: "text/plain", size: 3, encoding: "utf-8", modifiedAt: "now" },
+          }).buffer,
+          true,
+        );
+      }
+      for (const [id, payload] of [
+        [secondId, "two"],
+        [firstId, "one"],
+      ]) {
+        h.sockets[2].message(
+          encodeFileTransferFrame({
+            opcode: FileTransferOpcode.FileChunk,
+            requestId: id,
+            payload,
+          }),
+          true,
+        );
+        h.sockets[2].message(
+          encodeFileTransferFrame({
+            opcode: FileTransferOpcode.FileEnd,
+            requestId: id,
+          }),
+          true,
+        );
+      }
+      await vi.waitFor(() => expect(completed).toHaveBeenCalledOnce());
+      expect(failed).not.toHaveBeenCalled();
+      expect(
+        completed.mock.calls[0][0].map((file: { bytes: Uint8Array }) =>
+          new TextDecoder().decode(file.bytes),
+        ),
+      ).toEqual(["one", "two"]);
+      expect(client.isConnected).toBe(true);
+    } finally {
+      await client.close();
+    }
+  });
+
+  it("releases binary read admission and timers at FileEnd and ignores late frames", () => {
+    vi.useFakeTimers();
+    const h = harness();
+    const received = vi.fn();
+    h.transport.onMessage((data, binary) => {
+      if (binary) received(data);
+    });
+    try {
+      h.ready();
+      for (let index = 0; index < 260; index++) {
+        const requestId = `file-${index}`;
+        h.send({
+          type: "file_explorer_request",
+          requestId,
+          cwd: "/workspace",
+          path: "empty.txt",
+          mode: "file",
+          acceptBinary: true,
+        });
+        const id = h.last(2).request_id;
+        h.sockets[2].message(
+          encodeFileTransferFrame({
+            opcode: FileTransferOpcode.FileBegin,
+            requestId: id,
+            metadata: { mime: "text/plain", size: 0, encoding: "utf-8", modifiedAt: "now" },
+          }),
+          true,
+        );
+        const end = encodeFileTransferFrame({ opcode: FileTransferOpcode.FileEnd, requestId: id });
+        h.sockets[2].message(end, true);
+        expect(received.mock.lastCall![0]).toBe(end);
+        expect(decodeFileTransferFrame(received.mock.lastCall![0])).toMatchObject({ requestId });
+        const count = received.mock.calls.length;
+        h.sockets[2].message(end, true);
+        expect(received).toHaveBeenCalledTimes(count);
+      }
+      vi.advanceTimersByTime(300_001);
+      expect(h.received).toHaveLength(1); // No completed read becomes a later timeout.
+      expect(h.errors).not.toHaveBeenCalled();
+    } finally {
+      h.transport.close();
+      vi.useRealTimers();
+    }
+  });
+
+  it("discards file data arriving after a correlated read failure", () => {
+    const h = harness();
+    const binary = vi.fn();
+    h.transport.onMessage((data, isBinary) => {
+      if (isBinary) binary(data);
+    });
+    try {
+      h.ready();
+      h.send({
+        type: "file_explorer_request",
+        requestId: "failed-read",
+        cwd: "/workspace",
+        path: "removed.rs",
+        mode: "file",
+        acceptBinary: true,
+      });
+      const id = h.last(2).request_id;
+      h.sockets[2].message({
+        type: "response",
+        request_id: id,
+        result: {
+          cwd: "/workspace",
+          path: "removed.rs",
+          mode: "file",
+          directory: null,
+          file: null,
+          error: "File disappeared",
+        },
+      });
+      expect(h.received.at(-1)).toMatchObject({
+        message: {
+          type: "file_explorer_response",
+          payload: { requestId: "failed-read", error: "File disappeared" },
+        },
+      });
+      h.sockets[2].message(
+        encodeFileTransferFrame({
+          opcode: FileTransferOpcode.FileChunk,
+          requestId: id,
+          payload: "stale",
+        }),
+        true,
+      );
+      expect(binary).not.toHaveBeenCalled();
+      expect(h.errors).not.toHaveBeenCalled();
+    } finally {
+      h.transport.close();
+    }
+  });
+
+  it("rejects a binary read response on a different physical connection", () => {
+    const h = harness();
+    try {
+      h.ready();
+      h.send({
+        type: "file_explorer_request",
+        requestId: "wrong-channel",
+        cwd: "/workspace",
+        path: "empty.rs",
+        mode: "file",
+        acceptBinary: true,
+      });
+      h.sockets[1].message(
+        encodeFileTransferFrame({
+          opcode: FileTransferOpcode.FileEnd,
+          requestId: h.last(2).request_id,
+        }),
+        true,
+      );
+      expect(h.errors).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "Rust file came from the wrong connection",
+        }),
+      );
+      expect(h.closed).toHaveBeenCalledOnce();
+    } finally {
+      h.transport.close();
+    }
+  });
+
   it("uses Rust negotiation and RPC for SSH channels", () => {
     const h = harness(undefined, "ait+desktop://ssh?host=build-box&daemonPort=7316");
     try {
@@ -221,6 +415,7 @@ describe("Rust protocol adapter", () => {
         requestId: "workspaces",
       });
       const second = h.last(1);
+      expect([first.request_id, second.request_id]).toEqual(["projects", "workspaces"]);
       expect(first.params).toEqual({});
       expect(second.method).toBe("workspace.list.request");
       h.sockets[1].message({
@@ -245,6 +440,29 @@ describe("Rust protocol adapter", () => {
           payload: { requestId: "workspaces" },
         },
       });
+    } finally {
+      h.transport.close();
+    }
+  });
+
+  it("rejects a duplicate pending ID without replacing the original request", () => {
+    const h = harness();
+    try {
+      h.ready();
+      h.send({ type: "project.list.request", requestId: "shared-id" });
+      expect(() => h.send({ type: "fetch_workspaces_request", requestId: "shared-id" })).toThrow(
+        "Duplicate pending Rust server request ID",
+      );
+      h.sockets[1].message({
+        type: "response",
+        request_id: "shared-id",
+        result: { projects: [] },
+      });
+      expect(h.received.at(-1)).toMatchObject({
+        message: { type: "project.list.response", payload: { requestId: "shared-id" } },
+      });
+      h.send({ type: "fetch_workspaces_request", requestId: "shared-id" });
+      expect(h.last(1).request_id).toBe("shared-id");
     } finally {
       h.transport.close();
     }
@@ -418,6 +636,10 @@ describe("Rust protocol adapter", () => {
     h.ready();
     h.transport.send(JSON.stringify({ type: "ping" }));
     const ping = h.last(0);
+    expect(ping.request_id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    expect(ping.params.nonce).toBe(ping.request_id);
     h.sockets[0].message({
       type: "response",
       request_id: ping.request_id,
