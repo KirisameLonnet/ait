@@ -1,0 +1,474 @@
+{
+  "base_revision": "3f2f1ca864a19b789487e6796f4894b704fef9be",
+  "revision": "base_revision plus changed_source_sha256",
+  "platform": "macOS aarch64",
+  "packaged_version": "0.0.8",
+  "packaged_server_sha256": "0e9758462ac6f6c498d5ff484454dd3d226adfd5488173cb6f94e0d2f0121c75",
+  "changed_source_sha256": {
+    "apps/app/src/runtime/rust-server/transport.ts": "34964e53c7aaf8549039538d7bf9c4f7721b3e73acc6342d6d242c03ed1c0294",
+    "apps/app/src/runtime/rust-server/transport.test.ts": "4afab8d1d3b93e9e1f011afcb3ac29494bfb510889e5af31af15ed53d9aa75e6",
+    "scripts/validate-paseo-rust-client.cjs": "051a8908fead8854cdeab893a881f1b23c2439e67882ef5a092fb8342a3b6655"
+  },
+  "baseline_adapter_revision": "47d4b7ee1daf764030bddfe41450fff98037aedd",
+  "unit_regression_before_fix": {
+    "failed": 2,
+    "passed": 110,
+    "failures": [
+      "interleaved SDK reads never complete",
+      "FileEnd still carries rust-* instead of original SDK ID"
+    ]
+  },
+  "files_unit_tests_after_fix": {
+    "passed": 115,
+    "failed": 0,
+    "files": 8
+  },
+  "terminal_regression_after_fix": {
+    "passed": 81,
+    "failed": 0,
+    "integration_checks_passed": 7,
+    "integration_result": {
+      "checks": [
+        {
+          "name": "connect",
+          "status": "passed",
+          "keys": []
+        },
+        {
+          "name": "add project",
+          "status": "passed",
+          "keys": ["requestId", "project", "error"]
+        },
+        {
+          "name": "open workspace",
+          "status": "passed",
+          "keys": ["requestId", "workspace", "error"]
+        },
+        {
+          "name": "nonempty workspaces",
+          "status": "passed",
+          "keys": ["requestId", "entries", "emptyProjects", "pageInfo"]
+        },
+        {
+          "name": "list files",
+          "status": "passed",
+          "keys": ["path", "entries"]
+        },
+        {
+          "name": "list terminals",
+          "status": "passed",
+          "keys": ["cwd", "terminals", "requestId"]
+        },
+        {
+          "name": "terminal lifecycle",
+          "status": "passed",
+          "keys": []
+        }
+      ],
+      "invalidMessages": [],
+      "upstreamRevision": "imported workspace SDK",
+      "schema": "Original Zod WSOutboundMessageSchema (AOT build output not imported)",
+      "scope": "Real SDK, renderer IPC transport, main-process transport manager and isolated Rust server; no Electron UI"
+    }
+  },
+  "coverage": {
+    "status": "not measured",
+    "reason": "Focused TypeScript iteration; no Rust changes, Rust tests skipped. Passing counts are test execution, not line coverage."
+  },
+  "limitations": [
+    "No actual Electron UI interaction; the production SDK, renderer IPC bridge, main-process transport and LiveFileModel were exercised with real servers and isolated files.",
+    "The correction is in the desktop adapter; it does not change the already installed Desktop 0.0.8."
+  ],
+  "before_fix_packaged_server": {
+    "checks": [
+      {
+        "name": "connect",
+        "status": "passed",
+        "keys": []
+      },
+      {
+        "name": "add project",
+        "status": "passed",
+        "keys": ["requestId", "project", "error"]
+      },
+      {
+        "name": "open workspace",
+        "status": "passed",
+        "keys": ["requestId", "workspace", "error"]
+      },
+      {
+        "name": "nonempty workspaces",
+        "status": "passed",
+        "keys": ["requestId", "entries", "emptyProjects", "pageInfo"]
+      },
+      {
+        "name": "list files",
+        "status": "passed",
+        "keys": ["path", "entries"]
+      },
+      {
+        "name": "file suffix lookup",
+        "status": "passed",
+        "keys": []
+      },
+      {
+        "name": "concurrent binary file reads",
+        "status": "failed",
+        "error": "test deadline"
+      },
+      {
+        "name": "file errors settle",
+        "status": "passed",
+        "keys": []
+      },
+      {
+        "name": "live file leaves loading and refreshes",
+        "status": "failed",
+        "error": "file panel remained loading or did not receive the updated file"
+      }
+    ],
+    "invalidMessages": [],
+    "fileFrames": [
+      {
+        "opcode": 16,
+        "requestId": "rust-6",
+        "bytes": 155
+      },
+      {
+        "opcode": 17,
+        "requestId": "rust-6",
+        "bytes": 52
+      },
+      {
+        "opcode": 18,
+        "requestId": "rust-6",
+        "bytes": 8
+      },
+      {
+        "opcode": 16,
+        "requestId": "rust-7",
+        "bytes": 178
+      },
+      {
+        "opcode": 17,
+        "requestId": "rust-7",
+        "bytes": 262152
+      },
+      {
+        "opcode": 17,
+        "requestId": "rust-7",
+        "bytes": 262152
+      },
+      {
+        "opcode": 17,
+        "requestId": "rust-7",
+        "bytes": 90120
+      },
+      {
+        "opcode": 18,
+        "requestId": "rust-7",
+        "bytes": 8
+      },
+      {
+        "opcode": 16,
+        "requestId": "rust-8",
+        "bytes": 153
+      },
+      {
+        "opcode": 18,
+        "requestId": "rust-8",
+        "bytes": 8
+      },
+      {
+        "opcode": 16,
+        "requestId": "rust-12",
+        "bytes": 156
+      },
+      {
+        "opcode": 17,
+        "requestId": "rust-12",
+        "bytes": 53
+      },
+      {
+        "opcode": 18,
+        "requestId": "rust-12",
+        "bytes": 9
+      }
+    ],
+    "upstreamRevision": "imported workspace SDK",
+    "schema": "Original Zod WSOutboundMessageSchema (AOT build output not imported)",
+    "scope": "Real SDK, renderer IPC transport, main-process transport manager and isolated Rust server; no Electron UI"
+  },
+  "after_fix_packaged_server": {
+    "checks": [
+      {
+        "name": "connect",
+        "status": "passed",
+        "keys": []
+      },
+      {
+        "name": "add project",
+        "status": "passed",
+        "keys": ["requestId", "project", "error"]
+      },
+      {
+        "name": "open workspace",
+        "status": "passed",
+        "keys": ["requestId", "workspace", "error"]
+      },
+      {
+        "name": "nonempty workspaces",
+        "status": "passed",
+        "keys": ["requestId", "entries", "emptyProjects", "pageInfo"]
+      },
+      {
+        "name": "list files",
+        "status": "passed",
+        "keys": ["path", "entries"]
+      },
+      {
+        "name": "file suffix lookup",
+        "status": "passed",
+        "keys": []
+      },
+      {
+        "name": "concurrent binary file reads",
+        "status": "passed",
+        "keys": []
+      },
+      {
+        "name": "file errors settle",
+        "status": "passed",
+        "keys": []
+      },
+      {
+        "name": "live file leaves loading and refreshes",
+        "status": "passed",
+        "keys": []
+      }
+    ],
+    "invalidMessages": [],
+    "fileFrames": [
+      {
+        "opcode": 16,
+        "requestId": "463fd559-d595-4638-a5c9-64c7c7859ff0",
+        "bytes": 185
+      },
+      {
+        "opcode": 17,
+        "requestId": "463fd559-d595-4638-a5c9-64c7c7859ff0",
+        "bytes": 82
+      },
+      {
+        "opcode": 18,
+        "requestId": "463fd559-d595-4638-a5c9-64c7c7859ff0",
+        "bytes": 38
+      },
+      {
+        "opcode": 16,
+        "requestId": "9e1a3eeb-ec02-4687-90b6-47367ac2a2cc",
+        "bytes": 208
+      },
+      {
+        "opcode": 17,
+        "requestId": "9e1a3eeb-ec02-4687-90b6-47367ac2a2cc",
+        "bytes": 262182
+      },
+      {
+        "opcode": 17,
+        "requestId": "9e1a3eeb-ec02-4687-90b6-47367ac2a2cc",
+        "bytes": 262182
+      },
+      {
+        "opcode": 17,
+        "requestId": "9e1a3eeb-ec02-4687-90b6-47367ac2a2cc",
+        "bytes": 90150
+      },
+      {
+        "opcode": 18,
+        "requestId": "9e1a3eeb-ec02-4687-90b6-47367ac2a2cc",
+        "bytes": 38
+      },
+      {
+        "opcode": 16,
+        "requestId": "59e3ce56-2deb-441b-870b-7834cc9fab55",
+        "bytes": 183
+      },
+      {
+        "opcode": 18,
+        "requestId": "59e3ce56-2deb-441b-870b-7834cc9fab55",
+        "bytes": 38
+      },
+      {
+        "opcode": 16,
+        "requestId": "3091fa82-a4fa-439c-83c0-a5ef3a42d109",
+        "bytes": 185
+      },
+      {
+        "opcode": 17,
+        "requestId": "3091fa82-a4fa-439c-83c0-a5ef3a42d109",
+        "bytes": 82
+      },
+      {
+        "opcode": 18,
+        "requestId": "3091fa82-a4fa-439c-83c0-a5ef3a42d109",
+        "bytes": 38
+      },
+      {
+        "opcode": 16,
+        "requestId": "63d3d3a1-5362-4640-a2b7-80c1658a7704",
+        "bytes": 185
+      },
+      {
+        "opcode": 17,
+        "requestId": "63d3d3a1-5362-4640-a2b7-80c1658a7704",
+        "bytes": 101
+      },
+      {
+        "opcode": 18,
+        "requestId": "63d3d3a1-5362-4640-a2b7-80c1658a7704",
+        "bytes": 38
+      }
+    ],
+    "upstreamRevision": "imported workspace SDK",
+    "schema": "Original Zod WSOutboundMessageSchema (AOT build output not imported)",
+    "scope": "Real SDK, renderer IPC transport, main-process transport manager and isolated Rust server; no Electron UI"
+  },
+  "after_fix_current_server": {
+    "checks": [
+      {
+        "name": "connect",
+        "status": "passed",
+        "keys": []
+      },
+      {
+        "name": "add project",
+        "status": "passed",
+        "keys": ["requestId", "project", "error"]
+      },
+      {
+        "name": "open workspace",
+        "status": "passed",
+        "keys": ["requestId", "workspace", "error"]
+      },
+      {
+        "name": "nonempty workspaces",
+        "status": "passed",
+        "keys": ["requestId", "entries", "emptyProjects", "pageInfo"]
+      },
+      {
+        "name": "list files",
+        "status": "passed",
+        "keys": ["path", "entries"]
+      },
+      {
+        "name": "file suffix lookup",
+        "status": "passed",
+        "keys": []
+      },
+      {
+        "name": "concurrent binary file reads",
+        "status": "passed",
+        "keys": []
+      },
+      {
+        "name": "file errors settle",
+        "status": "passed",
+        "keys": []
+      },
+      {
+        "name": "live file leaves loading and refreshes",
+        "status": "passed",
+        "keys": []
+      }
+    ],
+    "invalidMessages": [],
+    "fileFrames": [
+      {
+        "opcode": 16,
+        "requestId": "79f6d0bf-dd23-47a4-999d-887f535a6761",
+        "bytes": 185
+      },
+      {
+        "opcode": 17,
+        "requestId": "79f6d0bf-dd23-47a4-999d-887f535a6761",
+        "bytes": 82
+      },
+      {
+        "opcode": 18,
+        "requestId": "79f6d0bf-dd23-47a4-999d-887f535a6761",
+        "bytes": 38
+      },
+      {
+        "opcode": 16,
+        "requestId": "f06a9281-ebca-4120-b25f-0df16224dd06",
+        "bytes": 208
+      },
+      {
+        "opcode": 17,
+        "requestId": "f06a9281-ebca-4120-b25f-0df16224dd06",
+        "bytes": 262182
+      },
+      {
+        "opcode": 17,
+        "requestId": "f06a9281-ebca-4120-b25f-0df16224dd06",
+        "bytes": 262182
+      },
+      {
+        "opcode": 17,
+        "requestId": "f06a9281-ebca-4120-b25f-0df16224dd06",
+        "bytes": 90150
+      },
+      {
+        "opcode": 18,
+        "requestId": "f06a9281-ebca-4120-b25f-0df16224dd06",
+        "bytes": 38
+      },
+      {
+        "opcode": 16,
+        "requestId": "988f3067-ce15-4c35-bff2-cc1a3474a3ce",
+        "bytes": 183
+      },
+      {
+        "opcode": 18,
+        "requestId": "988f3067-ce15-4c35-bff2-cc1a3474a3ce",
+        "bytes": 38
+      },
+      {
+        "opcode": 16,
+        "requestId": "8600660b-8d7c-4ae5-b2bc-0caac2ef2508",
+        "bytes": 185
+      },
+      {
+        "opcode": 17,
+        "requestId": "8600660b-8d7c-4ae5-b2bc-0caac2ef2508",
+        "bytes": 82
+      },
+      {
+        "opcode": 18,
+        "requestId": "8600660b-8d7c-4ae5-b2bc-0caac2ef2508",
+        "bytes": 38
+      },
+      {
+        "opcode": 16,
+        "requestId": "b85a73c0-108d-47b8-92cc-774cfc00a55b",
+        "bytes": 185
+      },
+      {
+        "opcode": 17,
+        "requestId": "b85a73c0-108d-47b8-92cc-774cfc00a55b",
+        "bytes": 101
+      },
+      {
+        "opcode": 18,
+        "requestId": "b85a73c0-108d-47b8-92cc-774cfc00a55b",
+        "bytes": 38
+      }
+    ],
+    "upstreamRevision": "imported workspace SDK",
+    "schema": "Original Zod WSOutboundMessageSchema (AOT build output not imported)",
+    "scope": "Real SDK, renderer IPC transport, main-process transport manager and isolated Rust server; no Electron UI"
+  },
+  "request_id_strategy": "Preserve the SDK requestId end to end, matching original Paseo; generate UUID only when absent. No renumbering, reverse mapping or binary re-encoding.",
+  "paseo_reference_revision": "30178c4f58b67f8472901356e1484022bd835de0"
+}

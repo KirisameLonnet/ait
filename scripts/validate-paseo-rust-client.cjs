@@ -4,6 +4,7 @@
  * PASEO_SOURCE_ROOT: pinned upstream checkout; PASEO_TEST_DEPS: test node_modules directory.
  * AIT_SERVER_BIN: compiled Rust server; PASEO_VALIDATION_REPORT: optional JSON output.
  * --terminal: test the imported SDK and desktop terminal lifecycle only (no upstream checkout needed).
+ * --files: test real file lookup, reads and the desktop live-file model using the imported SDK.
  * No npm install, credentials, real projects or provider sessions are used by this script.
  */
 const fs = require("node:fs");
@@ -15,9 +16,9 @@ const { once } = require("node:events");
 const assert = require("node:assert/strict");
 const repo = path.resolve(__dirname, "..");
 const terminalOnly = process.argv.includes("--terminal");
-const upstream = terminalOnly
-  ? repo
-  : process.env.PASEO_SOURCE_ROOT || path.resolve(repo, "../paseo");
+const filesOnly = process.argv.includes("--files");
+const focused = terminalOnly || filesOnly;
+const upstream = focused ? repo : process.env.PASEO_SOURCE_ROOT || path.resolve(repo, "../paseo");
 const deps = process.env.PASEO_TEST_DEPS || path.join(repo, "node_modules");
 const serverBinary = process.env.AIT_SERVER_BIN || path.join(repo, "target/debug/server");
 const work = fs.mkdtempSync(path.join(os.tmpdir(), "ait-paseo-validation-"));
@@ -36,7 +37,8 @@ let DaemonClient,
   WSOutboundMessageSchema,
   createRustServerTransportFactory,
   createDesktopDaemonTransportFactory,
-  createLocalTransportManager;
+  createLocalTransportManager,
+  LiveFileModel;
 const plugin = {
   name: "local-upstream",
   setup(build) {
@@ -85,6 +87,7 @@ async function buildFixtures() {
     ["adapter", path.join(repo, "apps/app/src/runtime/rust-server/transport.ts")],
     ["renderer", path.join(repo, "apps/app/src/desktop/daemon/desktop-daemon-transport.ts")],
     ["main", path.join(repo, "apps/paseo/src/daemon/local-transport.ts")],
+    ["file-model", path.join(repo, "apps/app/src/file-pane/live-file/model.ts")],
   ]) {
     await esbuild.build({
       entryPoints: [entry],
@@ -154,7 +157,18 @@ async function runIntegration() {
     const checkedFactory = (options) => {
       const t = factory(options);
       t.onMessage((data, binary) => {
-        if (binary) return;
+        if (binary) {
+          const bytes = Buffer.from(data);
+          if (filesOnly && bytes[0] >= 0x10 && bytes[0] <= 0x12) {
+            results.fileFrames ??= [];
+            results.fileFrames.push({
+              opcode: bytes[0],
+              requestId: bytes.subarray(2, 2 + bytes[1]).toString(),
+              bytes: bytes.length,
+            });
+          }
+          return;
+        }
         const value = JSON.parse(String(data));
         const check = WSOutboundMessageSchema.safeParse(value);
         if (!check.success)
@@ -192,7 +206,7 @@ async function runIntegration() {
       } catch (e) {
         results.checks.push({
           name,
-          status: expectedCode === e.code ? "expected_gap" : "failed",
+          status: expectedCode !== undefined && expectedCode === e.code ? "expected_gap" : "failed",
           error: e.message,
           code: e.code,
         });
@@ -202,7 +216,7 @@ async function runIntegration() {
     }
     await check("connect", () => client.connect());
     assert(client.getLastServerInfoMessage(), "no server info");
-    if (!terminalOnly)
+    if (!focused)
       for (const [name, fn, expectedCode] of [
         ["projects", () => client.listProjects()],
         ["workspaces", () => client.fetchWorkspaces({ timeout: 2000 })],
@@ -247,9 +261,12 @@ async function runIntegration() {
     const workspace = await check("open workspace", () => client.openProject(projectDir));
     await check("nonempty workspaces", () => client.fetchWorkspaces({ timeout: 2000 }));
     await check("list files", () => client.listDirectory(projectDir, "."));
-    await check("list terminals", () => client.listTerminals(projectDir));
-    await check("terminal lifecycle", () => checkTerminals(client, projectDir));
-    if (!terminalOnly) {
+    if (!terminalOnly) await checkFiles(client, projectDir, check);
+    if (!filesOnly) {
+      await check("list terminals", () => client.listTerminals(projectDir));
+      await check("terminal lifecycle", () => checkTerminals(client, projectDir));
+    }
+    if (!focused) {
       if (workspace?.workspace?.id)
         await check("assign workspace label", () =>
           client.setWorkspaceLabel({
@@ -328,8 +345,87 @@ async function runIntegration() {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   }
-  assert.equal(results.invalidMessages.length, 0);
-  assert(results.checks.every((item) => ["passed", "expected_gap"].includes(item.status)));
+}
+
+async function checkFiles(client, cwd, check) {
+  const relative = "src/control/execution.rs";
+  const absolute = path.join(cwd, relative);
+  const content = "// file preview fixture\npub fn example() {}\n";
+  fs.mkdirSync(path.dirname(absolute), { recursive: true });
+  fs.writeFileSync(absolute, content);
+  const binary = Buffer.alloc(600 * 1024, 0x9a);
+  fs.writeFileSync(path.join(cwd, "chunks.bin"), binary);
+  fs.writeFileSync(path.join(cwd, "empty.txt"), "");
+  await check("file suffix lookup", async () => {
+    const result = await client.getDirectorySuggestions({
+      cwd,
+      query: "control/execution.rs",
+      includeFiles: true,
+      includeDirectories: false,
+      matchMode: "suffix",
+      limit: 1,
+    });
+    assert.equal(result.error, null);
+    assert.equal(result.entries[0]?.path, relative);
+  });
+  await check("concurrent binary file reads", async () => {
+    const [text, bytes, empty] = await Promise.all([
+      client.readFile(cwd, absolute),
+      client.readFile(cwd, "chunks.bin"),
+      client.readFile(cwd, "empty.txt"),
+    ]);
+    assert.equal(Buffer.from(text.bytes).toString(), content);
+    assert.deepEqual(Buffer.from(bytes.bytes), binary);
+    assert.equal(empty.bytes.byteLength, 0);
+  });
+  await check("file errors settle", async () => {
+    await assert.rejects(client.readFile(cwd, "missing.rs"));
+    await assert.rejects(client.readFile(cwd, "chunks.bin", undefined, 100));
+    assert.equal(client.getConnectionState().status, "connected");
+  });
+  await check("live file leaves loading and refreshes", async () => {
+    const model = new LiveFileModel();
+    let released;
+    const waitForContent = async (expected) => {
+      for (let attempt = 0; attempt < 120; attempt++) {
+        const { observation, read } = model.getSnapshot();
+        if (read.status === "error") throw new Error(read.error);
+        if (
+          observation?.status === "ready" &&
+          read.status === "idle" &&
+          Buffer.from(observation.file.bytes).toString() === expected
+        )
+          return;
+        await wait(20);
+      }
+      throw new Error("file panel remained loading or did not receive the updated file");
+    };
+    try {
+      model.open({
+        target: { cwd, path: absolute },
+        liveUpdates: true,
+        session: {
+          async subscribe(target, onVersion) {
+            const subscription = await client.subscribeFile(target, onVersion);
+            return {
+              initial: subscription.initial,
+              unsubscribe: () => {
+                released = subscription.unsubscribe();
+              },
+            };
+          },
+          read: (target) => client.readFile(target.cwd, target.path),
+        },
+      });
+      await waitForContent(content);
+      const changed = content + "// changed on disk\n";
+      fs.writeFileSync(absolute, changed);
+      await waitForContent(changed);
+    } finally {
+      model.close();
+      await released;
+    }
+  });
 }
 
 async function checkTerminals(client, cwd) {
@@ -449,10 +545,19 @@ vi.mock('@/desktop/daemon/local-daemon-transport-rpc', () => ({ defaultLocalDaem
         "apps/app/src/utils/test-daemon-connection.test.ts",
         "apps/app/src/desktop/daemon/desktop-daemon-transport.test.ts",
         "apps/paseo/src/daemon/local-transport.test.ts",
-        "apps/app/src/terminal/runtime/terminal-stream-controller.test.ts",
-        "apps/app/src/utils/terminal-renderer-readiness.test.ts",
-        "apps/app/src/components/terminal-pane-focus-claim.test.ts",
-        "apps/paseo/src/window/compositor-watchdog/index.test.ts",
+        ...(filesOnly
+          ? [
+              "apps/app/src/file-pane/live-file/model.test.ts",
+              "apps/app/src/file-explorer/preview-target.test.ts",
+              "apps/app/src/assistant-file-links/resolver.test.ts",
+              "apps/app/src/assistant-file-links/parse.test.ts",
+            ]
+          : [
+              "apps/app/src/terminal/runtime/terminal-stream-controller.test.ts",
+              "apps/app/src/utils/terminal-renderer-readiness.test.ts",
+              "apps/app/src/components/terminal-pane-focus-claim.test.ts",
+              "apps/paseo/src/window/compositor-watchdog/index.test.ts",
+            ]),
       ],
       environment: "node",
       pool: "forks",
@@ -471,7 +576,7 @@ vi.mock('@/desktop/daemon/local-daemon-transport-rpc', () => ({ defaultLocalDaem
 
 (async () => {
   try {
-    if (!terminalOnly)
+    if (!focused)
       assert.equal(
         execFileSync("git", ["-C", upstream, "rev-parse", "HEAD"], {
           encoding: "utf8",
@@ -488,9 +593,10 @@ vi.mock('@/desktop/daemon/local-daemon-transport-rpc', () => ({ defaultLocalDaem
     ({ createRustServerTransportFactory } = require(path.join(work, "adapter.cjs")));
     ({ createDesktopDaemonTransportFactory } = require(path.join(work, "renderer.cjs")));
     ({ createLocalTransportManager } = require(path.join(work, "main.cjs")));
+    ({ LiveFileModel } = require(path.join(work, "file-model.cjs")));
     runUnitTests();
     await runIntegration();
-    results.upstreamRevision = terminalOnly ? "imported workspace SDK" : pin;
+    results.upstreamRevision = focused ? "imported workspace SDK" : pin;
     results.schema = "Original Zod WSOutboundMessageSchema (AOT build output not imported)";
     results.scope =
       "Real SDK, renderer IPC transport, main-process transport manager and isolated Rust server; no Electron UI";
@@ -500,6 +606,8 @@ vi.mock('@/desktop/daemon/local-daemon-transport-rpc', () => ({ defaultLocalDaem
         JSON.stringify(results, null, 2) + "\n",
       );
     console.log(JSON.stringify(results, null, 2));
+    assert.equal(results.invalidMessages.length, 0);
+    assert(results.checks.every((item) => ["passed", "expected_gap"].includes(item.status)));
   } finally {
     fs.rmSync(work, { recursive: true, force: true });
   }

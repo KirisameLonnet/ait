@@ -1,6 +1,11 @@
 import { METHODS, type MethodSpec } from "./methods";
 import { eventMessage, responseMessage, rpcError, serverInfo } from "./messages";
 import { object, strings, type Payload, type Transport, type TransportFactory } from "./types";
+import {
+  asUint8Array,
+  decodeFileTransferFrame,
+  FileTransferOpcode,
+} from "@ait/protocol/binary-frames/index";
 
 export const CHANNEL_CAPABILITIES = Array.from({ length: 4 }, (_, channel) => [
   ...new Set([
@@ -13,7 +18,6 @@ export const CHANNEL_CAPABILITIES = Array.from({ length: 4 }, (_, channel) => [
 ]);
 
 interface Pending {
-  sourceId: string;
   request: Payload;
   spec: MethodSpec;
   channel: number;
@@ -57,7 +61,6 @@ export function createRustServerTransportFactory(baseFactory: TransportFactory):
     let disposed = false;
     let ready = false;
     let helloSent = false;
-    let sequence = 0;
     let info: Payload | null = null;
     let implemented = new Set<string>();
     const setupTimer = setTimeout(() => fail(new Error("Rust server handshake timed out")), 10_000);
@@ -87,11 +90,36 @@ export function createRustServerTransportFactory(baseFactory: TransportFactory):
       for (const handler of closeHandlers) handler({ code: 1006, reason: error.message });
     }
 
+    function finishPending(id: string, item: Pending): void {
+      pending.delete(id);
+      clearTimeout(item.timer);
+      clearTimeout(item.retryTimer);
+    }
+
+    function receiveBinary(channel: number, data: unknown): void {
+      const bytes = asUint8Array(data);
+      if (!bytes?.length) throw new Error("Invalid Rust binary frame");
+      if (bytes[0] < FileTransferOpcode.FileBegin) {
+        for (const handler of messageHandlers) handler(data, true);
+        return;
+      }
+      const frame = decodeFileTransferFrame(bytes);
+      if (!frame) throw new Error("Invalid Rust file transfer frame");
+      const item = pending.get(frame.requestId);
+      if (!item) return; // Ignore late frames after a failed or completed read.
+      if (item.channel !== channel) throw new Error("Rust file came from the wrong connection");
+      if (item.spec.method !== "fs.explorer.request" || item.request.acceptBinary !== true)
+        throw new Error("Unexpected Rust file transfer response");
+      // Binary reads finish at FileEnd; the server does not also send a JSON response.
+      if (frame.opcode === FileTransferOpcode.FileEnd) finishPending(frame.requestId, item);
+      for (const handler of messageHandlers) handler(data, true);
+    }
+
     function receive(channel: number, data: unknown, binary: boolean): void {
       if (disposed) return;
       if (binary) {
         if (!ready) throw new Error("Binary data received before Rust handshake");
-        for (const handler of messageHandlers) handler(data, true);
+        receiveBinary(channel, data);
         return;
       }
       const message = object(JSON.parse(String(data)));
@@ -146,7 +174,7 @@ export function createRustServerTransportFactory(baseFactory: TransportFactory):
         // Transport onError makes the SDK reconnect every channel and replay the failing event.
         emit(
           rpcError(
-            `adapter-event-${++sequence}`,
+            crypto.randomUUID(),
             channel === 1 ? "terminal_input" : "event",
             String(message.code),
             String(message.message ?? message.code),
@@ -179,17 +207,10 @@ export function createRustServerTransportFactory(baseFactory: TransportFactory):
         );
         return;
       }
-      pending.delete(id);
-      clearTimeout(item.timer);
-      clearTimeout(item.retryTimer);
+      finishPending(id, item);
       if (message.type === "error") {
         emit(
-          rpcError(
-            item.sourceId,
-            String(item.request.type),
-            String(message.code),
-            String(message.message),
-          ),
+          rpcError(id, String(item.request.type), String(message.code), String(message.message)),
         );
         return;
       }
@@ -204,7 +225,7 @@ export function createRustServerTransportFactory(baseFactory: TransportFactory):
       }
       if (item.rawPing) emit({ type: "pong" });
       else if (item.spec.response)
-        emit(responseMessage(item.spec.response, item.sourceId, result, item.request));
+        emit(responseMessage(item.spec.response, id, result, item.request));
     }
 
     function request(message: Payload, rawPing = false): void {
@@ -212,12 +233,12 @@ export function createRustServerTransportFactory(baseFactory: TransportFactory):
       const spec = METHODS[name];
       if (!spec) throw new Error(`No Rust server method mapping for ${name}`);
       const callback = spec.kind === "response" ? object(message.payload) : undefined;
-      const sourceId =
+      const id =
         typeof callback?.requestId === "string"
           ? callback.requestId
           : typeof message.requestId === "string"
             ? message.requestId
-            : `adapter-${++sequence}`;
+            : crypto.randomUUID();
       const channel =
         spec.method === "subscription.release.request" && typeof message.subscriptionId === "string"
           ? (subscriptions.get(message.subscriptionId) ?? spec.channel)
@@ -225,7 +246,7 @@ export function createRustServerTransportFactory(baseFactory: TransportFactory):
       if (!negotiated.get(channel)?.has(spec.method) || !implemented.has(spec.method)) {
         const error = `Rust server does not implement ${spec.method}`;
         if (typeof message.requestId === "string") {
-          emit(rpcError(sourceId, name, "not_implemented", error));
+          emit(rpcError(id, name, "not_implemented", error));
           return;
         }
         throw new Error(error);
@@ -233,7 +254,7 @@ export function createRustServerTransportFactory(baseFactory: TransportFactory):
       if (name === "ping" && !rawPing) {
         emit(
           rpcError(
-            sourceId,
+            id,
             name,
             "unsupported_capability",
             "Rust server does not provide server-side ping timestamps",
@@ -244,20 +265,20 @@ export function createRustServerTransportFactory(baseFactory: TransportFactory):
       const { type: _type, requestId: _requestId, ...params } = message;
       // This requestId identifies a provider permission, not just the UI RPC waiter.
       if (name === "agent_permission_response") params.requestId = message.requestId;
-      if (rawPing) params.nonce = sourceId;
+      if (rawPing) params.nonce = id;
       if (spec.kind !== "request") {
         channels[channel].send(
           JSON.stringify({
             type: spec.kind,
             method: spec.method,
             params: callback ?? params,
-            ...(spec.kind === "response" ? { request_id: sourceId } : {}),
+            ...(spec.kind === "response" ? { request_id: id } : {}),
           }),
         );
         return;
       }
       if (pending.size >= 256) throw new Error("Too many pending Rust server requests");
-      const id = `rust-${++sequence}`;
+      if (pending.has(id)) throw new Error("Duplicate pending Rust server request ID");
       const wire = JSON.stringify({
         type: "request",
         request_id: id,
@@ -268,10 +289,9 @@ export function createRustServerTransportFactory(baseFactory: TransportFactory):
         const timedOut = pending.get(id);
         if (!pending.delete(id) || disposed) return;
         clearTimeout(timedOut?.retryTimer);
-        emit(rpcError(sourceId, name, "timeout", "Rust server request timed out"));
+        emit(rpcError(id, name, "timeout", "Rust server request timed out"));
       }, 300_000);
       pending.set(id, {
-        sourceId,
         request: message,
         spec,
         channel,
