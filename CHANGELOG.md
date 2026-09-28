@@ -1,5 +1,12 @@
 # Ait changelog
 
+## 0.0.9 - 2026-09-28
+
+- Add offline dictation and speech synthesis with automatic background model preparation; the first setup requires an internet connection.
+- Fix file panels that keep loading by preserving request IDs across JSON and binary file responses.
+- Support wider terminal panels and keep the terminal view mounted while reconnecting.
+- Keep application-level terminal errors from disconnecting the Host, and improve desktop lifecycle diagnostics.
+
 ## 0.0.8 - 2026-09-28
 
 - Search the whole conversation with match counts, Markdown-aware matching, and next/previous navigation across messages.

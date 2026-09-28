@@ -1,6 +1,6 @@
 # desktop
 
-Electron desktop app for Ait. The current application version is `0.0.8`.
+Electron desktop app for Ait. The current application version is `0.0.9`.
 
 Run `npm run verify:release` at the repository root to check that desktop, mobile,
 Web, local package manifests and lockfiles match the Rust workspace release.

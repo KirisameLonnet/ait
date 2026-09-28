@@ -1,5 +1,7 @@
 # 概念与架构文档
 
+- [Ait 0.0.9 发布说明](reports/release-0.0.9.md)：离线语音、终端和文件读取修复，升级说明与发布验证。
+
 - [ADR-064：默认离线语音与模型准备](decisions/adr-064-offline-speech.md)：Sherpa ONNX、后台模型准备、隔离推理与现有 Provider 配置兼容；[验证报告](reports/desktop-speech-terminal.md)。
 
 - [Ait 0.0.8 发布准备](reports/release-0.0.8.md)：版本同步、相对 0.0.7 重建包的更新、兼容说明与发布步骤。
