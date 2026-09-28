@@ -3,6 +3,7 @@
  * Dependencies: esbuild, vitest, zod ^4.4.3, tweetnacl, base64-js, semver and ws (or Playwright).
  * PASEO_SOURCE_ROOT: pinned upstream checkout; PASEO_TEST_DEPS: test node_modules directory.
  * AIT_SERVER_BIN: compiled Rust server; PASEO_VALIDATION_REPORT: optional JSON output.
+ * --terminal: test the imported SDK and desktop terminal lifecycle only (no upstream checkout needed).
  * No npm install, credentials, real projects or provider sessions are used by this script.
  */
 const fs = require("node:fs");
@@ -13,7 +14,10 @@ const { spawn, spawnSync, execFileSync } = require("node:child_process");
 const { once } = require("node:events");
 const assert = require("node:assert/strict");
 const repo = path.resolve(__dirname, "..");
-const upstream = process.env.PASEO_SOURCE_ROOT || path.resolve(repo, "../paseo");
+const terminalOnly = process.argv.includes("--terminal");
+const upstream = terminalOnly
+  ? repo
+  : process.env.PASEO_SOURCE_ROOT || path.resolve(repo, "../paseo");
 const deps = process.env.PASEO_TEST_DEPS || path.join(repo, "node_modules");
 const serverBinary = process.env.AIT_SERVER_BIN || path.join(repo, "target/debug/server");
 const work = fs.mkdtempSync(path.join(os.tmpdir(), "ait-paseo-validation-"));
@@ -54,8 +58,8 @@ const plugin = {
     build.onResolve({ filter: /^ws$/ }, () => ({
       path: path.join(work, "ws.cjs"),
     }));
-    build.onResolve({ filter: /^@ait\// }, ({ path: name }) => {
-      let [pkg, ...rest] = name.slice("@ait/".length).split("/");
+    build.onResolve({ filter: /^@(ait|getpaseo)\// }, ({ path: name }) => {
+      let [pkg, ...rest] = name.slice(name.indexOf("/") + 1).split("/");
       if (rest[0] === "internal") rest.shift();
       return {
         path: path.join(upstream, "packages", pkg, "src", (rest.join("/") || "index") + ".ts"),
@@ -102,7 +106,13 @@ async function runIntegration() {
     Object.entries(process.env).filter(([k]) => !k.startsWith("AIT_SERVER_")),
   );
   const proc = spawn(serverBinary, ["--listen", "127.0.0.1:0", "--data-dir", dir], {
-    env: { ...env, AIT_SERVER_TOKEN: token },
+    env: {
+      ...env,
+      AIT_SERVER_TOKEN: token,
+      AIT_SPEECH_PROVIDER: "disabled",
+      AIT_SPEECH_STT_PROVIDER: "disabled",
+      AIT_SPEECH_TTS_PROVIDER: "disabled",
+    },
     stdio: ["ignore", "ignore", "pipe"],
   });
   let log = "";
@@ -192,43 +202,44 @@ async function runIntegration() {
     }
     await check("connect", () => client.connect());
     assert(client.getLastServerInfoMessage(), "no server info");
-    for (const [name, fn, expectedCode] of [
-      ["projects", () => client.listProjects()],
-      ["workspaces", () => client.fetchWorkspaces({ timeout: 2000 })],
-      ["agents", () => client.fetchAgents({ timeout: 2000 })],
-      ["daemon status", () => client.getDaemonStatus()],
-      ["daemon config", () => client.getDaemonConfig()],
-      ["providers", () => client.listAvailableProviders()],
-      ["provider snapshot", () => client.getProvidersSnapshot()],
-      ["workspace labels", () => client.listWorkspaceLabels()],
-      ["voice mode off", () => client.setVoiceMode(false)],
-      ["liveness ping", () => client.livenessPing({ timeoutMs: 2000 })],
-      ["schedules", () => client.scheduleList()],
-      [
-        "agents subscribe",
-        async () => {
-          const sub = client.observeAgents();
-          try {
-            return await sub.ready;
-          } finally {
-            await sub.release();
-          }
-        },
-        "unsupported_capability",
-      ],
-      [
-        "workspace labels subscribe/release",
-        async () => {
-          const sub = client.observeWorkspaceLabels();
-          try {
-            return await sub.ready;
-          } finally {
-            await sub.release();
-          }
-        },
-      ],
-    ])
-      await check(name, fn, expectedCode);
+    if (!terminalOnly)
+      for (const [name, fn, expectedCode] of [
+        ["projects", () => client.listProjects()],
+        ["workspaces", () => client.fetchWorkspaces({ timeout: 2000 })],
+        ["agents", () => client.fetchAgents({ timeout: 2000 })],
+        ["daemon status", () => client.getDaemonStatus()],
+        ["daemon config", () => client.getDaemonConfig()],
+        ["providers", () => client.listAvailableProviders()],
+        ["provider snapshot", () => client.getProvidersSnapshot()],
+        ["workspace labels", () => client.listWorkspaceLabels()],
+        ["voice mode off", () => client.setVoiceMode(false)],
+        ["liveness ping", () => client.livenessPing({ timeoutMs: 2000 })],
+        ["schedules", () => client.scheduleList()],
+        [
+          "agents subscribe",
+          async () => {
+            const sub = client.observeAgents();
+            try {
+              return await sub.ready;
+            } finally {
+              await sub.release();
+            }
+          },
+          "unsupported_capability",
+        ],
+        [
+          "workspace labels subscribe/release",
+          async () => {
+            const sub = client.observeWorkspaceLabels();
+            try {
+              return await sub.ready;
+            } finally {
+              await sub.release();
+            }
+          },
+        ],
+      ])
+        await check(name, fn, expectedCode);
     const projectDir = path.join(dir, "project");
     fs.mkdirSync(projectDir);
     fs.writeFileSync(path.join(projectDir, "hello.txt"), "hello");
@@ -237,72 +248,75 @@ async function runIntegration() {
     await check("nonempty workspaces", () => client.fetchWorkspaces({ timeout: 2000 }));
     await check("list files", () => client.listDirectory(projectDir, "."));
     await check("list terminals", () => client.listTerminals(projectDir));
-    if (workspace?.workspace?.id)
-      await check("assign workspace label", () =>
-        client.setWorkspaceLabel({
-          workspaceId: workspace.workspace.id,
-          label: { name: "probe", color: "blue" },
-          assigned: true,
-        }),
-      );
-    await check(
-      "workspace subscribe",
-      async () => {
-        const sub = client.observeWorkspaces();
-        try {
-          return await sub.ready;
-        } finally {
-          await sub.release();
-        }
-      },
-      "unsupported_capability",
-    );
-    await check("supported session events", async () => {
-      const sub = client.observeEvents(["status.daemon_config_changed"]);
-      try {
-        return await sub.ready;
-      } finally {
-        await sub.release();
-      }
-    });
-    await check(
-      "unsupported session events",
-      async () => {
-        const sub = client.observeEvents(["agent_permission_request"]);
-        try {
-          return await sub.ready;
-        } finally {
-          await sub.release();
-        }
-      },
-      "unsupported_capability",
-    );
-    await check(
-      "send message with SDK messageId",
-      () => client.sendAgentMessage("missing-agent", "isolated test"),
-      "unsupported_capability",
-    );
-    await check("label update event", async () => {
-      const sub = client.observeWorkspaceLabels();
-      try {
-        await sub.ready;
-        const event = new Promise((resolve) =>
-          sub.subscribe({
-            snapshot() {},
-            update(message) {
-              resolve(message);
-            },
+    await check("terminal lifecycle", () => checkTerminals(client, projectDir));
+    if (!terminalOnly) {
+      if (workspace?.workspace?.id)
+        await check("assign workspace label", () =>
+          client.setWorkspaceLabel({
+            workspaceId: workspace.workspace.id,
+            label: { name: "probe", color: "blue" },
+            assigned: true,
           }),
         );
-        await client.updateWorkspaceLabel({
-          name: "probe",
-          newName: "updated",
-        });
-        return await event;
-      } finally {
-        await sub.release();
-      }
-    });
+      await check(
+        "workspace subscribe",
+        async () => {
+          const sub = client.observeWorkspaces();
+          try {
+            return await sub.ready;
+          } finally {
+            await sub.release();
+          }
+        },
+        "unsupported_capability",
+      );
+      await check("supported session events", async () => {
+        const sub = client.observeEvents(["status.daemon_config_changed"]);
+        try {
+          return await sub.ready;
+        } finally {
+          await sub.release();
+        }
+      });
+      await check(
+        "unsupported session events",
+        async () => {
+          const sub = client.observeEvents(["agent_permission_request"]);
+          try {
+            return await sub.ready;
+          } finally {
+            await sub.release();
+          }
+        },
+        "unsupported_capability",
+      );
+      await check(
+        "send message with SDK messageId",
+        () => client.sendAgentMessage("missing-agent", "isolated test"),
+        "unsupported_capability",
+      );
+      await check("label update event", async () => {
+        const sub = client.observeWorkspaceLabels();
+        try {
+          await sub.ready;
+          const event = new Promise((resolve) =>
+            sub.subscribe({
+              snapshot() {},
+              update(message) {
+                resolve(message);
+              },
+            }),
+          );
+          await client.updateWorkspaceLabel({
+            name: "probe",
+            newName: "updated",
+          });
+          return await event;
+        } finally {
+          await sub.release();
+        }
+      });
+    }
   } finally {
     await client?.close();
     proc.kill("SIGTERM");
@@ -318,12 +332,79 @@ async function runIntegration() {
   assert(results.checks.every((item) => ["passed", "expected_gap"].includes(item.status)));
 }
 
+async function checkTerminals(client, cwd) {
+  const listing = client.observeTerminals({ cwd });
+  await listing.ready;
+  try {
+    for (const size of [
+      { rows: 24, cols: 80 },
+      { rows: 50, cols: 240 },
+    ]) {
+      // A brand new terminal is immediately resized by the pane before stream attachment.
+      const created = await client.createTerminal(cwd);
+      assert.equal(created.error, null);
+      const id = created.terminal.id;
+      const frames = [];
+      client.sendTerminalInput(id, {
+        type: "resize",
+        ...size,
+        intent: "claim",
+      });
+      const stream = client.observeTerminal(id, (event) => frames.push(event), {
+        restore: { mode: "visible-snapshot", size },
+      });
+      try {
+        const attached = await stream.ready;
+        assert.equal(attached.error, null);
+        client.sendTerminalInput(id, {
+          type: "input",
+          data: "printf 'AIT_TERMINAL_OK\\n'\r",
+        });
+        let capture;
+        for (let attempt = 0; attempt < 40; attempt++) {
+          capture = await client.captureTerminal(id);
+          if (capture.lines.some((line) => line.trim() === "AIT_TERMINAL_OK")) break;
+          await wait(25);
+        }
+        assert(
+          capture.lines.some((line) => line.trim() === "AIT_TERMINAL_OK"),
+          "new shell did not accept input",
+        );
+        assert(frames.length > 0, "terminal output did not reach the SDK");
+        // Invalid input must remain visible without disconnecting all four host channels.
+        const errors = [];
+        const stop = client.on("rpc_error", (event) => errors.push(event));
+        try {
+          client.sendTerminalInput(id, {
+            type: "resize",
+            rows: 0,
+            cols: 80,
+            intent: "claim",
+          });
+          await client.getDaemonStatus();
+          assert.equal(client.getConnectionState().status, "connected");
+          assert(errors.some((event) => event.payload.code === "invalid_message"));
+        } finally {
+          stop();
+        }
+      } finally {
+        await stream.release();
+        await client.killTerminal(id);
+      }
+    }
+  } finally {
+    await listing.release();
+  }
+}
+
 function runUnitTests() {
   const aliases = ["daemon-endpoints", "connection-offer", "ssh-transport"].map((name) => ({
     find: "@ait/protocol/" + name,
     replacement: path.join(upstream, "packages/protocol/src", name + ".ts"),
   }));
   aliases.push(
+    { find: "@ait/protocol", replacement: path.join(upstream, "packages/protocol/src") },
+    { find: "@getpaseo/protocol", replacement: path.join(upstream, "packages/protocol/src") },
     {
       find: "@ait/client/internal/daemon-client",
       replacement: path.join(work, "sdk.cjs"),
@@ -351,12 +432,14 @@ function runUnitTests() {
 vi.mock('@/utils/client-id', () => ({ getOrCreateClientId: async () => 'test-client' }));
 vi.mock('@/utils/app-version', () => ({ resolveAppVersion: () => null }));
 vi.mock('@/constants/platform', () => ({ isWeb: true }));
+vi.mock('@/i18n/i18next', () => ({ i18n: { t: (key) => key } }));
 vi.mock('@/desktop/host', () => ({ isElectronRuntime: () => false }));
 vi.mock('@/desktop/daemon/local-daemon-transport-rpc', () => ({ defaultLocalDaemonTransportRpc: {} }));`,
   );
   const config = {
     root: repo,
     tsconfig: false,
+    esbuild: { tsconfigRaw: JSON.stringify({ compilerOptions: { target: "ES2022" } }) },
     oxc: { tsconfig: false },
     resolve: { alias: aliases },
     test: {
@@ -366,6 +449,10 @@ vi.mock('@/desktop/daemon/local-daemon-transport-rpc', () => ({ defaultLocalDaem
         "apps/app/src/utils/test-daemon-connection.test.ts",
         "apps/app/src/desktop/daemon/desktop-daemon-transport.test.ts",
         "apps/paseo/src/daemon/local-transport.test.ts",
+        "apps/app/src/terminal/runtime/terminal-stream-controller.test.ts",
+        "apps/app/src/utils/terminal-renderer-readiness.test.ts",
+        "apps/app/src/components/terminal-pane-focus-claim.test.ts",
+        "apps/paseo/src/window/compositor-watchdog/index.test.ts",
       ],
       environment: "node",
       pool: "forks",
@@ -384,12 +471,13 @@ vi.mock('@/desktop/daemon/local-daemon-transport-rpc', () => ({ defaultLocalDaem
 
 (async () => {
   try {
-    assert.equal(
-      execFileSync("git", ["-C", upstream, "rev-parse", "HEAD"], {
-        encoding: "utf8",
-      }).trim(),
-      pin,
-    );
+    if (!terminalOnly)
+      assert.equal(
+        execFileSync("git", ["-C", upstream, "rev-parse", "HEAD"], {
+          encoding: "utf8",
+        }).trim(),
+        pin,
+      );
     assert(fs.existsSync(serverBinary), "Build server-bin or set AIT_SERVER_BIN");
     fs.writeFileSync(
       path.join(work, "ws.cjs"),
@@ -402,9 +490,8 @@ vi.mock('@/desktop/daemon/local-daemon-transport-rpc', () => ({ defaultLocalDaem
     ({ createLocalTransportManager } = require(path.join(work, "main.cjs")));
     runUnitTests();
     await runIntegration();
-    results.upstreamRevision = pin;
-    results.schema =
-      "Pinned upstream original Zod WSOutboundMessageSchema (AOT build output not imported)";
+    results.upstreamRevision = terminalOnly ? "imported workspace SDK" : pin;
+    results.schema = "Original Zod WSOutboundMessageSchema (AOT build output not imported)";
     results.scope =
       "Real SDK, renderer IPC transport, main-process transport manager and isolated Rust server; no Electron UI";
     if (process.env.PASEO_VALIDATION_REPORT)

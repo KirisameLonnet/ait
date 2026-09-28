@@ -29,6 +29,7 @@ struct Engine {
     calls: AtomicUsize,
     cancelled: AtomicUsize,
     blocking: AtomicBool,
+    preparing: AtomicBool,
     failing: AtomicBool,
     agent_blocking: AtomicBool,
     samples: Mutex<Vec<Vec<u8>>>,
@@ -43,6 +44,13 @@ struct Engine {
 }
 
 impl Transcriber for Engine {
+    fn readiness(&self) -> Result<(), Error> {
+        if self.preparing.load(Ordering::SeqCst) {
+            Err(Error::Preparing)
+        } else {
+            Ok(())
+        }
+    }
     fn transcribe(&self, audio: Audio, cancel: CancellationToken) -> Operation<'_, Transcript> {
         Box::pin(async move {
             self.calls.fetch_add(1, Ordering::SeqCst);

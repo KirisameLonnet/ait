@@ -1,5 +1,7 @@
 # 概念与架构文档
 
+- [ADR-064：默认离线语音与模型准备](decisions/adr-064-offline-speech.md)：Sherpa ONNX、后台模型准备、隔离推理与现有 Provider 配置兼容；[验证报告](reports/desktop-speech-terminal.md)。
+
 - [Ait 0.0.8 发布准备](reports/release-0.0.8.md)：版本同步、相对 0.0.7 重建包的更新、兼容说明与发布步骤。
 
 - [ADR-063：Ait 本地 UI 包与原生测试连接](decisions/adr-063-ait-local-ui-packages.md)：私有 `@ait/*` workspace、本地源码依赖、移除退役包及 Maestro Ait 认证连接；[验证报告](reports/ait-local-ui-packages.md)。

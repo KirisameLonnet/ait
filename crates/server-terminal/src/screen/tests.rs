@@ -166,3 +166,27 @@ fn styled_wrapped_history_restores_without_inserting_or_losing_cells() {
     assert_eq!(restored.capture(), screen.capture());
     assert_eq!(restored.snapshot(0)["grid"], screen.snapshot(0)["grid"]);
 }
+
+#[test]
+fn wide_desktop_restores_stay_bounded_and_oversized_legacy_snapshots_fail_locally() {
+    let size = Size {
+        rows: 100,
+        cols: 500,
+    }
+    .validate()
+    .unwrap();
+    let mut screen = Screen::new(size);
+    let line = format!(
+        "\x1b[1;2;3;4;7;38;2;12;34;56;48;2;65;43;21m{}",
+        "x".repeat(500)
+    );
+    for row in 1..=100 {
+        screen.process(format!("\x1b[{row};1H{line}").as_bytes());
+    }
+    assert!(matches!(screen.observe(None, None), Err(Error::Exhausted)));
+    let restored = screen
+        .observe(None, Some(&restore(RestoreMode::VisibleSnapshot)))
+        .unwrap();
+    assert_eq!(restored.frames[0].0, Opcode::Restore);
+    assert!(restored.frames[0].1.len() < server_model::server::MAX_QUEUE_BYTES / 2);
+}

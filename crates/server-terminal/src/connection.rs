@@ -254,10 +254,23 @@ impl TerminalConnection {
         state: &Shared,
     ) -> Result<(), ErrorCode> {
         let owner = self.owner();
-        run(state, move |service| {
+        let resize = match &input {
+            Input::Resize(resize) => Some(resize.size),
+            Input::Input { .. } | Input::Mouse { .. } => None,
+        };
+        let result = run(state, move |service| {
             service.input(&terminal, &owner, &input)
         })
-        .await
+        .await;
+        if let Err(code) = result {
+            tracing::warn!(
+                ?code,
+                rows = resize.map(|size| size.rows),
+                cols = resize.map(|size| size.cols),
+                "terminal input rejected"
+            );
+        }
+        result
     }
 
     /// Deliver terminal changes in connection order.

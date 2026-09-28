@@ -133,6 +133,15 @@ impl Connection {
                     if !service.availability().1 {
                         return Ok(mode_result(&self.voice, Some(Error::Unavailable)));
                     }
+                    let ready = service
+                        .stt
+                        .as_ref()
+                        .ok_or(Error::Unavailable)?
+                        .readiness()
+                        .and_then(|()| service.tts.as_ref().ok_or(Error::Unavailable)?.readiness());
+                    if let Err(error) = ready {
+                        return Ok(mode_result(&self.voice, Some(error)));
+                    }
                     let id = request
                         .agent_id
                         .as_deref()

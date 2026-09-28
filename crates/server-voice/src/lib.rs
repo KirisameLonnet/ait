@@ -5,6 +5,7 @@ pub mod capabilities;
 pub mod connection;
 pub mod dispatch;
 pub mod local;
+pub mod offline;
 pub mod openai;
 pub mod ports;
 pub mod protocol;
@@ -19,6 +20,12 @@ pub enum Error {
     /// The selected speech backend or required model is not configured.
     #[error("Speech backend or model is unavailable")]
     Unavailable,
+    /// Offline assets are being prepared in the background.
+    #[error("Preparing offline speech models. Please try again shortly")]
+    Preparing,
+    /// Model download failed; a later request can retry it.
+    #[error("Could not download offline speech models. Check the server network and try again")]
+    ModelDownload,
     /// Per-connection or process-wide admission limit.
     #[error("Speech resource budget exhausted")]
     Capacity,
@@ -43,6 +50,8 @@ impl Error {
         match self {
             Self::Invalid => "invalid_audio_or_stream",
             Self::Unavailable => "speech_backend_unavailable",
+            Self::Preparing => "speech_models_preparing",
+            Self::ModelDownload => "speech_model_download_failed",
             Self::Capacity => "speech_resource_exhausted",
             Self::Timeout => "speech_timeout",
             Self::Provider => "speech_provider_failed",
@@ -54,7 +63,10 @@ impl Error {
     /// Whether retrying after a transient condition may succeed.
     #[must_use]
     pub fn retryable(self) -> bool {
-        matches!(self, Self::Capacity | Self::Timeout | Self::Provider)
+        matches!(
+            self,
+            Self::Capacity | Self::Timeout | Self::Provider | Self::Preparing | Self::ModelDownload
+        )
     }
 }
 
@@ -64,9 +76,12 @@ impl From<Error> for server_model::ErrorCode {
             Error::Invalid => Self::InvalidMessage,
             Error::Capacity => Self::ResourceExhausted,
             Error::Agent => Self::AgentIo,
-            Error::Unavailable | Error::Timeout | Error::Provider | Error::Cancelled => {
-                Self::SpeechIo
-            }
+            Error::Unavailable
+            | Error::Timeout
+            | Error::Provider
+            | Error::Cancelled
+            | Error::Preparing
+            | Error::ModelDownload => Self::SpeechIo,
         }
     }
 }

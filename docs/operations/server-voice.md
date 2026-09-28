@@ -1,9 +1,33 @@
 # 独立 server 的语音与听写
 
-八个方法为实际实现；后端默认禁用。先在 server 进程环境中选择后端，再启动 server。
-未配置 STT/TTS 时返回 `speech_backend_unavailable`。
+八个方法均为实际实现；默认使用自动下载模型的离线 Sherpa ONNX 后端。首次启动后台准备模型，
+不阻塞 Host 连接。准备期间点击语音会返回可重试的 `speech_models_preparing`；下载失败返回
+`speech_model_download_failed`，稍后再次点击会重试。显式禁用时返回 `speech_backend_unavailable`。
 
 ## 后端配置
+
+默认无需配置，也不需要安装 whisper-cli、Piper 或 Python。识别使用 SenseVoice int8（中、英、日、韩、粤），
+合成使用 Kokoro multi-lang v1_0 的中文 voice 45。模型来自 Sherpa 官方 GitHub release，缓存于
+`<server-data-dir>/models/local-speech`，安装后约 637 MiB；首次准备需要联网，之后识别和合成可离线运行。
+语音对话仍需所选 Agent Provider 正常工作。
+
+```sh
+export AIT_SPEECH_PROVIDER=offline
+# 可选：自定义缓存，默认不会读取或修改 Paseo 的模型目录。
+export AIT_SPEECH_MODELS_DIR=/absolute/path/to/models/local-speech
+export AIT_SPEECH_OFFLINE_STT_MODEL=sensevoice-int8
+export AIT_SPEECH_OFFLINE_TTS_MODEL=kokoro-multi-lang-v1_0
+```
+
+沿用 Paseo 的 Sherpa 模型格式和自动准备方式，同时支持其英文预设
+`parakeet-tdt-0.6b-v2-int8` / `kokoro-en-v0_19`。若明确配置了已有缓存目录，完整模型可以直接复用。
+模型在后台下载到临时目录，校验必需文件后替换安装；压缩包限制 1 GiB，解压限制 3 GiB，拒绝链接和越界路径。
+推理在 server 自身的私有子进程中执行；模型保持加载，取消或超时会终止并回收该子进程，后续请求按需重启。
+临时录音和生成文件随请求删除，不上传到云端。
+
+Codex CLI 0.157.1 的 app-server 实验协议包含实时对话，但没有独立的文件转写方法；当前登录方式实测返回
+`realtime conversation requires API key auth`，因此默认使用离线回退。不会读取或复用 Codex 登录令牌。
+需要 Provider HTTP 语音接口时可显式配置下方 OpenAI 兼容后端；已有显式选择继续优先于默认值。
 
 OpenAI 兼容服务：
 
@@ -16,7 +40,7 @@ export AIT_SPEECH_VOICE=alloy
 # 通过运行环境注入 AIT_SPEECH_API_KEY；也支持 OPENAI_API_KEY 回退。
 ```
 
-本地离线：
+外部本地 CLI（保留已有配置）：
 
 ```sh
 export AIT_SPEECH_PROVIDER=local
@@ -27,7 +51,7 @@ export AIT_SPEECH_PIPER_MODEL=/absolute/path/to/voice.onnx
 ```
 
 Piper 需要模型配套的 `voice.onnx.json` 和匹配语言的 voice；whisper 模型须支持录音语言。
-程序、模型由用户安装；server 不安装依赖、不下载模型。可用 `AIT_SPEECH_STT_PROVIDER`
+此 CLI 模式的程序、模型由用户安装。可用 `AIT_SPEECH_STT_PROVIDER`
 和 `AIT_SPEECH_TTS_PROVIDER` 分别覆盖公共选择，例如本地识别、云端合成，或只启用听写。
 `disabled` 关闭对应能力。更改环境配置后重启 server；密钥不进入 config.json 或日志。
 
@@ -94,5 +118,6 @@ abort/关闭模式也应立即停止客户端播放。生成的语音应在客�
 新连接的接收进度。partial 每至少2秒对累计 PCM 重识别，可能被后续文本修正；WAV 只发
 最终结果。客户端应保存录音直到 final，并按 reasonCode/retryable 显示可恢复错误。
 
-本地后端使用 whisper.cpp/Piper，未包含 Paseo Sherpa/Parakeet 自动模型管理；VAD 是简单
-振幅门限和600ms静音判断。两类 adapter 的输出质量、延迟和语言覆盖取决于实际模型。
+VAD 是简单振幅门限和600ms静音判断。识别质量、延迟和语言覆盖取决于实际模型；
+中英文混说可能产生识别误差。离线模型参考 [SenseVoice](https://k2-fsa.github.io/sherpa/onnx/sense-voice/pretrained.html)
+和 [Kokoro](https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/kokoro.html)。

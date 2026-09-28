@@ -13,9 +13,18 @@ use tokio_util::sync::CancellationToken;
 #[derive(Debug)]
 pub(super) struct NativeAgents(pub AgentExecution);
 
-pub(super) fn compose(execution: AgentExecution) -> anyhow::Result<Speech> {
-    Speech::from_environment(Some(Arc::new(NativeAgents(execution))))
-        .context("initialize speech backends")
+pub(super) fn compose(
+    execution: AgentExecution,
+    data_dir: &std::path::Path,
+) -> anyhow::Result<Speech> {
+    let speech = Speech::from_environment(
+        Some(Arc::new(NativeAgents(execution))),
+        &data_dir.join("models/local-speech"),
+        &std::env::current_exe().context("resolve speech worker executable")?,
+    )
+    .context("initialize speech backends")?;
+    speech.prepare();
+    Ok(speech)
 }
 
 impl Agents for NativeAgents {

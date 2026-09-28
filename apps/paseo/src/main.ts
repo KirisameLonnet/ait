@@ -711,8 +711,19 @@ async function createWindow(
   options.onCreated?.(webContentsId);
   mainWindow.webContents.on("did-start-navigation", (_event, _url, isSameDocument, isMainFrame) => {
     if (isMainFrame && !isSameDocument) {
+      log.info("[desktop-window] main frame loading", { webContentsId });
       agentNavigationInbox.windowLoading(webContentsId);
     }
+  });
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    log.error("[desktop-window] renderer exited", {
+      webContentsId,
+      reason: details.reason,
+      exitCode: details.exitCode,
+    });
+  });
+  mainWindow.on("unresponsive", () => {
+    log.warn("[desktop-window] renderer unresponsive", { webContentsId });
   });
   mainWindow.on("closed", () => {
     options.onClosed?.(webContentsId);

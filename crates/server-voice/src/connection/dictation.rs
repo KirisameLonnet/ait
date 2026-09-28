@@ -194,9 +194,11 @@ impl Connection {
                 Err(Error::Invalid)
             };
         }
-        if service.stt.is_none() {
-            return Err(Error::Unavailable);
-        }
+        service
+            .stt
+            .as_ref()
+            .ok_or(Error::Unavailable)?
+            .readiness()?;
         if self
             .dictations
             .values()

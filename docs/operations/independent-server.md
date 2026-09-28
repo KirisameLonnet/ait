@@ -662,8 +662,10 @@ hello 需逐项协商相应 capability；输入使用 event，其他九项为 re
 并清空终端。`terminal.capture.request` 的 start/end 是闭区间，负数从尾部计算。
 
 resize `{type:"resize",rows,cols,intent:"claim"}` 获取尺寸控制；`intent:"update"` 仅更新该连接
-拥有的尺寸。终端最多 32 个，输入每次不超过 64 KiB；尺寸不超过 100×200 且总 visible cells
-不超过 10,000。屏幕/滚动历史有界；慢 observer 会收到新快照，超时连接关闭。
+拥有的尺寸。终端最多 32 个，输入每次不超过 64 KiB；尺寸不超过 200×500 且总 visible cells
+不超过 50,000。屏幕/滚动历史有界；慢 observer 会收到新快照，超时连接关闭。
+App 协商 ANSI restore、输入模式回放和尺寸所有权。过大的 legacy JSON 快照返回单个订阅错误；
+未关联请求的输入错误作为应用错误交付，不再触发整个 Host 重连。
 
 `agent.items.close.request` 支持 terminalIds；Workspace/Project archive/remove 后最多约 250 ms
 开始清理所属 PTY。setup/script executor 的逻辑 terminalId 暂不对应此处的真实 PTY；activity hooks

@@ -121,7 +121,7 @@ fn validate(binary: &Path, model: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-async fn read_bounded(path: &Path, limit: usize) -> Result<Vec<u8>, Error> {
+pub(crate) async fn read_bounded(path: &Path, limit: usize) -> Result<Vec<u8>, Error> {
     let file = tokio::fs::File::open(path)
         .await
         .map_err(|_| Error::Provider)?;

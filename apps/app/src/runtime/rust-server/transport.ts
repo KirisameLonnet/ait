@@ -142,9 +142,16 @@ export function createRustServerTransportFactory(baseFactory: TransportFactory):
       }
       const id = message.request_id;
       if (typeof id !== "string") {
-        // Uncorrelated event failures must be visible, never converted into a successful reply.
-        for (const handler of errorHandlers)
-          handler(new Error(`Rust server: ${String(message.code)}`));
+        // An event rejection (for example a terminal resize) is an application error.
+        // Transport onError makes the SDK reconnect every channel and replay the failing event.
+        emit(
+          rpcError(
+            `adapter-event-${++sequence}`,
+            channel === 1 ? "terminal_input" : "event",
+            String(message.code),
+            String(message.message ?? message.code),
+          ),
+        );
         return;
       }
       const item = pending.get(id);
@@ -251,7 +258,12 @@ export function createRustServerTransportFactory(baseFactory: TransportFactory):
       }
       if (pending.size >= 256) throw new Error("Too many pending Rust server requests");
       const id = `rust-${++sequence}`;
-      const wire = JSON.stringify({ type: "request", request_id: id, method: spec.method, params });
+      const wire = JSON.stringify({
+        type: "request",
+        request_id: id,
+        method: spec.method,
+        params,
+      });
       const timer = setTimeout(() => {
         const timedOut = pending.get(id);
         if (!pending.delete(id) || disposed) return;
