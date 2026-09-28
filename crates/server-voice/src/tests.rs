@@ -10,6 +10,8 @@ fn errors_have_safe_stable_codes_and_capabilities_are_installed_only_with_servic
     for error in [
         Error::Invalid,
         Error::Unavailable,
+        Error::Preparing,
+        Error::ModelDownload,
         Error::Capacity,
         Error::Timeout,
         Error::Provider,
@@ -22,7 +24,14 @@ fn errors_have_safe_stable_codes_and_capabilities_are_installed_only_with_servic
         assert!(!code.message().is_empty());
         assert_eq!(
             error.retryable(),
-            matches!(error, Error::Capacity | Error::Timeout | Error::Provider)
+            matches!(
+                error,
+                Error::Capacity
+                    | Error::Timeout
+                    | Error::Provider
+                    | Error::Preparing
+                    | Error::ModelDownload
+            )
         );
     }
 }

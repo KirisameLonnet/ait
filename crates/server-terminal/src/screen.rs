@@ -117,6 +117,14 @@ impl Screen {
                 vec![frame]
             }
         };
+        // Leave room for the response and concurrent events in the connection output budget.
+        // Reject an oversized legacy JSON snapshot locally rather than closing every channel.
+        if frames
+            .iter()
+            .any(|(_, bytes)| bytes.len() > server_model::server::MAX_QUEUE_BYTES / 2)
+        {
+            return Err(Error::Exhausted);
+        }
         Ok(Observation {
             revision: self.revision,
             size: Size { rows, cols },

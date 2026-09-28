@@ -9,15 +9,27 @@ fn terminal_messages_validate_enums_dimensions_and_utf8_frames() {
     for size in [
         Size { rows: 0, cols: 80 },
         Size {
-            rows: 100,
-            cols: 200,
+            rows: 200,
+            cols: 500,
         },
         Size {
             rows: 24,
-            cols: 201,
+            cols: 501,
         },
     ] {
         assert_eq!(size.validate(), Err(crate::Error::Invalid));
+    }
+    for size in [
+        Size {
+            rows: 50,
+            cols: 240,
+        },
+        Size {
+            rows: 100,
+            cols: 500,
+        },
+    ] {
+        assert_eq!(size.validate(), Ok(size));
     }
     assert!(
         serde_json::from_value::<CreateRequest>(json!({"cwd":"/", "size":{"rows":1.5,"cols":80}}))

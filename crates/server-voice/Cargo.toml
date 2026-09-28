@@ -17,6 +17,13 @@ thiserror = "2.0.20"
 tokio = { version = "1.53.1", features = ["fs", "io-util", "macros", "process", "rt", "sync", "time"] }
 tokio-util = { version = "0.7.19", features = ["rt"] }
 uuid = { version = "1.26.0", features = ["v4"] }
+# Safe Rust API with bundled static native inference libraries.
+sherpa-onnx = "=1.13.8"
+# Bounded extraction of official model releases into the private speech cache.
+bzip2 = "0.6"
+tar = "0.4"
+# Report model preparation without exposing audio, transcripts or credentials.
+tracing = "0.1"
 
 [lints]
 workspace = true

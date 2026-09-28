@@ -172,3 +172,19 @@ async fn transcription_timeout_cancels_backend_and_delivers_error_before_releasi
     assert_eq!(fixture.service.jobs.available_permits(), 4);
     assert!(fixture.connection.is_empty());
 }
+
+#[tokio::test]
+async fn preparation_errors_are_retryable_and_never_start_recording_or_claim_an_agent() {
+    let mut fixture = Fixture::new();
+    fixture.engine.preparing.store(true, Ordering::SeqCst);
+    fixture.start("preparing");
+    let error = fixture.until("dictation.stream.error").await;
+    assert_eq!(error["reasonCode"], "speech_models_preparing");
+    assert_eq!(error["retryable"], true);
+    let mode = fixture.mode(true).await;
+    assert_eq!(mode["reasonCode"], "speech_models_preparing");
+    assert_eq!(mode["accepted"], false);
+    assert!(fixture.connection.is_empty());
+    fixture.engine.preparing.store(false, Ordering::SeqCst);
+    assert_eq!(fixture.mode(true).await["accepted"], true);
+}

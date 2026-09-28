@@ -43,11 +43,27 @@ impl Speech {
         }
     }
 
-    /// Construct explicitly selected local/HTTP engines from environment variables.
+    /// Construct speech engines from environment variables, defaulting to offline ONNX models.
+    /// `models` is the isolated model cache; `program` is this server's worker-capable executable.
     /// # Errors
     /// Rejects invalid provider selections, missing local models and malformed HTTP settings.
-    pub fn from_environment(agents: Option<Arc<dyn Agents>>) -> Result<Self, Error> {
-        config::load(|name| std::env::var(name).ok(), agents)
+    pub fn from_environment(
+        agents: Option<Arc<dyn Agents>>,
+        models: &std::path::Path,
+        program: &std::path::Path,
+    ) -> Result<Self, Error> {
+        config::load(|name| std::env::var(name).ok(), agents, models, program)
+    }
+
+    /// Begin missing-model preparation without delaying the server listener.
+    /// Returns nothing; readiness errors are reported on the next speech request.
+    pub fn prepare(&self) {
+        if let Some(stt) = &self.stt {
+            let _ = stt.readiness();
+        }
+        if let Some(tts) = &self.tts {
+            let _ = tts.readiness();
+        }
     }
 
     /// Report whether dictation and full voice conversations are configured.

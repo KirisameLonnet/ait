@@ -123,7 +123,10 @@ describe("Rust protocol adapter", () => {
           headers: { Authorization: "Bearer test" },
         });
       }
-      expect(h.last(0)).toMatchObject({ type: "hello", protocol: { major: 1 } });
+      expect(h.last(0)).toMatchObject({
+        type: "hello",
+        protocol: { major: 1 },
+      });
       h.send({ type: "project.list.request", requestId: "ssh-projects" });
       expect(h.last(1)).toMatchObject({ method: "project.list.request" });
     } finally {
@@ -260,7 +263,10 @@ describe("Rust protocol adapter", () => {
       const connected = client.connect();
       h.ready();
       await connected;
-      const subscription = client.observeTerminals({ cwd: "/workspace", workspaceId: "workspace" });
+      const subscription = client.observeTerminals({
+        cwd: "/workspace",
+        workspaceId: "workspace",
+      });
       const update = vi.fn();
       subscription.subscribe({ snapshot: () => {}, update });
       const request = h.last(1);
@@ -271,10 +277,21 @@ describe("Rust protocol adapter", () => {
         workspaceId: "workspace",
         terminals: [],
       };
-      h.sockets[1].message({ type: "response", request_id: request.request_id, result: snapshot });
+      h.sockets[1].message({
+        type: "response",
+        request_id: request.request_id,
+        result: snapshot,
+      });
       await expect(subscription.ready).resolves.toMatchObject(snapshot);
-      h.sockets[1].message({ type: "event", method: "terminal.list.changed", params: snapshot });
-      expect(update).toHaveBeenCalledWith({ type: "terminals_changed", payload: snapshot });
+      h.sockets[1].message({
+        type: "event",
+        method: "terminal.list.changed",
+        params: snapshot,
+      });
+      expect(update).toHaveBeenCalledWith({
+        type: "terminals_changed",
+        payload: snapshot,
+      });
       expect(client.isConnected).toBe(true);
       expect(h.sockets.every((socket) => socket.close.mock.calls.length === 0)).toBe(true);
       const released = subscription.release();
@@ -590,7 +607,10 @@ describe("Rust admission retries", () => {
       expect(h.received.at(-1)).toMatchObject({
         message: {
           type: "get_daemon_config_response",
-          payload: { requestId: "config", config: { appendSystemPrompt: "saved" } },
+          payload: {
+            requestId: "config",
+            config: { appendSystemPrompt: "saved" },
+          },
         },
       });
     } finally {
@@ -617,9 +637,15 @@ describe("Rust admission retries", () => {
         await vi.advanceTimersByTimeAsync(2000);
       }
       expect(h.received.at(-1)).toMatchObject({
-        message: { type: "rpc_error", payload: { code: "resource_exhausted" } },
+        message: {
+          type: "rpc_error",
+          payload: { code: "resource_exhausted" },
+        },
       });
-      h.send({ type: "get_daemon_config_request", requestId: "cancelled" });
+      h.send({
+        type: "get_daemon_config_request",
+        requestId: "cancelled",
+      });
       h.sockets[1].message({
         type: "error",
         request_id: h.last(1).request_id,
@@ -635,6 +661,62 @@ describe("Rust admission retries", () => {
     } finally {
       h.transport.close();
       vi.useRealTimers();
+    }
+  });
+
+  it("keeps terminal event rejections in the session without reconnecting the host", () => {
+    const h = harness();
+    try {
+      h.ready();
+      expect(h.received[0]).toMatchObject({
+        message: {
+          payload: {
+            features: {
+              "terminal-restore-modes": true,
+              "terminal-input-mode-replay": true,
+              "terminal-size-ownership": true,
+            },
+          },
+        },
+      });
+      h.sockets[1].message({
+        type: "error",
+        request_id: null,
+        code: "invalid_message",
+        message: "Invalid terminal parameters",
+        retryable: false,
+      });
+      expect(h.errors).not.toHaveBeenCalled();
+      expect(h.closed).not.toHaveBeenCalled();
+      expect(h.sockets.every((socket) => socket.close.mock.calls.length === 0)).toBe(true);
+      expect(h.received.at(-1)).toMatchObject({
+        message: {
+          type: "rpc_error",
+          payload: {
+            requestType: "terminal_input",
+            code: "invalid_message",
+            error: "Invalid terminal parameters",
+          },
+        },
+      });
+      h.send({
+        type: "daemon.get_status.request",
+        requestId: "still-alive",
+      });
+      const sent = h.last(1);
+      h.sockets[1].message({
+        type: "response",
+        request_id: sent.request_id,
+        result: { serverId: "server" },
+      });
+      expect(h.received.at(-1)).toMatchObject({
+        message: { payload: { requestId: "still-alive" } },
+      });
+      h.sockets[1].error();
+      expect(h.errors).toHaveBeenCalledOnce();
+      expect(h.closed).toHaveBeenCalledOnce();
+    } finally {
+      h.transport.close();
     }
   });
 
@@ -654,7 +736,9 @@ describe("Rust admission retries", () => {
       });
       await vi.advanceTimersByTimeAsync(5000);
       expect(h.sockets[1].send).toHaveBeenCalledTimes(sent);
-      expect(h.received.at(-1)).toMatchObject({ message: { type: "rpc_error" } });
+      expect(h.received.at(-1)).toMatchObject({
+        message: { type: "rpc_error" },
+      });
     } finally {
       h.transport.close();
       vi.useRealTimers();

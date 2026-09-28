@@ -22,12 +22,24 @@ pub struct Transcript {
 
 /// Speech-to-text boundary. Implementations must honor cancellation and bound output.
 pub trait Transcriber: Send + Sync + std::fmt::Debug {
+    /// Check readiness before recording.
+    /// # Errors
+    /// Returns a retryable error while models are preparing or a backend setup error.
+    fn readiness(&self) -> Result<(), Error> {
+        Ok(())
+    }
     /// Recognize audio, returning text or a safe configuration/provider/cancellation error.
     fn transcribe(&self, audio: Audio, cancel: CancellationToken) -> Operation<'_, Transcript>;
 }
 
 /// Text-to-speech boundary. Implementations return mono PCM16 audio.
 pub trait Synthesizer: Send + Sync + std::fmt::Debug {
+    /// Check readiness before enabling conversations.
+    /// # Errors
+    /// Returns a retryable error while models are preparing or a backend setup error.
+    fn readiness(&self) -> Result<(), Error> {
+        Ok(())
+    }
     /// Synthesize text, returning audio or a safe configuration/provider/cancellation error.
     fn synthesize<'a>(&'a self, text: &'a str, cancel: CancellationToken) -> Operation<'a, Audio>;
 }

@@ -223,7 +223,7 @@ fn compose_services(
         browser: Some(server_browser::broker::Broker::default()),
         skills: Some(compose_skills(&config.data_dir)?),
         push_tokens: Some(compose_push(&config.data_dir)?),
-        speech: Some(voice::compose(agent_execution.clone())?),
+        speech: Some(voice::compose(agent_execution.clone(), &config.data_dir)?),
         terminals: Some(server_terminal::service::Terminals::new(
             Box::new(workspace_registry.clone()),
             Box::new(project_registry.clone()),

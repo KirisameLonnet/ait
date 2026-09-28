@@ -37,13 +37,13 @@ impl Size {
     /// Check nonzero dimensions and the bounded screen allocation.
     ///
     /// # Errors
-    /// Returns `Error::Invalid` above 200 columns, 100 rows, or 10,000 visible cells.
+    /// Returns `Error::Invalid` above 500 columns, 200 rows, or 50,000 visible cells.
     pub fn validate(self) -> Result<Self, crate::Error> {
         if self.rows == 0
             || self.cols == 0
-            || self.rows > 100
-            || self.cols > 200
-            || usize::from(self.rows) * usize::from(self.cols) > 10_000
+            || self.rows > 200
+            || self.cols > 500
+            || usize::from(self.rows) * usize::from(self.cols) > 50_000
         {
             return Err(crate::Error::Invalid);
         }

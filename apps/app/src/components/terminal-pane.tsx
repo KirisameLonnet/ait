@@ -234,6 +234,7 @@ export function TerminalPane({
 
   const client = useHostRuntimeClient(serverId);
   const isConnected = useHostRuntimeIsConnected(serverId);
+  const hostReady = client !== null && isConnected;
   const isTerminalPresented = retainedPanelActive && isWorkspaceFocused;
   const supportsTerminalRestoreModes = useSessionStore(
     (state) => state.sessions[serverId]?.serverInfo?.features?.["terminal-restore-modes"] === true,
@@ -270,6 +271,9 @@ export function TerminalPane({
   useBlockMobilePanelOpenGestures(isMobile && isWorkspaceFocused && isPaneFocused && hasSelection);
   const emulatorRef = useRef<TerminalEmulatorHandle>(null);
   const findRef = useRef<TerminalPaneFindHandle>(null);
+  useEffect(() => {
+    if (!hostReady) emulatorRef.current?.blur();
+  }, [hostReady]);
   const handleFindRequest = useCallback(() => findRef.current?.open(), []);
   const handleFindResult = useCallback(
     (result: TerminalFindResult) => findRef.current?.update(result),
@@ -321,8 +325,9 @@ export function TerminalPane({
   }, []);
 
   const requestTerminalFocus = useCallback(() => {
+    if (!hostReady) return;
     setFocusRequestToken((current) => current + 1);
-  }, []);
+  }, [hostReady]);
   const requestTerminalReflow = useCallback(() => {
     setResizeRequestToken((current) => current + 1);
   }, []);
@@ -349,7 +354,7 @@ export function TerminalPane({
   );
 
   useEffect(() => {
-    if (isMobile || !isPaneFocused || !terminalId) {
+    if (!hostReady || isMobile || !isPaneFocused || !terminalId) {
       lastAutoFocusKeyRef.current = null;
       return;
     }
@@ -361,7 +366,15 @@ export function TerminalPane({
       lastAutoFocusKeyRef.current = focusKey;
       requestTerminalFocus();
     }
-  }, [isMobile, isPaneFocused, isWorkspaceFocused, requestTerminalFocus, scopeKey, terminalId]);
+  }, [
+    hostReady,
+    isMobile,
+    isPaneFocused,
+    isWorkspaceFocused,
+    requestTerminalFocus,
+    scopeKey,
+    terminalId,
+  ]);
 
   useEffect(() => {
     const canRequest = canRequestFocusClaim({
@@ -605,7 +618,7 @@ export function TerminalPane({
 
   const dispatchTerminalInputEntry = useCallback(
     (entry: PendingTerminalInput): boolean => {
-      if (!client) {
+      if (!client || !isConnected) {
         return false;
       }
 
@@ -633,7 +646,7 @@ export function TerminalPane({
       });
       return true;
     },
-    [client],
+    [client, isConnected],
   );
 
   const flushPendingTerminalInput = useCallback(() => {
@@ -677,6 +690,7 @@ export function TerminalPane({
       alt: boolean;
       meta?: boolean;
     }): boolean => {
+      if (!hostReady) return false;
       if (!client || !terminalIdRef.current) {
         enqueuePendingTerminalInput({
           type: "key",
@@ -712,12 +726,12 @@ export function TerminalPane({
       }
       return true;
     },
-    [client, dispatchTerminalInputEntry, enqueuePendingTerminalInput],
+    [client, dispatchTerminalInputEntry, enqueuePendingTerminalInput, hostReady],
   );
 
   const handleTerminalData = useCallback(
     async (data: string) => {
-      if (data.length === 0) {
+      if (!hostReady || data.length === 0) {
         return;
       }
 
@@ -768,6 +782,7 @@ export function TerminalPane({
       modifiers,
       sendTerminalKey,
       enqueuePendingTerminalInput,
+      hostReady,
     ],
   );
 
@@ -1022,18 +1037,12 @@ export function TerminalPane({
     terminalStreamKey,
   });
 
-  if (!client || !isConnected) {
-    return (
-      <View style={styles.centerState}>
-        <Text style={styles.stateText}>{t("workspace.terminal.hostDisconnected")}</Text>
-      </View>
-    );
-  }
-
+  // Keep the emulator mounted through transient disconnects. Replacing it with a
+  // status screen destroys its canvas/DOM and makes every reconnect flash.
   return (
     <Animated.View style={containerStyle}>
       <View style={styles.outputContainer}>
-        <View style={styles.terminalGestureContainer}>
+        <View style={styles.terminalGestureContainer} pointerEvents={hostReady ? "auto" : "none"}>
           <TerminalEmulator
             ref={emulatorRef}
             dom={TERMINAL_EMULATOR_DOM_PROPS}
@@ -1073,25 +1082,32 @@ export function TerminalPane({
           ref={findRef}
           terminal={emulatorRef}
           active={
-            isTerminalPresented && isPaneFocused && rendererReadyStreamKey === terminalStreamKey
+            hostReady &&
+            isTerminalPresented &&
+            isPaneFocused &&
+            rendererReadyStreamKey === terminalStreamKey
           }
           focusTerminal={requestTerminalFocus}
         />
 
-        {showLoadingOverlay ? (
+        {!hostReady ? (
+          <View style={styles.attachOverlay} testID="terminal-host-disconnected">
+            <Text style={styles.stateText}>{t("workspace.terminal.hostDisconnected")}</Text>
+          </View>
+        ) : showLoadingOverlay ? (
           <View style={styles.attachOverlay} pointerEvents="none" testID="terminal-attach-loading">
             <LoadingSpinner size="small" color={theme.colors.foregroundMuted} />
           </View>
         ) : null}
 
-        {showFloatingCopyAction ? (
+        {hostReady && showFloatingCopyAction ? (
           <View pointerEvents="box-none" style={styles.floatingCopyContainer}>
             <TerminalFloatingCopyAction hasSelection={hasSelection} onCopy={handleTerminalCopy} />
           </View>
         ) : null}
       </View>
 
-      {streamError ? (
+      {hostReady && streamError ? (
         <View style={styles.errorRow}>
           <Text style={styles.statusError} numberOfLines={2}>
             {streamError}
@@ -1099,7 +1115,7 @@ export function TerminalPane({
         </View>
       ) : null}
 
-      {isMobile ? (
+      {hostReady && isMobile ? (
         <View style={styles.keyboardContainer} testID="terminal-virtual-keyboard">
           <View style={styles.keyboardRows}>
             {TERMINAL_VIRTUAL_KEYBOARD_ROWS.map((row) => (
@@ -1198,12 +1214,6 @@ const styles = StyleSheet.create((theme) => ({
   },
   keyButtonTextActive: {
     color: theme.colors.foreground,
-  },
-  centerState: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: theme.spacing[4],
   },
   stateText: {
     color: theme.colors.foregroundMuted,

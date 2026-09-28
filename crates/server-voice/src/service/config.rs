@@ -1,8 +1,9 @@
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 use crate::{
     Error,
     local::{Piper, Whisper},
+    offline::Offline,
     openai::{Config, OpenAi},
     ports::Agents,
 };
@@ -12,13 +13,15 @@ use super::Speech;
 pub(super) fn load(
     get: impl Fn(&str) -> Option<String>,
     agents: Option<Arc<dyn Agents>>,
+    models: &Path,
+    program: &Path,
 ) -> Result<Speech, Error> {
     let value = |key: &str, default: &str| {
         get(key)
             .filter(|value| !value.trim().is_empty())
             .unwrap_or_else(|| default.to_owned())
     };
-    let provider = value("AIT_SPEECH_PROVIDER", "disabled");
+    let provider = value("AIT_SPEECH_PROVIDER", "offline");
     let stt = value("AIT_SPEECH_STT_PROVIDER", &provider);
     let tts = value("AIT_SPEECH_TTS_PROVIDER", &provider);
     let mut speech = Speech::new(None, None, agents);
@@ -38,6 +41,11 @@ pub(super) fn load(
     };
     speech.stt = match stt.as_str() {
         "disabled" => None,
+        "offline" => Some(Offline::transcriber(
+            get("AIT_SPEECH_MODELS_DIR").map_or_else(|| models.to_owned(), Into::into),
+            program.to_owned(),
+            &value("AIT_SPEECH_OFFLINE_STT_MODEL", "sensevoice-int8"),
+        )?),
         "openai" => http
             .as_ref()
             .map(|http| http.clone() as Arc<dyn crate::ports::Transcriber>),
@@ -51,6 +59,11 @@ pub(super) fn load(
     };
     speech.tts = match tts.as_str() {
         "disabled" => None,
+        "offline" => Some(Offline::synthesizer(
+            get("AIT_SPEECH_MODELS_DIR").map_or_else(|| models.to_owned(), Into::into),
+            program.to_owned(),
+            &value("AIT_SPEECH_OFFLINE_TTS_MODEL", "kokoro-multi-lang-v1_0"),
+        )?),
         "openai" => http.map(|http| http as Arc<dyn crate::ports::Synthesizer>),
         "local" => Some(Arc::new(Piper::new(
             value("AIT_SPEECH_PIPER_BIN", "piper").into(),
