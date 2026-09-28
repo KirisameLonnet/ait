@@ -26,7 +26,7 @@ Cargo.lock、根 package.json、所有活跃 npm workspace 及其 lockfile。然
 
 ```bash
 npm ci
-npm run verify:release -- v0.0.7
+npm run verify:release -- v0.0.8
 npm run test:release
 npm run build:desktop-main
 npm run typecheck --workspace=@ait/desktop --workspace=@ait/app
@@ -40,8 +40,9 @@ npm run typecheck --workspace=@ait/desktop --workspace=@ait/app
 ```bash
 git switch main
 git pull --ff-only
-git tag -a v0.0.7 -m "Ait v0.0.7"
-git push origin v0.0.7
+npm run verify:release -- v0.0.8
+git tag -a v0.0.8 -m "Ait v0.0.8"
+git push origin v0.0.8
 ```
 
 `.github/workflows/release.yml` 在 Linux x86_64 和 macOS arm64 原生 runner 上执行：

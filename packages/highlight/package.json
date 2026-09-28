@@ -1,6 +1,7 @@
 {
   "name": "@ait/highlight",
-  "version": "0.0.7",
+  "version": "0.0.8",
+  "private": true,
   "files": [
     "dist",
     "!dist/**/*.map",
@@ -48,6 +49,5 @@
   "devDependencies": {
     "typescript": "^5.9.2",
     "vitest": "^4.1.6"
-  },
-  "private": true
+  }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@ait/app",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "private": true,
   "main": "index.ts",
   "scripts": {
@@ -41,6 +41,10 @@
     "build:ios:ipa": "node scripts/build-ios.mjs --export"
   },
   "dependencies": {
+    "@ait/client": "file:../../packages/client",
+    "@ait/expo-two-way-audio": "file:../../packages/expo-two-way-audio",
+    "@ait/highlight": "file:../../packages/highlight",
+    "@ait/protocol": "file:../../packages/protocol",
     "@codemirror/commands": "6.10.4",
     "@codemirror/language": "6.12.4",
     "@codemirror/search": "6.7.1",
@@ -50,10 +54,6 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@floating-ui/react-native": "^0.10.7",
-    "@ait/client": "file:../../packages/client",
-    "@ait/expo-two-way-audio": "file:../../packages/expo-two-way-audio",
-    "@ait/highlight": "file:../../packages/highlight",
-    "@ait/protocol": "file:../../packages/protocol",
     "@gorhom/bottom-sheet": "^5.2.14",
     "@gorhom/portal": "^1.0.14",
     "@marijn/find-cluster-break": "^1.0.2",
@@ -159,11 +159,11 @@
     "material-icon-theme": "^5.32.0",
     "playwright": "^1.56.1",
     "serve-sim": "^0.1.40",
+    "tsx": "4.23.13",
     "typescript": "~5.9.2",
     "vitest": "^4.1.6",
     "wrangler": "^4.105.0",
-    "ws": "^8.20.0",
-    "tsx": "4.23.13"
+    "ws": "^8.20.0"
   },
   "reanimated": {
     "staticFeatureFlags": {
