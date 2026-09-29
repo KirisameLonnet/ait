@@ -2,6 +2,14 @@ use std::sync::{Arc, Mutex};
 
 use super::*;
 
+#[test]
+fn legacy_runtime_does_not_advertise_gitlab_without_implementing_it() {
+    let forge = Forge::new(Box::new(FakeForge {
+        calls: Arc::default(),
+    }));
+    assert_eq!(forge.providers(), &["github"]);
+}
+
 #[derive(Debug)]
 struct FakeForge {
     calls: Arc<Mutex<Vec<String>>>,

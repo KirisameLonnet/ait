@@ -102,6 +102,13 @@ pub(super) fn installed_capabilities(services: &Services) -> Vec<String> {
 /// Behaviors that need versioned discovery even when their method names already existed.
 pub(super) fn features(services: &Services) -> Vec<String> {
     let mut features = Vec::new();
+    if services
+        .forge
+        .as_ref()
+        .is_some_and(|forge| forge.providers().contains(&"gitlab"))
+    {
+        features.push("forge-gitlab-v1".to_owned());
+    }
     if services.directory.is_some()
         && (services.agent_runtime.is_some() || services.agent_execution.is_some())
     {

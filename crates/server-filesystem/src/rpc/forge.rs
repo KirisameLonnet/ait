@@ -158,7 +158,9 @@ fn status(forge: &Forge, request: &protocol::ForgePathRequest) -> Result<Value, 
                     port::ForgeAuthState::Authenticated | port::ForgeAuthState::Error
                 ),
                 auth_state: Some(protocol_auth_state(auth_state)),
-                forge: (auth_state != port::ForgeAuthState::NoRemote).then(|| "github".to_owned()),
+                forge: error.forge.clone().or_else(|| {
+                    (auth_state != port::ForgeAuthState::NoRemote).then(|| "github".to_owned())
+                }),
                 error: Some(protocol_error(error)),
             })
         }

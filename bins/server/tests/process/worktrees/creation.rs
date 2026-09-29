@@ -164,7 +164,7 @@ async fn unified_worktree_creation_supports_project_only_checkout_and_reports_er
         ),
         (
             json!({"kind":"worktree","cwd":repository,"checkoutSource":{
-                "kind":"change_request","forge":"gitlab","number":42
+                "kind":"change_request","forge":"gitea","number":42
             }}),
             "unsupported_capability",
         ),

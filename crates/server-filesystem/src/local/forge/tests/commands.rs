@@ -54,7 +54,7 @@ fn enterprise_gh_calls_route_to_remote_host_with_interactive_prompts_disabled() 
         .unwrap();
     assert_eq!(
         fs::read_to_string(fixture.root.path().join("environment")).unwrap(),
-        "github.enterprise|1|0\n"
+        "|1|0\ngithub.enterprise|1|0\n"
     );
 }
 

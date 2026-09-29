@@ -52,6 +52,8 @@ pub enum WorktreeCreateMode {
 /// Resolved forge facts used for Git placement and automation trust.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChangeRequestCheckout {
+    /// Resolved forge used for setup trust attribution.
+    pub forge: String,
     /// Pull request number in the selected repository.
     pub number: u64,
     /// Actual source branch on the remote.
@@ -66,6 +68,17 @@ pub struct ChangeRequestCheckout {
     pub push_remote_url: Option<String>,
     /// Whether origin's source branch should be used for tracking.
     pub track_origin: bool,
+    /// Ordered platform-specific refs, including any supported fallback.
+    pub checkout_refs: Vec<ChangeRequestCheckoutRef>,
+}
+
+/// A forge-provided ref to try when fetching a change request.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChangeRequestCheckoutRef {
+    /// Named Git remote in the existing repository.
+    pub remote: String,
+    /// Full remote ref, validated before constructing a fetch refspec.
+    pub reference: String,
 }
 
 /// Input to the atomic Git portion of managed worktree creation.

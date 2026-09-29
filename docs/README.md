@@ -1,5 +1,7 @@
 # 概念与架构文档
 
+- [ADR-066：GitLab Forge 支持](decisions/adr-066-gitlab-forge.md)：复用 Paseo 的平台识别与 glab 设计，支持自建实例、MR、讨论及流水线；[验证报告](reports/gitlab-forge.md)。
+
 - [ADR-065：Paseo 目录、时间线与会话 API 兼容行为](decisions/adr-065-paseo-directory-and-timeline-projections.md)：
   ICU keyset 游标、目录同步订阅、Workspace/终端活动、时间线投影、恢复、会话事件、归档清理、PR 检出及初始 Agent 创建；
   [逐接口对照与验证](reports/paseo-server-api-audit-2026-09-29.md)、

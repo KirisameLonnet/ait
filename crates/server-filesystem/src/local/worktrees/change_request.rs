@@ -2,7 +2,7 @@
 
 use super::{CreatePlan, Path, READ_TIMEOUT, WRITE_TIMEOUT, WorktreeError};
 use super::{default_branch, git, optional_git, unique_branch, validate_branch};
-use crate::ports::worktrees::ChangeRequestCheckout;
+use crate::ports::worktrees::{ChangeRequestCheckout, ChangeRequestCheckoutRef};
 
 pub(super) fn plan(
     repo: &Path,
@@ -22,7 +22,7 @@ pub(super) fn plan(
     }
     validate_branch(repo, &base)?;
     let branch = unique_branch(repo, &target.local_branch);
-    fetch_checkout(repo, target.number, &branch)?;
+    fetch_checkout(repo, &target.checkout_refs, &branch)?;
     Ok(CreatePlan {
         branch_name: branch.clone(),
         comparison_base_ref: Some(base),
@@ -30,10 +30,22 @@ pub(super) fn plan(
     })
 }
 
-fn fetch_checkout(repo: &Path, number: u64, branch: &str) -> Result<(), WorktreeError> {
+fn fetch_checkout(
+    repo: &Path,
+    refs: &[ChangeRequestCheckoutRef],
+    branch: &str,
+) -> Result<(), WorktreeError> {
+    for candidate in refs {
+        validate_branch(repo, &candidate.remote)?;
+        git(
+            repo,
+            &["check-ref-format", &candidate.reference],
+            READ_TIMEOUT,
+            &[0],
+        )?;
+    }
     let temporary = format!("refs/ait/checkout/{}", uuid::Uuid::new_v4());
-    let specification = format!("refs/pull/{number}/head:{temporary}");
-    let result = fetch_branch(repo, branch, &temporary, &specification);
+    let result = fetch_branch(repo, branch, &temporary, refs);
     let cleanup = git(repo, &["update-ref", "-d", &temporary], READ_TIMEOUT, &[0]);
     result.and(cleanup.map(|_| ()))
 }
@@ -42,12 +54,13 @@ fn fetch_branch(
     repo: &Path,
     branch: &str,
     temporary: &str,
-    specification: &str,
+    refs: &[ChangeRequestCheckoutRef],
 ) -> Result<(), WorktreeError> {
-    for remote in ["origin", "upstream"] {
+    for candidate in refs {
+        let specification = format!("{}:{temporary}", candidate.reference);
         let output = git(
             repo,
-            &["fetch", "--no-tags", remote, specification],
+            &["fetch", "--no-tags", &candidate.remote, &specification],
             WRITE_TIMEOUT,
             &[0, 1, 128],
         )?;
@@ -63,7 +76,7 @@ fn fetch_branch(
         }
     }
     Err(WorktreeError::Io(
-        "Unable to fetch pull request from origin or upstream".into(),
+        "Unable to fetch change request from its forge-provided refs".into(),
     ))
 }
 
