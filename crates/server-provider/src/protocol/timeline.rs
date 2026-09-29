@@ -34,14 +34,14 @@ pub enum Direction {
     After,
 }
 
-/// View requested by the client; identity rows currently serve both projections.
+/// Legacy requested view; the current Paseo API always returns the display projection.
 #[derive(Debug, Clone, Copy, Default, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Projection {
     /// Display projection without destructive rewriting of stored items.
     #[default]
     Projected,
-    /// Individual canonical display items.
+    /// Accepted legacy spelling; responses still use the display projection.
     Canonical,
 }
 
@@ -57,7 +57,7 @@ pub struct FetchRequest {
     pub cursor: Option<Cursor>,
     /// Zero requests the entire window, subject to transport budgets.
     pub limit: Option<usize>,
-    /// Requested view.
+    /// Legacy requested view, retained for request compatibility.
     #[serde(default)]
     pub projection: Projection,
     /// Echoed merge hint for a client loading discontiguous windows.

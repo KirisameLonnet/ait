@@ -7,6 +7,8 @@ mod connection;
 mod files;
 mod listener;
 mod outbound;
+mod terminal_activity;
+mod workspace_cleanup;
 
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
@@ -63,6 +65,9 @@ pub enum ConfigError {
     /// Browser policy must be configured before cloning or serving the API.
     #[error("configure browser origins before cloning the API")]
     SharedConfiguration,
+    /// A shared service failed before transport initialization completed.
+    #[error("shared service unavailable during API initialization")]
+    ServiceInitialization,
 }
 
 #[derive(Debug)]
@@ -133,11 +138,11 @@ pub struct Services {
     /// Paseo workspace label catalog, assignment, and subscription use cases.
     pub workspace_labels: Option<WorkspaceLabels>,
     /// Paseo workspace setup and configured script runtime.
-    pub workspace_automation: Option<WorkspaceAutomation>,
+    pub workspace_automation: Option<Arc<Mutex<WorkspaceAutomation>>>,
     /// Workspace attention and archived-placement recovery use cases.
     pub workspace_state: Option<WorkspaceState>,
     /// Paseo-owned Git worktree lifecycle use cases.
-    pub worktrees: Option<Worktrees>,
+    pub worktrees: Option<Arc<Mutex<Worktrees>>>,
 }
 
 pub use server_metadata::rpc::daemon::LifecycleIntent;
@@ -191,12 +196,7 @@ impl Api {
             .as_ref()
             .map(AgentExecution::events)
             .unwrap_or_default();
-        let creations = services
-            .agent_execution
-            .as_ref()
-            .map(AgentExecution::creations)
-            .or_else(|| services.directory.as_ref().map(Directory::creations))
-            .unwrap_or_default();
+        let creations = creation_receipts(&services);
         let runtime = Arc::new(Runtime::new(ServerInfo {
             server_id,
             instance_id,
@@ -204,10 +204,11 @@ impl Api {
             lifecycle: Lifecycle::Ready,
             protocol: VERSION,
             capabilities,
+            features: capabilities::features(&services),
             implemented_capabilities,
             limits: Limits::default(),
         }));
-        let worktrees = services.worktrees.map(shared_service);
+        let worktrees = services.worktrees;
         let directory = services.directory.map(|directory| {
             if let Some(worktrees) = &worktrees {
                 directory.with_worktrees(Arc::new(WorkspaceWorktrees::new(worktrees.clone())))
@@ -221,11 +222,12 @@ impl Api {
             daemon: services.daemon.map(shared_service),
             directory: directory.map(shared_service),
             workspace_labels: services.workspace_labels.map(shared_service),
-            workspace_automation: services.workspace_automation.map(shared_service),
+            workspace_automation: services.workspace_automation,
             workspace_state: services.workspace_state.map(shared_service),
             session_events,
             creations,
             has_agent_execution: services.agent_execution.is_some(),
+            has_terminals: services.terminals.is_some(),
         });
         let filesystem = Arc::new(server_filesystem::dispatch::State {
             metadata_generator: services.metadata_generator,
@@ -246,10 +248,12 @@ impl Api {
             agent_execution: services.agent_execution,
             has_terminals: services.terminals.is_some(),
         });
-        let terminal = Arc::new(server_terminal::dispatch::State {
-            runtime: runtime.clone(),
-            terminals: services.terminals.map(shared_service),
-        });
+        let terminal = terminal_activity::compose(
+            &runtime,
+            services.terminals,
+            address,
+            &metadata.session_events,
+        );
         let api = Self {
             shared: Arc::new(Shared {
                 schedule: server_schedule::dispatch::State {
@@ -275,6 +279,7 @@ impl Api {
                 connections: Arc::new(Semaphore::new(server_protocol::MAX_CONNECTIONS)),
             }),
         };
+        workspace_cleanup::configure(&api.shared)?;
         server_terminal::connection::maintain(&api.shared.terminal);
         Ok(api)
     }
@@ -307,6 +312,7 @@ impl Api {
             .route("/v1/ws", get(upgrade))
             .route(browser_auth::TICKET_PATH, post(browser_ticket))
             .route("/api/files/download", get(files::download))
+            .route(terminal_activity::PATH, post(terminal_activity::report))
             .fallback(|| async { ApiError(StatusCode::NOT_FOUND) })
             .layer(middleware::from_fn_with_state(self.shared.clone(), guard))
             .layer(TimeoutLayer::with_status_code(
@@ -441,7 +447,9 @@ async fn guard(
     }
     let download = request.method() == axum::http::Method::GET
         && request.uri().path() == "/api/files/download";
-    if !matches!(request.uri().path(), "/healthz" | "/readyz") && !download {
+    let terminal_activity =
+        request.method() == Method::POST && request.uri().path() == terminal_activity::PATH;
+    if !matches!(request.uri().path(), "/healthz" | "/readyz") && !download && !terminal_activity {
         if request.uri().path() == "/v1/ws" && !request.headers().contains_key("authorization") {
             state.browser_auth.consume(request.headers())?;
         } else {
@@ -522,4 +530,13 @@ mod tests;
 
 fn shared_service<S>(service: S) -> Arc<Mutex<S>> {
     Arc::new(Mutex::new(service))
+}
+
+fn creation_receipts(services: &Services) -> server_metadata::service::creation::Creations {
+    services
+        .agent_execution
+        .as_ref()
+        .map(AgentExecution::creations)
+        .or_else(|| services.directory.as_ref().map(Directory::creations))
+        .unwrap_or_default()
 }

@@ -18,6 +18,8 @@ use crate::ports::registry::{
 use super::{Directory, DirectoryDependencies, DirectoryError, derive_project_key};
 
 mod paseo;
+mod paseo_api;
+mod synchronization;
 
 #[derive(Debug, Default)]
 struct Projects(Mutex<Vec<PersistedProjectRecord>>);

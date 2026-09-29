@@ -1,5 +1,8 @@
 //! Local managed Git worktree adapter.
 
+mod change_request;
+mod directory;
+
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Component, Path, PathBuf};
@@ -28,13 +31,17 @@ const WRITE_TIMEOUT: Duration = Duration::from_secs(120);
 #[derive(Debug, Clone)]
 pub struct LocalManagedWorktrees {
     root: PathBuf,
+    forge: crate::local::forge::LocalForge,
 }
 
 impl LocalManagedWorktrees {
     /// Select the base directory whose `<repository-hash>/<slug>` children are server-owned.
     #[must_use]
     pub fn new(root: PathBuf) -> Self {
-        Self { root }
+        Self {
+            root,
+            forge: crate::local::forge::LocalForge::new(),
+        }
     }
 
     fn repository(cwd: &str) -> Result<Repository, WorktreeError> {
@@ -94,6 +101,23 @@ impl LocalManagedWorktrees {
 }
 
 impl ManagedWorktrees for LocalManagedWorktrees {
+    fn resolve_change_request(
+        &self,
+        cwd: &str,
+        source: &server_metadata::ports::worktrees::WorktreeChangeRequest,
+        head_ref: Option<&str>,
+    ) -> Result<crate::ports::worktrees::ChangeRequestCheckout, WorktreeError> {
+        self.forge.worktree_checkout(cwd, source, head_ref)
+    }
+
+    fn prepare_directory(
+        &self,
+        cwd: &str,
+        intent: &server_metadata::ports::worktrees::DirectoryGit,
+    ) -> Result<(), WorktreeError> {
+        directory::prepare(cwd, intent)
+    }
+
     fn list(&self, cwd: &str) -> Result<Vec<ManagedWorktreeInfo>, WorktreeError> {
         let repository = Self::repository(cwd)?;
         let project_root = normalized_absolute(&self.project_root(&repository.repo_root))?;
@@ -156,6 +180,9 @@ impl ManagedWorktrees for LocalManagedWorktrees {
                 )));
             }
             seed_config(&repository.source_cwd, &workspace_cwd)?;
+            if let WorktreeCreateMode::ChangeRequest(target) = &input.mode {
+                change_request::configure(&worktree_path, &plan.branch_name, target)?;
+            }
             Ok(CreatedManagedWorktree {
                 repo_root: path_text(&repository.repo_root)?,
                 source_cwd: path_text(&repository.source_cwd)?,
@@ -333,6 +360,7 @@ fn create_plan(
     mode: &WorktreeCreateMode,
 ) -> Result<CreatePlan, WorktreeError> {
     match mode {
+        WorktreeCreateMode::ChangeRequest(target) => change_request::plan(repo_root, target),
         WorktreeCreateMode::BranchOff {
             base_ref,
             branch_name,
@@ -376,7 +404,7 @@ fn create_plan(
                 let actual_branch = unique_branch(repo_root, branch_name);
                 return Ok(CreatePlan {
                     branch_name: actual_branch.clone(),
-                    comparison_base_ref: None,
+                    comparison_base_ref: Some(branch_name.clone()),
                     arguments: vec![
                         "-b".to_owned(),
                         actual_branch,
@@ -387,7 +415,7 @@ fn create_plan(
             }
             Ok(CreatePlan {
                 branch_name: branch_name.clone(),
-                comparison_base_ref: None,
+                comparison_base_ref: Some(branch_name.clone()),
                 arguments: vec![branch_name.clone()],
             })
         }

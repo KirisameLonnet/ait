@@ -4,6 +4,53 @@ use crate::tests::runtime;
 mod polling;
 
 #[tokio::test]
+async fn admitted_continuations_wait_for_the_existing_budget() {
+    let runtime = runtime();
+    let permit = runtime.jobs.clone().acquire_owned().await.unwrap();
+    let queued = runtime.clone();
+    let task = tokio::spawn(async move {
+        queued
+            .run_queued(
+                Some(Arc::new(Mutex::new(4))),
+                ErrorCode::RegistryIo,
+                |value| {
+                    *value += 1;
+                    Ok(*value)
+                },
+            )
+            .await
+    });
+    tokio::task::yield_now().await;
+    assert!(!task.is_finished());
+    drop(permit);
+    assert_eq!(task.await.unwrap(), Ok(5));
+    assert_eq!(runtime.jobs.available_permits(), 1);
+}
+
+#[tokio::test]
+async fn shutdown_cancels_queued_continuations_before_they_start() {
+    let runtime = runtime();
+    let _permit = runtime.jobs.clone().acquire_owned().await.unwrap();
+    let queued = runtime.clone();
+    let task = tokio::spawn(async move {
+        queued
+            .run_queued(
+                Some(Arc::new(Mutex::new(()))),
+                ErrorCode::RegistryIo,
+                |()| -> Result<(), ErrorCode> {
+                    panic!("shutdown must prevent this operation");
+                },
+            )
+            .await
+    });
+    tokio::task::yield_now().await;
+    runtime.cancellation.cancel();
+    runtime.tasks.close();
+    assert_eq!(task.await.unwrap(), Err(ErrorCode::ServerDraining));
+    assert_eq!(runtime.tasks.len(), 0);
+}
+
+#[tokio::test]
 async fn admission_rejects_missing_exhausted_and_draining_work() {
     let runtime = runtime();
     let service = Arc::new(Mutex::new(()));

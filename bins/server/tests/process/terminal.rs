@@ -11,6 +11,9 @@ use super::{ready, start, terminate};
 #[path = "terminal/paseo.rs"]
 mod paseo;
 
+#[path = "terminal/activity.rs"]
+mod activity;
+
 struct Client {
     socket: Socket,
     frames: Vec<Vec<u8>>,
@@ -24,6 +27,9 @@ impl Client {
         methods.extend([
             "workspace.open.request",
             "workspace.archive.request",
+            "workspace.list.request",
+            "session.heartbeat",
+            "session.events.set_subscription.request",
             "agent.items.close.request",
             "subscription.release.request",
             "connection.ping",

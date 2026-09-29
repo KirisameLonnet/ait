@@ -28,6 +28,77 @@ it("preserves Rust timeline search counts in the SDK response envelope", () => {
 });
 
 describe("Ait host capabilities", () => {
+  it("enables composite creation only with the lifecycle producer and its methods", () => {
+    const methods = new Set([
+      "agent.create.request",
+      "workspace.create.request",
+      "creation.subscribe.request",
+    ]);
+    const read = (features: string[]) =>
+      parseServerInfoStatusPayload(
+        object(object(serverInfo({ server_id: "ait", features }, methods).message).payload),
+      )?.features;
+    expect(read(["creation-lifecycle-v1"])).toMatchObject({
+      creationLifecycle: true,
+      agentRequestReceipts: true,
+      workspaceRequestReceipts: true,
+    });
+    expect(read([])?.creationLifecycle).toBe(false);
+    methods.delete("creation.subscribe.request");
+    expect(read(["creation-lifecycle-v1"])?.creationLifecycle).toBe(false);
+  });
+  it("advertises native approval and child events only with the producer feature", () => {
+    const read = (features: string[], methods: string[]) =>
+      parseServerInfoStatusPayload(
+        object(
+          object(serverInfo({ server_id: "ait", features }, new Set(methods)).message).payload,
+        ),
+      )?.sessionEventTypes;
+    const method = "agent.permission.resolve.request";
+    expect(read(["agent-session-events-v1"], [method])).toEqual(
+      expect.arrayContaining([
+        "agent_permission_request",
+        "agent_permission_resolved",
+        "agent.provider_subagents.update",
+      ]),
+    );
+    expect(read([], [method])).not.toContain("agent_permission_request");
+    expect(read(["agent-session-events-v1"], [])).not.toContain("agent_permission_resolved");
+  });
+  it("advertises terminal attention only for hosts with terminal activity events", () => {
+    const read = (features: string[], methods: string[]) =>
+      parseServerInfoStatusPayload(
+        object(
+          object(serverInfo({ server_id: "ait", features }, new Set(methods)).message).payload,
+        ),
+      )?.sessionEventTypes;
+    expect(read(["terminal-activity-v1"], ["terminal.list.request"])).toContain(
+      "terminal_attention_required",
+    );
+    expect(read([], ["terminal.list.request"])).not.toContain("terminal_attention_required");
+    expect(read(["terminal-activity-v1"], [])).not.toContain("terminal_attention_required");
+  });
+
+  it("enables directory sync and streams only when the connected host advertises them", () => {
+    const methods = new Set([
+      "project.list.request",
+      "workspace.list.request",
+      "agent.list.request",
+      "subscription.release.request",
+    ]);
+    const features = ["directory-sync-v1", "directory-subscriptions-v1"];
+    const read = (advertised: string[]) =>
+      parseServerInfoStatusPayload(
+        object(
+          object(serverInfo({ server_id: "ait", features: advertised }, methods).message).payload,
+        ),
+      )?.features;
+    expect(read(features)).toMatchObject({ directorySync: true, directorySubscriptions: true });
+    expect(read([])).toMatchObject({ directorySync: false, directorySubscriptions: false });
+    methods.delete("agent.list.request");
+    expect(read(features)).toMatchObject({ directorySync: false, directorySubscriptions: false });
+  });
+
   it("exposes working settings and directory features without unsupported transports", () => {
     const value = info(Object.values(METHODS).map((method) => method.method));
     expect(value?.features).toMatchObject({

@@ -3,6 +3,9 @@ use serde_json::{Value, json};
 use super::transport::{Socket, connect, receive, request};
 use super::{ready, start_with_path, terminate};
 
+#[path = "agent_controls/session_events.rs"]
+mod session_events;
+
 const METHODS: &[&str] = &[
     "workspace.open.request",
     "agent.create.request",

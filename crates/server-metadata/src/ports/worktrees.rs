@@ -13,6 +13,34 @@ pub enum WorktreeAction {
     Checkout,
 }
 
+/// Legacy Agent Git placement that changes the source checkout without creating a worktree.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DirectoryGit {
+    /// Create a normalized branch from an explicit or repository-default base, without tracking.
+    BranchOff {
+        /// Requested branch name seed.
+        branch: String,
+        /// Base branch; absence resolves the repository default.
+        base: Option<String>,
+    },
+    /// Switch to an existing local or remote-tracking branch.
+    Checkout {
+        /// Existing branch reference.
+        branch: String,
+    },
+}
+
+/// Forge-neutral pull request selected for a managed checkout.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WorktreeChangeRequest {
+    /// Explicit forge, or the repository's default.
+    pub forge: Option<String>,
+    /// Positive JavaScript-safe request number.
+    pub number: u64,
+    /// Optional forge project identity retained from the request.
+    pub project_path: Option<String>,
+}
+
 /// Creation intent, including the identity reserved by the creation coordinator.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorktreeCreation {
@@ -34,8 +62,8 @@ pub struct WorktreeCreation {
     pub branch_name: Option<String>,
     /// Branch creation or checkout.
     pub action: WorktreeAction,
-    /// Whether unsupported forge checkout input was supplied.
-    pub has_change_request_source: bool,
+    /// Optional pull or merge request checkout source.
+    pub checkout_source: Option<WorktreeChangeRequest>,
     /// Provisional title source when no explicit title was supplied.
     pub first_agent_prompt: Option<String>,
     /// Whether an initial Agent will follow creation.
@@ -63,6 +91,23 @@ pub struct WorktreeCreationError {
 
 /// Blocking adapter that creates Git placement and registers it atomically with rollback.
 pub trait WorktreeProvisioning: Debug + Send + Sync {
+    /// Prepare the source checkout for a legacy Agent creation request.
+    ///
+    /// # Errors
+    /// Returns invalid branch, dirty checkout, Git, or persistence failures.
+    fn prepare_directory(
+        &self,
+        cwd: &str,
+        intent: &DirectoryGit,
+    ) -> Result<(), WorktreeCreationError>;
+
+    /// Archive an owned worktree Workspace and remove its unreferenced managed checkout.
+    ///
+    /// Only the filesystem owner resolves and validates the managed path.
+    /// # Errors
+    /// Returns ownership, Git cleanup, or persistence failures without removing unrelated paths.
+    fn archive(&self, workspace_id: &str, timestamp: &str) -> Result<(), WorktreeCreationError>;
+
     /// Create the requested workspace using the reserved identity and timestamp.
     ///
     /// # Errors

@@ -164,6 +164,7 @@ impl Fixture {
             protocol: VERSION,
             capabilities: Vec::new(),
             implemented_capabilities: Vec::new(),
+            features: Vec::new(),
             limits: Limits::default(),
         }));
         let (outbound, receiver) = Outbound::new();

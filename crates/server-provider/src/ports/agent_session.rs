@@ -242,6 +242,24 @@ pub trait AgentSession: Debug + Send {
 
 /// Factory and availability boundary for one independent provider adapter.
 pub trait AgentClient: Debug + Send + Sync {
+    /// Create a session with ephemeral environment overrides for its native child process.
+    ///
+    /// Default adapters accept an empty environment and reject unsupported nonempty values.
+    /// # Errors
+    /// Returns validation or provider errors without persisting environment values.
+    fn create_session_with_environment<'a>(
+        &'a self,
+        spec: &'a AgentSessionSpec,
+        environment: &'a super::environment::AgentEnvironment,
+    ) -> AgentSessionFuture<'a, Box<dyn AgentSession>> {
+        Box::pin(async move {
+            if !environment.is_empty() {
+                return Err(AgentSessionError::Rejected);
+            }
+            self.create_session(spec).await
+        })
+    }
+
     /// Run an isolated, non-persisted structured request without registering a foreground Agent.
     /// `spec` selects cwd/model/reasoning; `prompt` is source-only wording and `schema` its output.
     /// # Errors
@@ -267,6 +285,25 @@ pub trait AgentClient: Debug + Send + Sync {
     /// Describe selectable modes/features and implemented native control flags without I/O.
     fn settings(&self, _config: &StoredAgentConfig) -> serde_json::Value {
         serde_json::json!({"availableModes":[],"features":[],"capabilities":{}})
+    }
+
+    /// Inspect the proposed configuration's features without registering a durable Agent.
+    ///
+    /// `spec` supplies a normalized directory and draft settings. Adapters may perform bounded
+    /// capability discovery, but must not submit user input or retain a native writer.
+    /// # Errors
+    /// Returns provider unavailability or a malformed capability response.
+    fn draft_features<'a>(
+        &'a self,
+        spec: &'a AgentSessionSpec,
+    ) -> AgentSessionFuture<'a, Vec<serde_json::Value>> {
+        Box::pin(async move {
+            if !self.is_available().await? {
+                return Err(AgentSessionError::Unavailable);
+            }
+            serde_json::from_value(self.settings(&spec.config)["features"].take())
+                .map_err(|_| AgentSessionError::Failed)
+        })
     }
     /// Validate dynamic selections before committing configuration.
     /// # Errors

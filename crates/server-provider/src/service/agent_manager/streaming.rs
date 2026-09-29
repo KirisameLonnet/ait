@@ -21,7 +21,7 @@ pub(super) fn drain(
                 persist_started(registry, timeline, id, agent, turn)
             }
             Some(AgentTurnEvent::Subagent(event)) => {
-                super::controls::publish_subagent(timeline, agent, event)
+                super::controls::publish_subagent(timeline, events, agent, event)
             }
             Some(AgentTurnEvent::Usage(usage)) => {
                 persist_usage(registry, timeline, id, agent, usage)
@@ -31,7 +31,7 @@ pub(super) fn drain(
                 Ok(())
             }
             Some(AgentTurnEvent::PermissionResolved(request)) => {
-                super::controls::resolve_permission(registry, timeline, agent, request)?;
+                super::controls::resolve_permission(registry, timeline, events, agent, request)?;
                 Ok(())
             }
             Some(AgentTurnEvent::Progress { observation, entry }) => timeline
@@ -201,6 +201,11 @@ pub(super) fn publish_terminal(
     committed: Option<&server_domain::agent_runtime::PersistedAgentRuntimeRecord>,
 ) {
     use serde_json::json;
+    if let AgentTurnEvent::Completed(message) = terminal
+        && let Some(observer) = &agent.last_message_observer
+    {
+        observer.send_replace(message.clone());
+    }
     let Some(timeline) = timeline else {
         return;
     };

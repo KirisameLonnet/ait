@@ -280,8 +280,6 @@ fn launch_command(
             spec.config.mode_id.as_deref().unwrap_or("default")
         ))
         .current_dir(&spec.cwd)
-        .env_remove("CLAUDECODE")
-        .env("CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING", "true")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -290,6 +288,10 @@ fn launch_command(
     if let Some(path) = &client.config_dir {
         command.env("CLAUDE_CONFIG_DIR", path);
     }
+    command
+        .envs(client.environment.entries())
+        .env_remove("CLAUDECODE")
+        .env("CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING", "true");
     if let Some((id, resume)) = binding {
         command.arg(format!(
             "--{}={id}",

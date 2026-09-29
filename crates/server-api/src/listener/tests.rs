@@ -9,7 +9,10 @@ const TOKEN: &str = "test-server-listener-token-32-characters";
 
 #[test]
 fn authorities_are_limited_to_the_destination_and_loopback_alias() {
-    let local = LocalAddress("[::ffff:127.0.0.1]:80".parse().unwrap());
+    let local = LocalAddress(
+        "[::ffff:127.0.0.1]:80".parse().unwrap(),
+        "127.0.0.1:1".parse().unwrap(),
+    );
     assert_eq!(
         local.authorities(),
         ["127.0.0.1:80", "127.0.0.1", "localhost:80", "localhost"]

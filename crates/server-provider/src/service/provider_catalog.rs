@@ -13,6 +13,9 @@ use sha2::{Digest, Sha256};
 use crate::ports::agent_session::AgentClient;
 use crate::protocol::provider::{Details, ListRequest, RefreshRequest, SnapshotRequest};
 
+mod draft;
+mod scope;
+
 #[derive(Debug)]
 struct Entry {
     value: Value,
@@ -24,10 +27,10 @@ struct Snapshot {
     fetched: Instant,
 }
 
-/// Cache scoped by canonical working directory, bounded to sixteen directories.
+/// Cache scoped by global identity or canonical directory, bounded to sixteen scopes.
 #[derive(Debug, Default)]
 pub(crate) struct Catalog {
-    snapshots: BTreeMap<String, Snapshot>,
+    snapshots: BTreeMap<Option<String>, Snapshot>,
 }
 
 impl Catalog {
@@ -38,6 +41,9 @@ impl Catalog {
         method: &str,
         params: Value,
     ) -> Result<Value, ErrorCode> {
+        if method == "provider.features.list.request" && params.get("draftConfig").is_some() {
+            return draft::features(clients, decode(params)?).await;
+        }
         let (cwd, selected, if_none_match, refresh) = match method {
             "provider.available.list.request" => {
                 crate::rpc::agent_execution::only(&params, &[])?;
@@ -67,23 +73,13 @@ impl Catalog {
                 (request.cwd, Some(vec![request.provider]), None, false)
             }
         };
-        let path = match cwd.as_deref() {
-            Some(path) if std::path::Path::new(path).is_absolute() => {
-                std::path::PathBuf::from(path)
-            }
-            Some(_) => return Err(ErrorCode::InvalidMessage),
-            None => std::env::current_dir().map_err(|_| ErrorCode::AgentIo)?,
-        };
-        let path = path.canonicalize().map_err(|_| ErrorCode::InvalidMessage)?;
-        if !path.is_dir() {
-            return Err(ErrorCode::InvalidMessage);
-        }
-        let key = path.to_str().ok_or(ErrorCode::InvalidMessage)?.to_owned();
+        let key = scope::key(cwd.as_deref())?;
         let stale = self
             .snapshots
             .get(&key)
             .is_none_or(|snapshot| snapshot.fetched.elapsed() > Duration::from_secs(60));
         if stale || refresh {
+            let discovery_cwd = scope::discovery_cwd(key.as_deref())?;
             if self.snapshots.len() >= 16 && !self.snapshots.contains_key(&key) {
                 let oldest = self
                     .snapshots
@@ -112,9 +108,10 @@ impl Catalog {
                 {
                     continue;
                 }
-                snapshot
-                    .entries
-                    .insert(provider.clone(), discover(client.as_ref(), &key).await);
+                snapshot.entries.insert(
+                    provider.clone(),
+                    discover(client.as_ref(), &discovery_cwd).await,
+                );
             }
             snapshot.fetched = Instant::now();
         }
@@ -170,7 +167,7 @@ fn decode<T: serde::de::DeserializeOwned>(value: Value) -> Result<T, ErrorCode> 
 mod tests;
 
 struct ReplyScope {
-    key: String,
+    key: Option<String>,
     selected: Option<Vec<String>>,
     if_none_match: Option<String>,
     refresh: bool,
@@ -215,8 +212,10 @@ fn response(
             .collect();
         let bytes = serde_json::to_vec(&hashable).map_err(|_| ErrorCode::AgentIo)?;
         let hash = format!("{:x}", Sha256::digest(bytes));
-        let mut payload =
-            json!({"cwd":key,"entries":entries,"snapshotHash":hash,"generatedAt":fetched_at});
+        let mut payload = json!({"entries":entries,"snapshotHash":hash,"generatedAt":fetched_at});
+        if let Some(key) = key {
+            payload["cwd"] = json!(key);
+        }
         if refresh {
             events.publish(SessionEventKind::ProvidersSnapshot, &payload);
             return Ok(json!({"acknowledged":true}));
@@ -244,6 +243,15 @@ fn response(
     };
     let values = if field == "features" {
         json!(entry.features)
+    } else if field == "models" {
+        json!(
+            entry.value[field]
+                .as_array()
+                .ok_or(ErrorCode::AgentIo)?
+                .iter()
+                .filter(|model| model.get("isSelectable") != Some(&Value::Bool(false)))
+                .collect::<Vec<_>>()
+        )
     } else {
         entry.value[field].clone()
     };

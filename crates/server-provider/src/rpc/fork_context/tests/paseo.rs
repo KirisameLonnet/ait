@@ -36,16 +36,13 @@ fn whitespace_only_stream_fragments_are_retained_inside_the_logical_message() {
 }
 
 #[test]
-fn distinct_assistant_messages_keep_separate_labels_and_boundaries() {
+fn distinct_assistant_messages_keep_line_boundaries_inside_the_curated_assistant_block() {
     let text = attachment(&[
         fragment(1, "first", "First"),
         fragment(2, "second", "Sec"),
         fragment(3, "second", "ond"),
     ]);
-    assert!(
-        text.contains("[Assistant] First\n[Assistant] Second\n"),
-        "{text}"
-    );
+    assert!(text.contains("[Assistant] First\nSecond\n"), "{text}");
 }
 
 #[test]
@@ -87,7 +84,7 @@ fn another_assistant_message_interrupts_fragment_coalescing() {
         fragment(3, "a", "after"),
     ]);
     assert!(
-        text.contains("[Assistant] Before\n[Assistant] independent\n[Assistant] after\n"),
+        text.contains("[Assistant] Before\nindependent\nafter\n"),
         "{text}"
     );
 }
@@ -95,10 +92,7 @@ fn another_assistant_message_interrupts_fragment_coalescing() {
 #[test]
 fn source_sequence_gap_interrupts_fragment_coalescing() {
     let text = attachment(&[fragment(1, "a", "Before "), fragment(3, "a", "after")]);
-    assert!(
-        text.contains("[Assistant] Before\n[Assistant] after\n"),
-        "{text}"
-    );
+    assert!(text.contains("[Assistant] Before\nafter\n"), "{text}");
 }
 
 #[test]
@@ -122,7 +116,7 @@ fn complete_attachment_one_byte_over_the_limit_is_rejected() {
 }
 
 #[test]
-fn cursor_boundary_merges_only_fragments_observed_by_that_position() {
+fn cursor_boundary_rejects_a_message_with_fragments_after_that_position() {
     let rows = [
         fragment(1, "a", "part"),
         fragment(2, "a", "ial"),
@@ -133,11 +127,10 @@ fn cursor_boundary_merges_only_fragments_observed_by_that_position() {
         epoch: "epoch".to_owned(),
         seq: 2,
     });
-    let result = export(&boundary, "epoch", &rows, &json!({})).unwrap();
-    let text = result["attachment"]["text"].as_str().unwrap();
-    assert!(text.contains("[Assistant] partial\n"), "{text}");
-    assert!(!text.contains("later"));
-    assert_eq!(result["itemCount"], 2);
+    assert_eq!(
+        export(&boundary, "epoch", &rows, &json!({})),
+        Err(ErrorCode::InvalidMessage)
+    );
 }
 
 #[test]
@@ -153,7 +146,7 @@ fn assistant_message_boundary_includes_all_its_fragments_and_excludes_later_mess
     let text = result["attachment"]["text"].as_str().unwrap();
     assert!(text.contains("[Assistant] 你好 世界\n"), "{text}");
     assert!(!text.contains("later"));
-    assert_eq!(result["itemCount"], 2);
+    assert_eq!(result["itemCount"], 1);
 }
 
 #[test]
@@ -164,7 +157,7 @@ fn identical_native_item_ids_from_different_turns_do_not_merge() {
     second.entry.turn_id = Some("second".to_owned());
     let text = attachment(&[first, second]);
     assert!(
-        text.contains("[Assistant] First turn\n[Assistant] Second turn\n"),
+        text.contains("[Assistant] First turn\nSecond turn\n"),
         "{text}"
     );
 }

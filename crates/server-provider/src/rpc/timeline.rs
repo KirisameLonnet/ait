@@ -6,6 +6,7 @@ use server_model::ErrorCode;
 use crate::protocol::timeline::{Direction, FetchRequest, SearchRequest};
 use crate::storage::timeline::Row;
 
+pub(super) mod projection;
 mod text_search;
 
 pub(crate) fn fetch(
@@ -19,58 +20,39 @@ pub(crate) fn fetch(
     } else {
         Direction::Tail
     });
-    if direction != Direction::Tail && request.cursor.is_none() {
-        return Err(ErrorCode::InvalidMessage);
-    }
     let stale = request
         .cursor
         .as_ref()
         .is_some_and(|cursor| cursor.epoch != epoch);
-    let next = rows.last().map_or(1, |row| row.seq + 1);
+    let next = rows.last().map_or(1, |row| row.seq.saturating_add(1));
     let gap = direction == Direction::After
         && request.cursor.as_ref().is_some_and(|cursor| {
             !stale
-                && rows.first().is_some_and(|first| {
-                    cursor.seq < first.seq.saturating_sub(1) || cursor.seq >= next
-                })
+                && rows
+                    .first()
+                    .is_some_and(|first| cursor.seq < first.seq.saturating_sub(1))
         });
     let reset = stale || gap;
-    let cursor = request.cursor.as_ref().map_or(0, |cursor| cursor.seq);
-    let start = if !reset && direction == Direction::After {
-        rows.partition_point(|row| row.seq <= cursor)
-    } else {
-        0
-    };
-    let end = if !reset && direction == Direction::Before {
-        rows.partition_point(|row| row.seq < cursor)
-    } else {
-        rows.len()
-    };
     let limit = request.limit.unwrap_or(if direction == Direction::After {
         0
     } else {
         200
     });
-    let limit = if limit == 0 {
-        end.saturating_sub(start)
-    } else {
-        limit
-    };
-    let (start, end) = if direction == Direction::After && !reset {
-        (start, end.min(start.saturating_add(limit)))
-    } else {
-        (start.max(end.saturating_sub(limit)), end)
-    };
-    let selected = &rows[start..end];
+    let page = projection::select(
+        rows,
+        if reset { Direction::Tail } else { direction },
+        request.cursor.as_ref().map(|cursor| cursor.seq),
+        limit,
+    );
     let mut value = json!({"agentId":request.agent_id,"agent":agent,"direction":direction,
-        "projection":request.projection,"epoch":epoch,"reset":reset,"staleCursor":stale,"gap":gap,
+        "projection":"projected","epoch":epoch,"reset":reset,"staleCursor":stale,"gap":gap,
         "window":{"minSeq":rows.first().map_or(0, |row| row.seq),"maxSeq":next.saturating_sub(1),"nextSeq":next},
-        "startCursor":selected.first().map(|row|json!({"epoch":epoch,"seq":row.seq})),
-        "endCursor":selected.last().map(|row|json!({"epoch":epoch,"seq":row.seq})),
-        "hasOlder":start>0,"hasNewer":end<rows.len(),
-        "entries":selected.iter().map(Row::value).collect::<Vec<_>>(),"error":null});
-    if let Some(merge) = request.merge_window {
-        value["mergeWindow"] = json!(merge);
+        "startCursor":page.start_seq.map(|seq|json!({"epoch":epoch,"seq":seq})),
+        "endCursor":page.end_seq.map(|seq|json!({"epoch":epoch,"seq":seq})),
+        "hasOlder":page.has_older,"hasNewer":page.has_newer,
+        "entries":page.entries,"error":null});
+    if request.merge_window == Some(true) {
+        value["mergeWindow"] = json!(true);
     }
     bounded(value)
 }
@@ -85,15 +67,15 @@ pub(crate) fn search(
             "locations":[],"nextCursor":null,"error":null}));
     };
     let offset = request.cursor.unwrap_or(0);
-    let messages = searchable(rows);
+    let messages = projection::project(rows);
     let mut matching = messages
         .iter()
-        .filter(|row| row.seq > offset as u64)
+        .filter(|row| row.seq_end > offset as u64)
         .filter_map(|row| {
-            let role = role(row)?;
-            let text = row.entry.item["text"].as_str()?;
+            let role = item_role(&row.item)?;
+            let text = row.item["text"].as_str()?;
             let count = text_search::count(&pattern, text, role == "assistant");
-            (count > 0).then(|| json!({"seq":row.seq,"role":role,"count":count}))
+            (count > 0).then(|| json!({"seq":row.seq_end,"role":role,"count":count}))
         });
     let locations: Vec<_> = matching.by_ref().take(200).collect();
     let next = matching
@@ -102,26 +84,6 @@ pub(crate) fn search(
     bounded(
         json!({"agentId":request.agent_id,"epoch":epoch,"locations":locations,"nextCursor":next,"error":null}),
     )
-}
-
-fn searchable(rows: &[Row]) -> Vec<Row> {
-    let mut messages: Vec<Row> = Vec::new();
-    let mut positions = std::collections::BTreeMap::new();
-    for row in rows.iter().filter(|row| role(row).is_some()) {
-        if let Some(index) = positions.get(&row.entry.key).copied() {
-            let existing: &mut Row = &mut messages[index];
-            if let (Value::String(text), Some(delta)) = (
-                &mut existing.entry.item["text"],
-                row.entry.item["text"].as_str(),
-            ) {
-                text.push_str(delta);
-            }
-        } else {
-            positions.insert(row.entry.key.clone(), messages.len());
-            messages.push(row.clone());
-        }
-    }
-    messages
 }
 
 pub(crate) fn prompts(agent: &str, epoch: &str, rows: &[Row]) -> Result<Value, ErrorCode> {
@@ -155,7 +117,11 @@ fn preview(text: &str) -> String {
 }
 
 fn role(row: &Row) -> Option<&'static str> {
-    match row.entry.item["type"].as_str() {
+    item_role(&row.entry.item)
+}
+
+fn item_role(item: &Value) -> Option<&'static str> {
+    match item["type"].as_str() {
         Some("user_message") => Some("user"),
         Some("assistant_message") => Some("assistant"),
         _ => None,

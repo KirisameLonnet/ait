@@ -48,8 +48,8 @@ pub struct CreateWorktree {
     pub ref_name: Option<String>,
     /// Explicit or default action.
     pub action: CreateAction,
-    /// Whether a forge change-request source was supplied.
-    pub has_change_request_source: bool,
+    /// Optional forge change-request checkout source.
+    pub checkout_source: Option<server_metadata::ports::worktrees::WorktreeChangeRequest>,
     /// First-Agent prompt used as a provisional workspace title.
     pub first_agent_prompt: Option<String>,
     /// Whether the caller supplied any first-Agent context.
@@ -96,6 +96,17 @@ pub struct ArchiveWorktree {
 pub struct ArchivedWorktree {
     /// Workspace identities archived by this operation.
     pub workspace_ids: Vec<String>,
+}
+
+/// An archive marked in the registry, awaiting resource closure before disk removal.
+/// The filesystem owner alone creates and consumes the contained ownership proof.
+#[derive(Debug)]
+pub struct PendingArchive {
+    /// All selected Workspace identities, including archived records requiring cleanup retry.
+    pub workspace_ids: Vec<String>,
+    archived: ArchivedWorktree,
+    ownership: Option<OwnedWorktree>,
+    scope: ArchiveScope,
 }
 
 /// Worktree lifecycle failure.
@@ -173,6 +184,7 @@ pub struct Worktrees {
     managed: Box<dyn ManagedWorktrees>,
     server_id: String,
     names: Option<server_metadata::service::workspace_names::WorkspaceNames>,
+    archive_cleanup: Option<Box<dyn crate::ports::worktrees::WorktreeArchiveCleanup>>,
 }
 
 impl Worktrees {
@@ -190,7 +202,16 @@ impl Worktrees {
             managed,
             server_id,
             names: None,
+            archive_cleanup: None,
         }
+    }
+
+    /// Install host resource cleanup for every explicit and automatic archive path.
+    pub fn set_archive_cleanup(
+        &mut self,
+        cleanup: Box<dyn crate::ports::worktrees::WorktreeArchiveCleanup>,
+    ) {
+        self.archive_cleanup = Some(cleanup);
     }
 
     /// Install first-prompt workspace naming for successful creations.
@@ -227,9 +248,6 @@ impl Worktrees {
         input: &CreateWorktree,
         timestamp: &str,
     ) -> Result<CreatedWorkspace, WorktreesError> {
-        if input.has_change_request_source {
-            return Err(WorktreeError::ForgeUnavailable.into());
-        }
         if let Some(workspace_id) = &input.workspace_id
             && self
                 .workspaces
@@ -239,32 +257,66 @@ impl Worktrees {
         {
             return Err(WorktreeError::Invalid("workspaceId already exists".to_owned()).into());
         }
+        let change_request = input
+            .checkout_source
+            .as_ref()
+            .map(|source| {
+                self.managed.resolve_change_request(
+                    &input.cwd,
+                    source,
+                    normalize_ref(input.ref_name.as_deref()),
+                )
+            })
+            .transpose()?;
         let slug = input
             .worktree_slug
             .as_deref()
+            .or_else(|| {
+                change_request
+                    .as_ref()
+                    .map(|target| target.local_branch.as_str())
+            })
+            .or_else(|| {
+                (input.action == CreateAction::Checkout)
+                    .then_some(input.ref_name.as_deref())
+                    .flatten()
+            })
             .map(slugify)
             .filter(|slug| !slug.is_empty())
             .map_or_else(random_slug, Ok)?;
-        let mode = match input.action {
-            CreateAction::BranchOff => WorktreeCreateMode::BranchOff {
-                base_ref: normalize_ref(input.ref_name.as_deref())
-                    .or_else(|| normalize_ref(input.base_branch.as_deref()))
-                    .map(str::to_owned),
-                branch_name: normalize_ref(input.branch_name.as_deref())
-                    .map_or_else(|| slug.clone(), str::to_owned),
-            },
-            CreateAction::Checkout => WorktreeCreateMode::Checkout {
-                branch_name: normalize_ref(input.ref_name.as_deref())
-                    .map(str::to_owned)
-                    .ok_or(WorktreeError::MissingCheckoutTarget)?,
-            },
+        let untrusted_source = change_request.as_ref().and_then(|target| {
+            target.untrusted_repository.as_ref().map(|repository| {
+                server_metadata::model::registry::UntrustedWorkspaceSource::ChangeRequest {
+                    forge: "github".to_owned(),
+                    number: target.number,
+                    head_repository: repository.clone(),
+                }
+            })
+        });
+        let mode = if let Some(target) = change_request {
+            WorktreeCreateMode::ChangeRequest(target)
+        } else {
+            match input.action {
+                CreateAction::BranchOff => WorktreeCreateMode::BranchOff {
+                    base_ref: normalize_ref(input.ref_name.as_deref())
+                        .or_else(|| normalize_ref(input.base_branch.as_deref()))
+                        .map(str::to_owned),
+                    branch_name: normalize_ref(input.branch_name.as_deref())
+                        .map_or_else(|| slug.clone(), str::to_owned),
+                },
+                CreateAction::Checkout => WorktreeCreateMode::Checkout {
+                    branch_name: normalize_ref(input.ref_name.as_deref())
+                        .map(str::to_owned)
+                        .ok_or(WorktreeError::MissingCheckoutTarget)?,
+                },
+            }
         };
         let created = self.managed.create(&ManagedWorktreeCreate {
             cwd: input.cwd.clone(),
             slug,
             mode,
         })?;
-        let registered = self.register_created(&created, input, timestamp);
+        let registered = self.register_created(&created, input, timestamp, untrusted_source);
         if registered.is_ok() {
             return registered;
         }
@@ -291,6 +343,19 @@ impl Worktrees {
         input: &ArchiveWorktree,
         timestamp: &str,
     ) -> Result<ArchivedWorktree, WorktreesError> {
+        let pending = self.begin_archive(input, timestamp)?;
+        self.finish_archive(pending)
+    }
+
+    /// Mark selected Workspaces archived while retaining the checkout for live resource cleanup.
+    ///
+    /// # Errors
+    /// Returns selection, ownership, or registry failures; completed registry writes are retained.
+    pub fn begin_archive(
+        &self,
+        input: &ArchiveWorktree,
+        timestamp: &str,
+    ) -> Result<PendingArchive, WorktreesError> {
         let target = self.resolve_archive_target(input)?;
         let records = self.workspaces.list().map_err(map_registry)?;
         let (selected, ownership) = match input.scope {
@@ -318,7 +383,7 @@ impl Worktrees {
                 let ownership = workspace
                     .as_ref()
                     .and_then(|workspace| workspace_ownership(&*self.managed, workspace));
-                let selected = workspace.into_iter().filter(is_active).collect::<Vec<_>>();
+                let selected = workspace.into_iter().collect::<Vec<_>>();
                 (selected, ownership)
             }
             ArchiveScope::Worktree => {
@@ -328,7 +393,6 @@ impl Worktrees {
                     .map_err(|_| WorktreeError::NotAllowed)?;
                 let selected = records
                     .iter()
-                    .filter(|workspace| is_active(workspace))
                     .filter(|workspace| references(&*self.managed, workspace, &owned.path))
                     .cloned()
                     .collect::<Vec<_>>();
@@ -336,8 +400,12 @@ impl Worktrees {
             }
         };
 
+        let workspace_ids = selected
+            .iter()
+            .map(|workspace| workspace.workspace_id.clone())
+            .collect();
         let mut archived = Vec::with_capacity(selected.len());
-        for workspace in selected {
+        for workspace in selected.into_iter().filter(is_active) {
             self.workspaces
                 .archive(
                     &workspace.workspace_id,
@@ -347,8 +415,30 @@ impl Worktrees {
                 .map_err(map_registry)?;
             archived.push(workspace.workspace_id);
         }
+        Ok(PendingArchive {
+            workspace_ids,
+            archived: ArchivedWorktree {
+                workspace_ids: archived,
+            },
+            ownership,
+            scope: input.scope,
+        })
+    }
 
-        if let Some(owned) = ownership {
+    /// Finish a prepared archive only after the host has closed Agents and terminals.
+    ///
+    /// New active references retain the checkout. Worktree-wide callers receive an error and
+    /// must prepare again, preventing a concurrent Workspace creation from being deleted.
+    /// # Errors
+    /// Returns registry, concurrent-reference, or owned checkout removal failures.
+    pub fn finish_archive(
+        &self,
+        pending: PendingArchive,
+    ) -> Result<ArchivedWorktree, WorktreesError> {
+        if let Some(cleanup) = &self.archive_cleanup {
+            cleanup.close_workspaces(&pending.workspace_ids)?;
+        }
+        if let Some(owned) = pending.ownership {
             let remaining_reference =
                 self.workspaces
                     .list()
@@ -357,13 +447,17 @@ impl Worktrees {
                     .any(|workspace| {
                         is_active(workspace) && references(&*self.managed, workspace, &owned.path)
                     });
-            if input.scope == ArchiveScope::Worktree || !remaining_reference {
+            if remaining_reference && pending.scope == ArchiveScope::Worktree {
+                return Err(WorktreeError::Invalid(
+                    "Worktree gained an active Workspace during archive; retry".to_owned(),
+                )
+                .into());
+            }
+            if !remaining_reference {
                 self.managed.remove(&owned)?;
             }
         }
-        Ok(ArchivedWorktree {
-            workspace_ids: archived,
-        })
+        Ok(pending.archived)
     }
 
     fn register_created(
@@ -371,6 +465,7 @@ impl Worktrees {
         created: &CreatedManagedWorktree,
         input: &CreateWorktree,
         timestamp: &str,
+        untrusted_source: Option<server_metadata::model::registry::UntrustedWorkspaceSource>,
     ) -> Result<CreatedWorkspace, WorktreesError> {
         let project = self.resolve_project(created, input.project_id.as_deref(), timestamp)?;
         let workspace = PersistedWorkspaceRecord {
@@ -402,7 +497,8 @@ impl Worktrees {
             labels: None,
             auto_name: input.title.is_none().then(|| {
                 server_metadata::model::registry::PendingWorkspaceName {
-                    placeholder_branch: (input.action == CreateAction::BranchOff
+                    placeholder_branch: (input.checkout_source.is_none()
+                        && input.action == CreateAction::BranchOff
                         && normalize_ref(input.branch_name.as_deref()).is_none()
                         && input
                             .worktree_slug
@@ -411,7 +507,7 @@ impl Worktrees {
                     .then(|| created.branch_name.clone()),
                 }
             }),
-            untrusted_source: None,
+            untrusted_source,
         };
         self.workspaces
             .upsert(
@@ -521,6 +617,16 @@ impl Worktrees {
                 .ok_or_else(|| {
                     WorktreeError::Invalid(format!("Paseo worktree not found for branch {branch}"))
                         .into()
+                });
+        }
+        if let Some(workspace_id) = &input.workspace_id {
+            return self
+                .workspaces
+                .get(workspace_id)
+                .map_err(map_registry)?
+                .map(|workspace| workspace.cwd)
+                .ok_or_else(|| {
+                    WorktreeError::Invalid(format!("Workspace not found: {workspace_id}")).into()
                 });
         }
         Err(WorktreeError::Invalid(

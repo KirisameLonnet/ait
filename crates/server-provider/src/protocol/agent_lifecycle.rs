@@ -241,12 +241,12 @@ pub struct AgentListRequest {
     /// Cursor page.
     #[serde(default)]
     pub page: Option<AgentPageRequest>,
-    /// Subscription request reserved for the later event phase.
+    /// Connection-owned live directory subscription.
     #[serde(default)]
-    pub subscribe: Option<Value>,
-    /// Sequenced synchronization request reserved for the later event phase.
+    pub subscribe: Option<server_metadata::protocol::directory::SubscriptionRequest>,
+    /// Latest-state synchronization checkpoint.
     #[serde(default)]
-    pub sync: Option<Value>,
+    pub sync: Option<server_model::directory_sync::Cursor>,
 }
 
 /// Historical Agent directory request.

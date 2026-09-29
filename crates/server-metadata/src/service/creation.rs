@@ -20,12 +20,15 @@ struct Receipt {
     id: String,
     intent: Value,
     snapshot: Snapshot,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    retry_initial_agent: bool,
 }
 
 #[derive(Debug, Default)]
 struct State {
     memory: BTreeMap<String, Receipt>,
     active: BTreeSet<String>,
+    claimed: BTreeSet<String>,
 }
 
 /// Shared creation coordinator. Production uses an atomic file; embedded defaults are ephemeral.
@@ -52,8 +55,18 @@ impl Creations {
     pub fn open(path: PathBuf) -> Result<Self, ErrorCode> {
         let file = FileRegistry::new(path, |receipt: &Receipt| &receipt.id);
         file.initialize().map_err(io)?;
+        let claimed = file
+            .list()
+            .map_err(io)?
+            .iter()
+            .flat_map(|receipt| owned_resources(&receipt.snapshot))
+            .collect();
         Ok(Self {
             file: Some(Arc::new(file)),
+            state: Arc::new(Mutex::new(State {
+                claimed,
+                ..State::default()
+            })),
             ..Self::default()
         })
     }
@@ -67,14 +80,7 @@ impl Creations {
         let id = identity(kind, key);
         let mut state = self.state.lock().map_err(io)?;
         if let Some(receipt) = self.read(&state, &id)? {
-            if receipt.intent != intent {
-                return Err(ErrorCode::IdempotencyConflict);
-            }
-            let snapshot = observed(receipt.snapshot, state.active.contains(&id));
-            return Ok(Admission {
-                execute: false,
-                snapshot,
-            });
+            return self.replay(&mut state, receipt, &intent);
         }
         let field = match kind {
             Kind::Agent => "agentId",
@@ -98,26 +104,98 @@ impl Creations {
             } else {
                 intent["workspaceId"].as_str().map(str::to_owned)
             },
-            agent_id: (kind == Kind::Agent).then_some(resource_id),
+            agent_id: if kind == Kind::Agent {
+                Some(resource_id)
+            } else if intent["agent"].is_object() {
+                Some(
+                    intent["agent"]["agentId"]
+                        .as_str()
+                        .map_or_else(|| Uuid::new_v4().to_string(), str::to_owned),
+                )
+            } else {
+                None
+            },
             error: None,
             outcome_unknown: false,
             workspace: None,
             agent: None,
         };
+        let resources: Vec<_> = owned_resources(&snapshot).collect();
+        if resources
+            .iter()
+            .any(|resource| state.claimed.contains(resource))
+        {
+            return Err(ErrorCode::IdempotencyConflict);
+        }
         self.write(
             &mut state,
             Receipt {
                 id: id.clone(),
                 intent,
                 snapshot: snapshot.clone(),
+                retry_initial_agent: false,
             },
         )?;
+        state.claimed.extend(resources);
         state.active.insert(id.clone());
         self.publish(&id, &snapshot);
         Ok(Admission {
             execute: true,
             snapshot,
         })
+    }
+
+    fn replay(
+        &self,
+        state: &mut State,
+        mut receipt: Receipt,
+        intent: &Value,
+    ) -> Result<Admission, ErrorCode> {
+        if &receipt.intent != intent {
+            return Err(ErrorCode::IdempotencyConflict);
+        }
+        let execute = receipt.retry_initial_agent && !state.active.contains(&receipt.id);
+        if execute {
+            receipt.retry_initial_agent = false;
+            receipt.snapshot.revision = receipt
+                .snapshot
+                .revision
+                .checked_add(1)
+                .ok_or(ErrorCode::ResourceExhausted)?;
+            "workspace_ready".clone_into(&mut receipt.snapshot.phase);
+            receipt.snapshot.error = None;
+            let id = receipt.id.clone();
+            self.write(state, receipt.clone())?;
+            state.active.insert(id.clone());
+            self.publish(&id, &receipt.snapshot);
+        }
+        Ok(Admission {
+            execute,
+            snapshot: observed(receipt.snapshot, state.active.contains(&receipt.id)),
+        })
+    }
+
+    /// Allow retrying only the initial Agent of an already provisioned Workspace.
+    /// The caller must prove that no Agent was registered and all failed native children closed.
+    /// Prompt attempts and uncertain resource outcomes must never use this operation.
+    /// # Errors
+    /// Rejects stale/nonfailed receipts, absent Workspace/Agent identities, or persistence failures.
+    pub fn allow_initial_agent_retry(&self, snapshot: &Snapshot) -> Result<(), ErrorCode> {
+        let id = identity(snapshot.kind, &snapshot.idempotency_key);
+        let mut state = self.state.lock().map_err(io)?;
+        let mut receipt = self.read(&state, &id)?.ok_or(ErrorCode::InvalidMessage)?;
+        if snapshot.kind != Kind::Workspace
+            || receipt.snapshot.revision != snapshot.revision
+            || receipt.snapshot.phase != "failed"
+            || receipt.snapshot.agent.is_some()
+            || receipt.snapshot.agent_id.is_none()
+            || receipt.snapshot.workspace.is_none()
+            || receipt.snapshot.outcome_unknown
+        {
+            return Err(ErrorCode::InvalidMessage);
+        }
+        receipt.retry_initial_agent = true;
+        self.write(&mut state, receipt)
     }
 
     /// Commit a progress transition and publish it after durable installation.
@@ -151,12 +229,17 @@ impl Creations {
         receipt.snapshot.error = error;
         if let Some(result) = result {
             if let Some(agent) = result.get("agent").filter(|value| !value.is_null()) {
+                if let Some(workspace) = agent["workspaceId"].as_str() {
+                    receipt.snapshot.workspace_id = Some(workspace.to_owned());
+                }
                 receipt.snapshot.agent = Some(agent.clone());
             }
             if let Some(workspace) = result.get("workspace").filter(|value| !value.is_null()) {
                 receipt.snapshot.workspace = Some(workspace.clone());
             }
         }
+        // Once an Agent is ready, a failure may follow acceptance of the initial prompt.
+        receipt.snapshot.outcome_unknown = phase == "failed" && receipt.snapshot.agent.is_some();
         let snapshot = receipt.snapshot.clone();
         self.write(&mut state, receipt)?;
         if terminal(phase) {
@@ -199,6 +282,25 @@ impl Creations {
         Ok((snapshot, subscription))
     }
 
+    /// Observe progress for one create operation without a connection subscription ID on events.
+    /// The caller activates before executing creation and drops the guard when it completes.
+    /// # Errors
+    /// Returns invalid keys or a poisoned coordinator lock.
+    pub fn observe(
+        &self,
+        kind: Kind,
+        key: &str,
+        outbound: Outbound,
+    ) -> Result<Subscription, ErrorCode> {
+        validate_key(key)?;
+        let _state = self.state.lock().map_err(io)?;
+        Ok(self.events.observe(
+            Uuid::new_v4().to_string(),
+            BTreeSet::from([identity(kind, key)]),
+            outbound,
+        ))
+    }
+
     fn read(&self, state: &State, id: &str) -> Result<Option<Receipt>, ErrorCode> {
         match &self.file {
             Some(file) => file.get(id).map_err(io),
@@ -226,6 +328,19 @@ impl Creations {
         };
         self.events.publish(id, method, &json!(snapshot));
     }
+}
+
+fn owned_resources(snapshot: &Snapshot) -> impl Iterator<Item = String> {
+    [
+        snapshot
+            .workspace_id
+            .as_ref()
+            .filter(|_| snapshot.kind == Kind::Workspace)
+            .map(|id| format!("workspace:{id}")),
+        snapshot.agent_id.as_ref().map(|id| format!("agent:{id}")),
+    ]
+    .into_iter()
+    .flatten()
 }
 
 /// Validate a bounded durable key without assigning it filesystem path semantics.

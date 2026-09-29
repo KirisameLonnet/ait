@@ -11,6 +11,7 @@ pub(crate) fn runtime() -> Arc<Runtime> {
         protocol: VERSION,
         capabilities: Vec::new(),
         implemented_capabilities: Vec::new(),
+        features: Vec::new(),
         limits: Limits::default(),
     }))
 }

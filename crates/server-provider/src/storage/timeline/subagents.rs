@@ -6,6 +6,23 @@ use super::{ErrorCode, Timeline, io};
 use crate::ports::controls::NativeSubagent;
 
 impl Timeline {
+    /// Read running native children and their host parent in one consistent snapshot.
+    /// Returns storage errors without exposing a partial activity list.
+    pub(crate) fn running_subagent_activity(
+        &self,
+    ) -> Result<Vec<(String, Option<String>)>, ErrorCode> {
+        let database = self.database.lock().map_err(io)?;
+        let mut query = database.prepare(
+            "SELECT agent,json_extract(descriptor,'$.descriptor.updatedAt') FROM provider_subagents
+             WHERE json_extract(descriptor,'$.descriptor.status')='running' ORDER BY agent,child",
+        ).map_err(io)?;
+        query
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .map_err(io)?
+            .map(|row| row.map_err(io))
+            .collect()
+    }
+
     pub(crate) fn store_subagent(
         &self,
         parent: &str,

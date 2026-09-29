@@ -166,7 +166,7 @@ async fn assert_worktree_scope_rejects_external_path(client: &mut Socket, reposi
     assert_eq!(rejected["result"]["error"]["code"], "NOT_ALLOWED");
 }
 
-fn create_repository(repository: &Path) {
+pub(super) fn create_repository(repository: &Path) {
     std::fs::create_dir_all(repository.join("packages/app")).unwrap();
     run(repository, &["init", "--quiet", "--initial-branch=main"]);
     std::fs::write(repository.join("README.md"), "baseline\n").unwrap();
@@ -187,7 +187,7 @@ fn create_repository(repository: &Path) {
     );
 }
 
-fn run(repository: &Path, arguments: &[&str]) {
+pub(super) fn run(repository: &Path, arguments: &[&str]) {
     let output = Command::new("git")
         .args(arguments)
         .current_dir(repository)
@@ -200,7 +200,7 @@ fn run(repository: &Path, arguments: &[&str]) {
     );
 }
 
-fn branch(directory: &Path) -> String {
+pub(super) fn branch(directory: &Path) -> String {
     let output = Command::new("git")
         .args(["branch", "--show-current"])
         .current_dir(directory)

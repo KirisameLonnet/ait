@@ -46,7 +46,7 @@ async fn unified_worktree_creation_preserves_nested_placement_and_replays_after_
     let created = call(&mut client, "workspace.create.request", intent.clone()).await;
     assert_eq!(created["type"], "response", "{created}");
     assert!(created["result"]["error"].is_null(), "{created}");
-    assert!(created["result"]["subscriptionId"].is_string());
+    assert!(created["result"].get("subscriptionId").is_none());
     assert_eq!(created["result"]["creation"]["phase"], "completed");
     assert_eq!(
         created["result"]["creation"]["workspaceId"],
@@ -76,10 +76,7 @@ async fn unified_worktree_creation_preserves_nested_placement_and_replays_after_
     let mut duplicate = intent.clone();
     duplicate["idempotencyKey"] = json!("duplicate-id");
     let rejected = call(&mut client, "workspace.create.request", duplicate).await;
-    assert_eq!(
-        rejected["result"]["errorCode"], "invalid_request",
-        "{rejected}"
-    );
+    assert_eq!(rejected["code"], "idempotency_conflict", "{rejected}");
     terminate(&mut process).await;
 
     let mut process = start(&state, &log);
@@ -166,7 +163,9 @@ async fn unified_worktree_creation_supports_project_only_checkout_and_reports_er
             "invalid_request",
         ),
         (
-            json!({"kind":"worktree","cwd":repository,"githubPrNumber":42}),
+            json!({"kind":"worktree","cwd":repository,"checkoutSource":{
+                "kind":"change_request","forge":"gitlab","number":42
+            }}),
             "unsupported_capability",
         ),
     ] {

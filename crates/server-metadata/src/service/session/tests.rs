@@ -11,6 +11,7 @@ fn capture(connection: &SessionConnection, notifications: bool) -> (SessionSubsc
             EventsRequest {
                 events: vec![
                     "agent_attention_required".to_owned(),
+                    "terminal_attention_required".to_owned(),
                     "status.server_info".to_owned(),
                 ],
                 notifications,
@@ -22,6 +23,43 @@ fn capture(connection: &SessionConnection, notifications: bool) -> (SessionSubsc
         )
         .unwrap();
     (subscription, events)
+}
+
+#[test]
+fn terminal_attention_uses_terminal_focus_and_elects_only_one_notification() {
+    let service = SessionEvents::default();
+    let connection = service.connect();
+    let now = Utc::now().timestamp_millis();
+    let (subscription, events) = capture(&connection, true);
+    let (duplicate, duplicates) = capture(&connection, true);
+    subscription.activate().unwrap();
+    duplicate.activate().unwrap();
+    heartbeat(&connection, Some("terminal"), true, now);
+    service.publish_at(
+        SessionEventKind::TerminalAttention,
+        &json!({"terminalId":"terminal"}),
+        now,
+    );
+    assert_eq!(events.lock().unwrap()[0].1["shouldNotify"], true);
+    assert_eq!(duplicates.lock().unwrap()[0].1["shouldNotify"], false);
+    connection.heartbeat(serde_json::from_value(json!({"deviceType":"web", "focusedAgentId":null,
+        "focusedTerminalId":"terminal", "appVisible":true, "lastActivityAt":DateTime::from_timestamp_millis(now).unwrap().to_rfc3339()})).unwrap()).unwrap();
+    service.publish_at(
+        SessionEventKind::TerminalAttention,
+        &json!({"terminalId":"terminal"}),
+        now,
+    );
+    assert_eq!(events.lock().unwrap()[1].1["shouldNotify"], false);
+    assert_eq!(
+        SessionEventKind::TerminalAttention.method(),
+        "terminal_attention_required"
+    );
+    service.publish_at(
+        SessionEventKind::TerminalAttention,
+        &json!({"terminalId":"other"}),
+        now,
+    );
+    assert_eq!(events.lock().unwrap()[2].1["shouldNotify"], true);
 }
 
 fn heartbeat(connection: &SessionConnection, focused: Option<&str>, visible: bool, timestamp: i64) {

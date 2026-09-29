@@ -37,6 +37,7 @@ impl Harness {
                 protocol: server_model::server::VERSION,
                 capabilities: Vec::new(),
                 implemented_capabilities: Vec::new(),
+                features: Vec::new(),
                 limits: Limits::default(),
             })),
             files: Some(Arc::new(Mutex::new(Files::new(Box::new(LocalFiles::new(

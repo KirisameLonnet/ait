@@ -50,11 +50,7 @@ pub(crate) async fn dispatch(
     deliver(context, result, connection, None)
 }
 
-pub(crate) async fn create(
-    mut context: Context<'_>,
-    state: &State,
-    connection: &mut Connection,
-) -> Result<(), QueueError> {
+pub(crate) async fn create(mut context: Context<'_>, state: &State) -> Result<(), QueueError> {
     if !context.request.params.is_object() {
         return context.respond(Err(ErrorCode::InvalidMessage));
     }
@@ -81,16 +77,19 @@ pub(crate) async fn create(
             .run(
                 Some(std::sync::Arc::new(std::sync::Mutex::new(creations))),
                 ErrorCode::RegistryIo,
-                move |creations| creations.subscribe(Kind::Workspace, &key, outbound),
+                move |creations| creations.observe(Kind::Workspace, &key, outbound),
             )
             .await;
         match result {
-            Ok((_, subscription)) => Some(subscription),
+            Ok(subscription) => Some(subscription),
             Err(error) => return context.respond(Err(error)),
         }
     } else {
         None
     };
+    if let Some(subscription) = &subscription {
+        subscription.activate()?;
+    }
     let result = context
         .call(
             state.directory.clone(),
@@ -117,12 +116,10 @@ pub(crate) async fn create(
     } else {
         None
     };
-    deliver(
-        context,
-        result.map(|reply| (reply.value, subscription)),
-        connection,
-        event,
-    )
+    match result {
+        Ok(reply) => context.workspace(reply.value, event),
+        Err(error) => context.respond(Err(error)),
+    }
 }
 
 fn deliver(

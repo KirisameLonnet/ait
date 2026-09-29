@@ -5,6 +5,19 @@ use tokio_tungstenite::tungstenite::Message;
 use super::transport::{connect, receive, request};
 use super::{ready, start_with_path, terminate};
 
+#[path = "agent_execution/archive.rs"]
+mod archive;
+#[path = "agent_execution/directory_sync.rs"]
+mod directory_sync;
+#[path = "agent_execution/paseo_api.rs"]
+mod paseo_api;
+#[path = "agent_execution/placement.rs"]
+mod placement;
+#[path = "agent_execution/workspace_creation.rs"]
+mod workspace_creation;
+#[path = "agent_execution/worktrees.rs"]
+mod worktrees;
+
 const METHODS: &[&str] = &[
     "workspace.open.request",
     "agent.create.request",
@@ -153,22 +166,30 @@ async fn assert_restored_lifecycle(
         "Echo: after restart"
     );
     request(client, "agent.archive.request", json!({"agentId":id})).await;
-    let archived = request(client, "agent.resume.request", json!({"handle":handle})).await;
-    assert!(!archived["result"]["agent"]["archivedAt"].is_null());
+    let restored = request(client, "agent.resume.request", json!({"handle":handle})).await;
+    assert!(restored["result"]["agent"]["archivedAt"].is_null());
     assert_eq!(
         request(
             client,
             "agent.message.send.request",
-            json!({"agentId":id,"text":"rejected"})
+            json!({"agentId":id,"text":"restored from archive"})
         )
         .await["result"]["accepted"],
-        false
+        true
+    );
+    assert_eq!(
+        request(client, "agent.finish.wait.request", json!({"agentId":id})).await["result"]["lastMessage"],
+        "Echo: restored from archive"
     );
     request(client, "agent.delete.request", json!({"agentId":id})).await;
 }
 
 fn assert_children_exited(cwd: &std::path::Path) {
     let records = std::fs::read_to_string(cwd.join("native-requests.jsonl")).unwrap();
+    assert_native_pids_exited(&records);
+}
+
+fn assert_native_pids_exited(records: &str) {
     let pids = records
         .lines()
         .map(|line| {

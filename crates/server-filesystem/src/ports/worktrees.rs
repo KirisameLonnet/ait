@@ -2,6 +2,14 @@
 
 use std::fmt::Debug;
 
+/// Host-owned process cleanup required before removing an archived Workspace checkout.
+pub trait WorktreeArchiveCleanup: Debug + Send + Sync {
+    /// Close resources for the selected Workspace identities, including archived retry targets.
+    /// # Errors
+    /// Returns a retryable cleanup failure; the filesystem owner must retain the checkout.
+    fn close_workspaces(&self, workspace_ids: &[String]) -> Result<(), WorktreeError>;
+}
+
 /// A managed worktree returned by Git.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ManagedWorktreeInfo {
@@ -18,6 +26,8 @@ pub struct ManagedWorktreeInfo {
 /// How a linked checkout obtains its branch.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WorktreeCreateMode {
+    /// Fetch and check out a resolved pull request without modifying an existing local branch.
+    ChangeRequest(ChangeRequestCheckout),
     /// Create a new local branch from an optional base ref.
     BranchOff {
         /// Base ref; omission asks the adapter to resolve the repository default.
@@ -37,6 +47,25 @@ pub enum WorktreeCreateMode {
         /// Saved comparison base, retained when it still resolves.
         base_ref: Option<String>,
     },
+}
+
+/// Resolved forge facts used for Git placement and automation trust.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChangeRequestCheckout {
+    /// Pull request number in the selected repository.
+    pub number: u64,
+    /// Actual source branch on the remote.
+    pub head_ref: String,
+    /// Base branch used for comparisons.
+    pub base_ref: String,
+    /// Local branch candidate; forks may prefix the head owner.
+    pub local_branch: String,
+    /// Fork identity requiring setup approval, absent for same-repository changes.
+    pub untrusted_repository: Option<String>,
+    /// Fork push URL, absent for same-repository changes.
+    pub push_remote_url: Option<String>,
+    /// Whether origin's source branch should be used for tracking.
+    pub track_origin: bool,
 }
 
 /// Input to the atomic Git portion of managed worktree creation.
@@ -109,6 +138,28 @@ pub enum WorktreeError {
 
 /// Blocking adapter for server-owned linked Git checkouts.
 pub trait ManagedWorktrees: Debug + Send + Sync {
+    /// Resolve forge facts before choosing a worktree name or creating Git placement.
+    /// # Errors
+    /// Returns unsupported forge, invalid request, authentication, or lookup failures.
+    fn resolve_change_request(
+        &self,
+        _cwd: &str,
+        _source: &server_metadata::ports::worktrees::WorktreeChangeRequest,
+        _head_ref: Option<&str>,
+    ) -> Result<ChangeRequestCheckout, WorktreeError> {
+        Err(WorktreeError::ForgeUnavailable)
+    }
+
+    /// Change a clean source checkout according to legacy Agent Git placement.
+    ///
+    /// # Errors
+    /// Returns branch validation, dirtiness, or bounded Git execution failures.
+    fn prepare_directory(
+        &self,
+        cwd: &str,
+        intent: &server_metadata::ports::worktrees::DirectoryGit,
+    ) -> Result<(), WorktreeError>;
+
     /// List managed worktrees belonging to the repository containing `cwd`.
     ///
     /// # Errors

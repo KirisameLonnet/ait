@@ -49,9 +49,14 @@ pub(crate) fn subscribe(
         if request.events.iter().any(|event| {
             (matches!(
                 event.as_str(),
-                "agent_attention_required" | "providers_snapshot_update"
+                "agent_attention_required"
+                    | "providers_snapshot_update"
+                    | "agent_permission_request"
+                    | "agent_permission_resolved"
+                    | "agent.provider_subagents.update"
             ) && !state.has_agent_execution)
                 || (event == "status.daemon_config_changed" && state.daemon.is_none())
+                || (event == "terminal_attention_required" && !state.has_terminals)
         }) {
             return Err(ErrorCode::UnsupportedCapability);
         }

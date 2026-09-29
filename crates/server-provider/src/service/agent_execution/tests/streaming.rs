@@ -134,11 +134,21 @@ async fn streaming_is_durable_searchable_and_steering_stays_in_one_native_turn()
     let search = execution
         .execute(
             "agent.timeline.search.request",
-            json!({"agentId":id,"query":"Echo: stream"}),
+            json!({"agentId":id,"query":"stream + continue"}),
         )
         .await
         .unwrap();
     assert_eq!(search["locations"].as_array().unwrap().len(), 1);
+    // The steering input appears between the prefix and the remaining assistant text.
+    // Paseo chat Find searches display blocks and cannot span that user message.
+    let across_input = execution
+        .execute(
+            "agent.timeline.search.request",
+            json!({"agentId":id,"query":"Echo: stream"}),
+        )
+        .await
+        .unwrap();
+    assert_eq!(across_input["locations"], json!([]));
     let requests = fixture.requests();
     assert_eq!(
         requests

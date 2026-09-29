@@ -3,6 +3,10 @@
 use super::*;
 
 fn row(seq: u64, key: &str, kind: &str, text: &str) -> Row {
+    let mut item = json!({"type":kind,"text":text});
+    if kind == "assistant_message" {
+        item["messageId"] = json!(key);
+    }
     Row {
         seq,
         provider: "codex".to_owned(),
@@ -10,7 +14,7 @@ fn row(seq: u64, key: &str, kind: &str, text: &str) -> Row {
             key: key.to_owned(),
             turn_id: Some("turn".to_owned()),
             timestamp: format!("2026-09-26T00:00:{seq:02}Z"),
-            item: json!({"type":kind,"text":text}),
+            item,
         },
     }
 }
@@ -84,7 +88,7 @@ fn after_cursor_immediately_before_retained_history_is_contiguous() {
 }
 
 #[test]
-fn after_cursor_ahead_of_native_history_resets_to_bounded_tail() {
+fn after_cursor_ahead_of_native_history_is_an_empty_incremental_window() {
     let page = fetch(
         &request(json!({"agentId":"agent","cursor":{"epoch":"e","seq":8},"limit":1})),
         "e",
@@ -92,8 +96,10 @@ fn after_cursor_ahead_of_native_history_resets_to_bounded_tail() {
         &Value::Null,
     )
     .unwrap();
-    assert_eq!(page["gap"], true);
-    assert_eq!(page["entries"][0]["seqStart"], 7);
+    assert_eq!(page["gap"], false);
+    assert_eq!(page["reset"], false);
+    assert_eq!(page["entries"], json!([]));
+    assert!(page["endCursor"].is_null());
 }
 
 #[test]
@@ -130,8 +136,8 @@ fn later_source_chunks_do_not_mutate_an_already_fetched_window() {
 }
 
 #[test]
-fn incremental_fetch_returns_only_new_fragments_with_original_source_positions() {
-    // Rust currently exposes identity rows; clients append the new fragment to their prior text.
+fn incremental_fetch_returns_the_complete_message_with_original_source_positions() {
+    // Paseo agent-timeline-store.test.ts: mid-message cursors receive the complete projection.
     let rows = vec![
         row(1, "message", "assistant_message", "A"),
         row(2, "message", "assistant_message", "B"),
@@ -144,8 +150,10 @@ fn incremental_fetch_returns_only_new_fragments_with_original_source_positions()
     )
     .unwrap();
     assert_eq!(page["entries"].as_array().unwrap().len(), 1);
-    assert_eq!(page["entries"][0]["item"]["text"], "B");
-    assert_eq!(page["entries"][0]["seqStart"], 2);
+    assert_eq!(page["entries"][0]["item"]["text"], "AB");
+    assert_eq!(page["entries"][0]["seqStart"], 1);
+    assert_eq!(page["startCursor"]["seq"], 2);
+    assert_eq!(page["endCursor"]["seq"], 2);
     assert_eq!(page["hasOlder"], true);
 }
 
@@ -171,7 +179,7 @@ fn search_finds_literal_punctuation_without_matching_tools_reasoning_or_task_sta
 }
 
 #[test]
-fn search_joins_same_message_deltas_across_interleaved_tools() {
+fn search_does_not_join_same_message_deltas_across_interleaved_tools() {
     let rows = vec![
         row(1, "message", "assistant_message", "hel"),
         row(2, "tool", "tool_call", "other"),
@@ -180,10 +188,7 @@ fn search_joins_same_message_deltas_across_interleaved_tools() {
         row(5, "message", "assistant_message", "world"),
     ];
     let found = search(&query("HELLO world"), "e", &rows).unwrap();
-    assert_eq!(
-        found["locations"],
-        json!([{"seq":1,"role":"assistant","count":1}])
-    );
+    assert_eq!(found["locations"], json!([]));
     assert!(
         search(&query("hello separate"), "e", &rows).unwrap()["locations"]
             .as_array()
@@ -201,7 +206,7 @@ fn search_does_not_join_distinct_messages_or_return_duplicate_locations() {
     ];
     assert_eq!(
         search(&query("target"), "e", &rows).unwrap()["locations"],
-        json!([{"seq":1,"role":"assistant","count":2}])
+        json!([{"seq":3,"role":"assistant","count":2}])
     );
     assert_eq!(
         search(&query("first second"), "e", &rows).unwrap()["locations"],

@@ -1,6 +1,7 @@
 use super::*;
 use crate::ports::agent_session::AgentTurnEvent;
 
+mod environment;
 mod parity;
 
 #[tokio::test]

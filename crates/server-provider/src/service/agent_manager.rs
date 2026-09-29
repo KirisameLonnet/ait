@@ -1,9 +1,11 @@
 //! Provider session registration and recovery for the independent server.
 
+mod auto_archive;
 mod controls;
 mod delivery;
 mod generated_titles;
 pub(crate) mod native_sessions;
+mod resume;
 mod streaming;
 mod titles;
 
@@ -23,6 +25,12 @@ use crate::ports::agent_session::{
     AgentTurnEvent,
 };
 use crate::protocol::agent_config::ConfigPatch;
+
+enum Registration<'a> {
+    Create,
+    Read,
+    Restore(&'a crate::protocol::resume::Overrides),
+}
 
 /// Application failure while managing a live Agent session.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -73,6 +81,7 @@ struct LiveAgent {
     registered: bool,
     turn: Option<String>,
     last_message: Option<String>,
+    last_message_observer: Option<tokio::sync::watch::Sender<Option<String>>>,
     latest_turn: Option<String>,
     pending: Option<AgentTurnEvent>,
     pending_runtime: Option<StoredAgentRuntimeInfo>,
@@ -97,6 +106,7 @@ pub struct AgentManager {
     loaded_timelines: std::collections::BTreeSet<String>,
     generated_titles: generated_titles::Titles,
     workspace_names: Option<server_metadata::service::workspace_names::WorkspaceNames>,
+    auto_archives: auto_archive::AutoArchives,
 }
 
 impl AgentManager {
@@ -114,6 +124,7 @@ impl AgentManager {
             loaded_timelines: std::collections::BTreeSet::new(),
             generated_titles: generated_titles::Titles::default(),
             workspace_names: None,
+            auto_archives: auto_archive::AutoArchives::default(),
         }
     }
 
@@ -269,6 +280,13 @@ impl AgentManager {
             .and_then(|agent| agent.turn.as_deref())
     }
 
+    /// Whether an acknowledged interruption still awaits the active turn's terminal event.
+    pub(crate) fn interruption_pending(&self, agent_id: &str) -> bool {
+        self.live
+            .get(agent_id)
+            .is_some_and(|agent| agent.turn.is_some() && agent.interruption_requested)
+    }
+
     /// Return the most recently accepted native turn, including after it finishes.
     /// Used to fence connection-owned cancellation and completion reads against later turns.
     #[must_use]
@@ -284,6 +302,18 @@ impl AgentManager {
         self.live
             .get(agent_id)
             .and_then(|agent| agent.last_message.as_deref())
+    }
+
+    /// Retain this live turn's final text for an in-flight wait, even after native close.
+    pub(crate) fn observe_last_message(
+        &mut self,
+        agent_id: &str,
+    ) -> Option<tokio::sync::watch::Receiver<Option<String>>> {
+        let agent = self.live.get_mut(agent_id)?;
+        let sender = agent
+            .last_message_observer
+            .get_or_insert_with(|| tokio::sync::watch::channel(agent.last_message.clone()).0);
+        Some(sender.subscribe())
     }
 
     /// Persist a validated patch for subsequent turns without altering an accepted turn.
@@ -361,6 +391,27 @@ impl AgentManager {
         spec: &AgentSessionSpec,
         registration: AgentRegistration,
     ) -> Result<PersistedAgentRuntimeRecord, AgentManagerError> {
+        self.create_with_environment(
+            agent_id,
+            spec,
+            registration,
+            &crate::ports::environment::AgentEnvironment::default(),
+        )
+        .await
+    }
+
+    /// Create a native session with private per-process environment overrides.
+    ///
+    /// Environment values remain in the native adapter's memory and are never put in the registry.
+    /// # Errors
+    /// Returns identity, admission, native launch or registration failures with cleanup.
+    pub async fn create_with_environment(
+        &mut self,
+        agent_id: &str,
+        spec: &AgentSessionSpec,
+        registration: AgentRegistration,
+        environment: &crate::ports::environment::AgentEnvironment,
+    ) -> Result<PersistedAgentRuntimeRecord, AgentManagerError> {
         validate_identity(agent_id, spec)?;
         if self.live.len() >= 32 {
             return Err(AgentManagerError::Busy);
@@ -371,7 +422,10 @@ impl AgentManager {
             return Err(AgentManagerError::AlreadyExists(agent_id.to_owned()));
         }
         let client = self.available_client(&spec.provider).await?;
-        let session = client.create_session(spec).await.map_err(map_session)?;
+        let session = client
+            .create_session_with_environment(spec, environment)
+            .await
+            .map_err(map_session)?;
         let now = now_timestamp();
         let record = PersistedAgentRuntimeRecord {
             id: agent_id.to_owned(),
@@ -400,7 +454,7 @@ impl AgentManager {
             owner: None,
         };
         let record = self
-            .register_session(agent_id, session, record, true)
+            .register_session(agent_id, session, record, Registration::Create)
             .await?;
         self.loaded_timelines.insert(agent_id.to_owned());
         Ok(record)
@@ -474,7 +528,7 @@ impl AgentManager {
             .resume_session(handle, &spec, purpose)
             .await
             .map_err(map_session)?;
-        self.register_session(agent_id, session, record, false)
+        self.register_session(agent_id, session, record, Registration::Read)
             .await
     }
 
@@ -497,6 +551,7 @@ impl AgentManager {
             for child in agent.session.subagents() {
                 controls::publish_subagent(
                     self.timeline.as_ref(),
+                    &self.events,
                     agent,
                     &crate::ports::controls::SubagentEvent::Upsert(child),
                 )
@@ -590,6 +645,7 @@ impl AgentManager {
             .get_mut(agent_id)
             .ok_or(AgentManagerError::Session)?;
         agent.last_message = None;
+        agent.last_message_observer = None;
         if let Some(names) = &self.workspace_names
             && let Some(workspace) = record.workspace_id.clone()
             && !record.internal
@@ -657,6 +713,7 @@ impl AgentManager {
         };
         if let Some(turn) = &agent.turn {
             agent.session.cancel_turn(turn).await.map_err(map_session)?;
+            agent.interruption_requested = true;
         }
         agent.session.cancel_pending().await.map_err(map_session)?;
         Ok(())
@@ -694,7 +751,7 @@ impl AgentManager {
             };
             if matches!(event, AgentTurnEvent::Failed) {
                 agent.session.close().await.map_err(map_session)?;
-                controls::publish_children(self.timeline.as_ref(), agent)?;
+                controls::publish_children(self.timeline.as_ref(), &self.events, agent)?;
             }
             let failed = matches!(event, AgentTurnEvent::Failed);
             let cancelled = matches!(event, AgentTurnEvent::Cancelled);
@@ -764,8 +821,9 @@ impl AgentManager {
             if failed {
                 self.live.remove(&id);
             }
+            self.auto_archives.completed(&id);
         }
-        Ok(())
+        self.archive_finished().await
     }
 
     /// Close writers whose durable records were archived or removed by metadata operations.
@@ -826,7 +884,7 @@ impl AgentManager {
         agent_id: &str,
         mut session: Box<dyn AgentSession>,
         mut record: PersistedAgentRuntimeRecord,
-        creating: bool,
+        registration: Registration<'_>,
     ) -> Result<PersistedAgentRuntimeRecord, AgentManagerError> {
         let inspected = session.runtime_info().await;
         let mut runtime_info = match inspected {
@@ -849,11 +907,15 @@ impl AgentManager {
         record.persistence = persistence;
         record.last_status = AgentRuntimeStatus::Idle;
         record.last_error = None;
-        let stored = if creating {
+        let stored = if matches!(registration, Registration::Create) {
             self.registry.upsert(&record).map(|()| Some(record.clone()))
         } else {
             self.registry.update(agent_id, &|current| {
                 let mut next = current.clone();
+                if let Registration::Restore(overrides) = &registration {
+                    overrides.apply(&mut next);
+                    next.updated_at = now_timestamp();
+                }
                 next.runtime_info.clone_from(&record.runtime_info);
                 next.last_mode_id.clone_from(&record.last_mode_id);
                 next.persistence.clone_from(&record.persistence);
@@ -875,6 +937,7 @@ impl AgentManager {
                         registered: false,
                         turn: None,
                         last_message: None,
+                        last_message_observer: None,
                         latest_turn: None,
                         pending: None,
                         pending_runtime: None,
@@ -895,6 +958,7 @@ impl AgentManager {
                 registered: true,
                 turn: None,
                 last_message: None,
+                last_message_observer: None,
                 latest_turn: None,
                 pending: None,
                 pending_runtime: None,
@@ -921,6 +985,7 @@ impl AgentManager {
                     registered: false,
                     turn: None,
                     last_message: None,
+                    last_message_observer: None,
                     latest_turn: None,
                     pending: None,
                     pending_runtime: None,

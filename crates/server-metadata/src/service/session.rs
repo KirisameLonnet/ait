@@ -36,6 +36,7 @@ struct Presence {
     activity_ms: Option<i64>,
     visible: bool,
     focused_agent: Option<String>,
+    focused_terminal: Option<String>,
 }
 
 #[derive(Default)]
@@ -125,6 +126,10 @@ impl SessionEvents {
         if !payload.is_object() {
             return;
         }
+        let attention = matches!(
+            kind,
+            SessionEventKind::AgentAttention | SessionEventKind::TerminalAttention
+        );
         let (listeners, presence) = {
             let mut state = self
                 .0
@@ -147,7 +152,7 @@ impl SessionEvents {
             let presence: Vec<_> = state
                 .connections
                 .iter()
-                .filter(|_| kind == SessionEventKind::AgentAttention)
+                .filter(|_| attention)
                 .filter_map(|(id, value)| value.upgrade().map(|value| (id.clone(), value)))
                 .collect();
             (listeners, presence)
@@ -155,7 +160,7 @@ impl SessionEvents {
         let mut recipient = None;
         let mut latest = i64::MIN;
         let mut focused = false;
-        if kind == SessionEventKind::AgentAttention {
+        if attention {
             let candidates: BTreeSet<_> = listeners
                 .iter()
                 .filter(|listener| listener.notifications)
@@ -171,9 +176,12 @@ impl SessionEvents {
                 if now.saturating_sub(activity) > PRESENCE_MS {
                     continue;
                 }
-                focused |= presence.visible
-                    && presence.focused_agent.is_some()
-                    && presence.focused_agent.as_deref() == payload["agentId"].as_str();
+                let (focus, target) = if kind == SessionEventKind::TerminalAttention {
+                    (&presence.focused_terminal, payload["terminalId"].as_str())
+                } else {
+                    (&presence.focused_agent, payload["agentId"].as_str())
+                };
+                focused |= presence.visible && focus.is_some() && focus.as_deref() == target;
                 if activity > latest && candidates.contains(id.as_str()) {
                     latest = activity;
                     recipient = Some(id);
@@ -184,7 +192,7 @@ impl SessionEvents {
         for listener in listeners {
             let mut value = payload.clone();
             value["subscriptionId"] = Value::String(listener.id.clone());
-            if kind == SessionEventKind::AgentAttention {
+            if attention {
                 let should_notify = !focused
                     && !notified
                     && listener.notifications
@@ -227,6 +235,7 @@ impl SessionConnection {
         presence.activity_ms = Some(activity.min(Utc::now().timestamp_millis()));
         presence.visible = heartbeat.app_visible;
         presence.focused_agent = heartbeat.focused_agent_id.filter(|id| !id.is_empty());
+        presence.focused_terminal = heartbeat.focused_terminal_id.filter(|id| !id.is_empty());
         Ok(())
     }
 

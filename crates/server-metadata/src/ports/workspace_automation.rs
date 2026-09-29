@@ -116,6 +116,11 @@ pub enum WorkspaceAutomationError {
 
 /// Runtime for background setup and configured scripts.
 pub trait WorkspaceAutomationRuntime: Debug + Send + Sync {
+    /// Stop selected Workspace setup and script processes, retaining failed cleanup for retry.
+    /// # Errors
+    /// Returns termination, reaping, or bounded cancellation timeout failures.
+    fn close_workspaces(&self, workspace_ids: &[String]) -> Result<(), WorkspaceAutomationError>;
+
     /// List configured scripts and refresh child exit state.
     ///
     /// # Errors

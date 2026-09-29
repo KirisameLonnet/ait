@@ -7,6 +7,7 @@ use server_metadata::ports::registry::{
 
 use super::*;
 
+mod archive;
 mod provisioning;
 
 #[derive(Debug, Clone, Default)]
@@ -225,6 +226,7 @@ struct Managed {
 
 #[derive(Debug)]
 struct ManagedState {
+    directory_inputs: Vec<(String, server_metadata::ports::worktrees::DirectoryGit)>,
     listed: Vec<ManagedWorktreeInfo>,
     created_inputs: Vec<ManagedWorktreeCreate>,
     removed: Vec<String>,
@@ -235,6 +237,7 @@ impl Default for Managed {
     fn default() -> Self {
         Self {
             state: Arc::new(Mutex::new(ManagedState {
+                directory_inputs: Vec::new(),
                 listed: vec![ManagedWorktreeInfo {
                     path: "/managed/hash/topic".to_owned(),
                     created_at: "2026-01-01T00:00:00.000Z".to_owned(),
@@ -258,6 +261,19 @@ impl Default for Managed {
 }
 
 impl ManagedWorktrees for Managed {
+    fn prepare_directory(
+        &self,
+        cwd: &str,
+        intent: &server_metadata::ports::worktrees::DirectoryGit,
+    ) -> Result<(), WorktreeError> {
+        self.state
+            .lock()
+            .unwrap()
+            .directory_inputs
+            .push((cwd.to_owned(), intent.clone()));
+        Ok(())
+    }
+
     fn list(&self, _cwd: &str) -> Result<Vec<ManagedWorktreeInfo>, WorktreeError> {
         Ok(self.state.lock().expect("managed").listed.clone())
     }
@@ -329,7 +345,7 @@ fn create_reuses_source_project_and_records_paseo_placement() {
                 worktree_slug: Some(" Topic Name! ".to_owned()),
                 ref_name: Some("main".to_owned()),
                 action: CreateAction::BranchOff,
-                has_change_request_source: false,
+                checkout_source: None,
                 first_agent_prompt: Some("\n  Review   the change carefully\nmore".to_owned()),
                 expects_initial_agent: true,
             },
@@ -614,6 +630,23 @@ fn checkout_requires_target_before_calling_adapter() {
     );
 }
 
+#[test]
+fn checkout_defaults_its_directory_name_to_the_selected_branch() {
+    let projects = Projects::default();
+    let workspaces = Workspaces::default();
+    let managed = Managed::default();
+    let service = service(&projects, &workspaces, &managed);
+    let mut input = create_input(None);
+    input.action = CreateAction::Checkout;
+    input.worktree_slug = None;
+    input.ref_name = Some("Release/Version.2".into());
+    service.create(&input, "2026-01-02T00:00:00.000Z").unwrap();
+    assert_eq!(
+        managed.state.lock().unwrap().created_inputs[0].slug,
+        "release-version-2"
+    );
+}
+
 fn service(projects: &Projects, workspaces: &Workspaces, managed: &Managed) -> Worktrees {
     Worktrees::new(
         Box::new(projects.clone()),
@@ -634,7 +667,7 @@ fn create_input(project_id: Option<&str>) -> CreateWorktree {
         worktree_slug: Some("topic".to_owned()),
         ref_name: Some("main".to_owned()),
         action: CreateAction::BranchOff,
-        has_change_request_source: false,
+        checkout_source: None,
         first_agent_prompt: None,
         expects_initial_agent: false,
     }

@@ -2,6 +2,28 @@
 
 use std::fmt::Debug;
 
+use crate::model::workspace_activity::WorkspaceStateBucket;
+
+/// One activity contribution attributed to an explicit Workspace identity.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WorkspaceActivity {
+    /// Owning Workspace; directory equality does not imply shared ownership.
+    pub workspace_id: String,
+    /// Activity status before aggregation with other contributors.
+    pub bucket: WorkspaceStateBucket,
+    /// Best known entry time into this status, when the source can supply one.
+    pub changed_at: Option<String>,
+}
+
+/// Read-only activity projection consumed by the Workspace directory.
+pub trait WorkspaceActivitySource: Debug + Send + Sync {
+    /// Capture currently active contributions without changing Agent or Workspace state.
+    ///
+    /// # Errors
+    /// Returns a categorized failure when the activity source cannot be read.
+    fn snapshot(&self) -> Result<Vec<WorkspaceActivity>, WorkspaceStateError>;
+}
+
 /// Workspace state operation failure.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum WorkspaceStateError {

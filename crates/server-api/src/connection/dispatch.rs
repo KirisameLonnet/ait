@@ -11,6 +11,26 @@ pub(super) async fn request(
     state: &Shared,
     subscriptions: &mut ConnectionSubscriptions,
 ) -> Result<(), QueueError> {
+    if context.request.method == "creation.subscribe.request"
+        && let Err(error) = super::creation_receipts::validate(&context.request, state).await
+    {
+        return context.respond(Err(error));
+    }
+    if super::workspace_creation::handles(&context.request) {
+        return super::workspace_creation::request(context, state).await;
+    }
+    if super::workspace_archive::handles(&context.request.method) {
+        return super::workspace_archive::request(context, state).await;
+    }
+    dispatch_group(group, context, state, subscriptions).await
+}
+
+async fn dispatch_group(
+    group: Group,
+    context: Context<'_>,
+    state: &Shared,
+    subscriptions: &mut ConnectionSubscriptions,
+) -> Result<(), QueueError> {
     let outbound = context.outbound;
     match group {
         Group::Schedule(group) => {

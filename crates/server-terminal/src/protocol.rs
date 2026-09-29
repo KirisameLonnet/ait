@@ -122,7 +122,7 @@ const fn default_true() -> bool {
     true
 }
 
-/// Terminal metadata. Activity remains null until shell/agent hooks are installed.
+/// Terminal metadata, including activity reported by local shell or Agent hooks.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TerminalInfo {
@@ -137,8 +137,8 @@ pub struct TerminalInfo {
     /// Explicit or OSC title.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
-    /// Hook activity, currently null.
-    pub activity: Option<serde_json::Value>,
+    /// Hook activity, or null before the first report and after an interrupt.
+    pub activity: Option<crate::activity::Activity>,
 }
 
 /// Subscribe to a terminal output stream.

@@ -3,8 +3,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
+use secrecy::{ExposeSecret, SecretString};
 use server_metadata::model::registry::PersistedWorkspaceRecord;
 use server_metadata::ports::registry::{ProjectRegistry, WorkspaceRegistry};
+use subtle::ConstantTimeEq;
 use uuid::Uuid;
 
 use crate::Error;
@@ -20,6 +22,7 @@ struct Entry {
     owner: Option<String>,
     manual_title: bool,
     closed: bool,
+    activity_token: SecretString,
 }
 
 /// Terminal service. A host serializes calls and runs blocking operations outside its reactor.
@@ -29,6 +32,10 @@ pub struct Terminals {
     projects: Box<dyn ProjectRegistry>,
     runtime: Box<dyn Runtime>,
     entries: BTreeMap<String, Entry>,
+    activities: crate::activity::Activities,
+    activity_url: Option<String>,
+    events: server_metadata::service::session::SessionEvents,
+    server_id: Option<String>,
 }
 
 impl Terminals {
@@ -44,7 +51,79 @@ impl Terminals {
             projects,
             runtime,
             entries: BTreeMap::new(),
+            activities: crate::activity::Activities::default(),
+            activity_url: None,
+            events: server_metadata::service::session::SessionEvents::default(),
+            server_id: None,
         }
+    }
+
+    /// Configure the local HTTP report endpoint passed to newly launched processes.
+    pub fn set_activity_url(&mut self, url: String) {
+        self.activity_url = Some(url);
+    }
+
+    /// Connect hook attention to the shared connection event hub and server identity.
+    pub fn set_session_events(
+        &mut self,
+        events: server_metadata::service::session::SessionEvents,
+        server_id: String,
+    ) {
+        self.events = events;
+        self.server_id = Some(server_id);
+    }
+
+    /// Share a credential-free projection with the Workspace directory.
+    #[must_use]
+    pub fn activity_source(&self) -> crate::activity::Activities {
+        self.activities.clone()
+    }
+
+    /// Apply a report only when its terminal is live and its per-process token matches.
+    ///
+    /// Unknown terminals and wrong tokens both return false. Native inspection errors propagate.
+    /// # Errors
+    /// Returns a process inspection failure.
+    pub fn report_activity(
+        &mut self,
+        id: &str,
+        token: &str,
+        state: crate::activity::ReportState,
+    ) -> Result<bool, Error> {
+        let Some(entry) = self.entries.get_mut(id) else {
+            return Ok(false);
+        };
+        if !bool::from(
+            token
+                .as_bytes()
+                .ct_eq(entry.activity_token.expose_secret().as_bytes()),
+        ) {
+            return Ok(false);
+        }
+        if entry.closed || entry.process.exited()? {
+            self.activities.remove(id);
+            return Ok(false);
+        }
+        let previous = self.activities.get(id);
+        self.activities.report(id, state);
+        let next = self.activities.get(id);
+        if previous != next
+            && let Some(reason) = next.and_then(|activity| activity.attention_reason)
+        {
+            let title = match reason {
+                crate::activity::AttentionReason::Finished => "Terminal finished",
+                crate::activity::AttentionReason::NeedsInput => "Terminal needs input",
+            };
+            self.events.publish(server_metadata::protocol::session::SessionEventKind::TerminalAttention,
+                &serde_json::json!({"serverId":self.server_id,"terminalId":id,"cwd":entry.info.cwd,
+                    "workspaceId":entry.info.workspace_id,"reason":reason,"title":title,"body":entry.info.name}));
+        }
+        Ok(true)
+    }
+
+    /// Clear attention for a visible client's focused terminal; missing terminals return false.
+    pub fn clear_attention(&mut self, id: &str) -> bool {
+        self.activities.clear_attention(id)
     }
 
     /// Create a terminal in an active workspace, resolving omitted placement by deepest root.
@@ -93,13 +172,15 @@ impl Terminals {
             }
             for id in expired {
                 self.entries.remove(&id);
+                self.activities.remove(&id);
             }
         }
         if self.entries.len() >= MAX_TERMINALS {
             return Err(Error::Exhausted);
         }
         let id = Uuid::new_v4().to_string();
-        let launch = Launch {
+        let activity_token = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
+        let mut launch = Launch {
             cwd: cwd.clone(),
             command: request.command.clone(),
             args: request.args.clone(),
@@ -112,6 +193,14 @@ impl Terminals {
                 ),
             ]),
         };
+        launch
+            .env
+            .insert("PASEO_ACTIVITY_TOKEN".to_owned(), activity_token.clone());
+        if let Some(url) = &self.activity_url {
+            launch
+                .env
+                .insert("PASEO_TERMINAL_ACTIVITY_URL".to_owned(), url.clone());
+        }
         let process = self.runtime.spawn(&launch)?;
         let default_name = format!(
             "Terminal {}",
@@ -129,6 +218,8 @@ impl Terminals {
             title: process.title(),
             activity: None,
         };
+        self.activities
+            .register(id.clone(), info.workspace_id.clone());
         self.entries.insert(
             id,
             Entry {
@@ -137,6 +228,7 @@ impl Terminals {
                 owner: None,
                 manual_title: false,
                 closed: false,
+                activity_token: activity_token.into(),
             },
         );
         Ok(info)
@@ -156,8 +248,10 @@ impl Terminals {
         let mut result = Vec::new();
         for entry in self.entries.values_mut() {
             if entry.closed || entry.process.exited()? {
+                self.activities.remove(&entry.info.id);
                 continue;
             }
+            entry.info.activity = self.activities.get(&entry.info.id);
             if !entry.manual_title {
                 entry.info.title = entry.process.title();
             }
@@ -223,7 +317,11 @@ impl Terminals {
             }
             return Ok(());
         }
-        entry.process.send(input)
+        entry.process.send(input)?;
+        if matches!(input, Input::Input { data } if data == "\u{3}" || data == "\u{1b}") {
+            self.activities.interrupt(id);
+        }
+        Ok(())
     }
 
     /// Obtain an atomic bootstrap or output delta, including final drained output.
@@ -242,6 +340,9 @@ impl Terminals {
         }
         let mut observation = entry.process.observe(revision, restore)?;
         observation.exited |= entry.closed;
+        if observation.exited {
+            self.activities.remove(id);
+        }
         Ok(observation)
     }
 
@@ -266,6 +367,24 @@ impl Terminals {
         {
             entry.process.kill()?;
             entry.closed = true;
+            self.activities.remove(id);
+        }
+        Ok(())
+    }
+
+    /// Close all terminals owned by the selected Workspace identities, regardless of cwd.
+    /// # Errors
+    /// Returns native cleanup failure and retains failed processes for a later retry.
+    pub fn close_workspaces(&mut self, workspace_ids: &[String]) -> Result<(), Error> {
+        let workspaces: BTreeSet<_> = workspace_ids.iter().map(String::as_str).collect();
+        let ids: Vec<_> = self
+            .entries
+            .iter()
+            .filter(|(_, entry)| workspaces.contains(entry.info.workspace_id.as_str()))
+            .map(|(id, _)| id.clone())
+            .collect();
+        for id in ids {
+            self.kill(&id)?;
         }
         Ok(())
     }
@@ -275,6 +394,11 @@ impl Terminals {
     /// # Errors
     /// Returns registry or process cleanup failures; failed entries remain retryable.
     pub fn reconcile(&mut self) -> Result<(), Error> {
+        for (id, entry) in &mut self.entries {
+            if entry.closed || entry.process.exited()? {
+                self.activities.remove(id);
+            }
+        }
         let active: BTreeSet<_> = self
             .active_workspaces()?
             .into_iter()

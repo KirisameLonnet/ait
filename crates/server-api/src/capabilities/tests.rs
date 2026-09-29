@@ -4,6 +4,7 @@ use super::*;
 
 #[test]
 fn empty_host_keeps_only_builtin_metadata_methods() {
+    assert!(features(&Services::default()).is_empty());
     let methods = installed_capabilities(&Services::default());
     assert_eq!(
         methods,

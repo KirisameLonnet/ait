@@ -21,7 +21,7 @@ impl CodexClient {
             |cwd| Ok(cwd.into()),
         )?;
         let cwd = cwd.to_str().ok_or(AgentSessionError::Failed)?;
-        let mut transport = Transport::spawn(&self.program, cwd, self.deadline)?;
+        let mut transport = self.launch_transport(cwd, false)?;
         let result = async {
             transport.initialize().await?;
             list_pages(&mut transport, options).await
@@ -36,7 +36,7 @@ impl CodexClient {
         id: &str,
         cwd: &str,
     ) -> Result<SessionHistory, AgentSessionError> {
-        let mut transport = Transport::spawn(&self.program, cwd, self.deadline)?;
+        let mut transport = self.launch_transport(cwd, false)?;
         let result = async {
             transport.initialize().await?;
             let response = transport

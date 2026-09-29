@@ -9,6 +9,22 @@ use server_metadata::ports::registry::{
 
 use super::*;
 
+mod archive;
+mod paseo_api;
+mod synchronization;
+
+#[test]
+fn creation_identity_checks_include_internal_agents_without_prefix_or_title_resolution() {
+    let (service, agents) = service();
+    agents
+        .upsert(&agent("internal", "wks-one", "hidden", true))
+        .unwrap();
+    assert!(service.contains_identity("internal").unwrap());
+    assert!(service.contains_identity("agent-a").unwrap());
+    assert!(!service.contains_identity("agent-").unwrap());
+    assert!(!service.contains_identity("hidden").unwrap());
+}
+
 #[derive(Debug, Clone, Default)]
 struct Agents(Arc<Mutex<Vec<PersistedAgentRuntimeRecord>>>);
 
@@ -201,15 +217,15 @@ fn list_filters_sorts_and_pages_placed_public_agents() {
     let first = service.list(&query).expect("list should succeed");
     assert_eq!(first.entries[0].agent.id, "agent-a");
     assert_eq!(first.entries[0].placement.project_key, "key-one");
-    assert_eq!(first.next_offset, Some(1));
+    assert!(first.next_cursor.is_some());
     let second = service
         .list(&AgentDirectoryQuery {
-            offset: first.next_offset.expect("next cursor"),
+            cursor: first.next_cursor.clone(),
             ..query
         })
         .expect("second page should succeed");
     assert_eq!(second.entries[0].agent.id, "agent-b");
-    assert_eq!(second.previous_offset, Some(0));
+    assert_eq!(second.prev_cursor, first.next_cursor);
 
     agents
         .upsert(&agent("internal", "wks-one", "hidden", true))

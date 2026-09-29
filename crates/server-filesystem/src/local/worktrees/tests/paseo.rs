@@ -20,7 +20,7 @@ fn create(fixture: &Fixture, slug: &str) -> CreatedManagedWorktree {
         .unwrap()
 }
 
-fn commit(root: &Path, message: &str) {
+pub(super) fn commit(root: &Path, message: &str) {
     run(root, &["add", "."]);
     run(
         root,
@@ -346,7 +346,10 @@ fn checkout_preserves_valid_uppercase_and_dotted_branch_names() {
         branch(Path::new(&created.worktree_path)),
         "Release/Version.2"
     );
-    assert!(created.comparison_base_ref.is_none());
+    assert_eq!(
+        created.comparison_base_ref.as_deref(),
+        Some("Release/Version.2")
+    );
 }
 
 #[test]

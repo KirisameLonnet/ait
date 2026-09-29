@@ -127,30 +127,9 @@ pub enum WorktreeCreateAction {
     Checkout,
 }
 
-/// A forge change request selected as a checkout source.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ChangeRequestCheckoutSource {
-    /// Discriminator retained from Paseo's schema.
-    pub kind: ChangeRequestCheckoutKind,
-    /// Optional forge identifier.
-    #[serde(default)]
-    pub forge: Option<String>,
-    /// Positive change-request number.
-    #[serde(deserialize_with = "positive_u64")]
-    pub number: u64,
-    /// Optional forge project path.
-    #[serde(default)]
-    pub project_path: Option<String>,
-}
-
-/// Checkout-source discriminator.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ChangeRequestCheckoutKind {
-    /// A pull or merge request.
-    ChangeRequest,
-}
+pub use server_metadata::protocol::worktree_source::{
+    ChangeRequestCheckoutKind, ChangeRequestCheckoutSource,
+};
 
 /// Prompt context used by the first Agent after worktree creation.
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
@@ -233,19 +212,11 @@ pub struct WorktreeCreateResult {
     pub setup_skipped_reason: Option<String>,
 }
 
-fn positive_u64<'de, D: Deserializer<'de>>(deserializer: D) -> Result<u64, D::Error> {
-    let number = u64::deserialize(deserializer)?;
-    if number == 0 {
-        return Err(serde::de::Error::custom("expected a positive integer"));
-    }
-    Ok(number)
-}
-
 fn optional_positive_u64<'de, D: Deserializer<'de>>(
     deserializer: D,
 ) -> Result<Option<u64>, D::Error> {
     Option::<u64>::deserialize(deserializer)?.map_or(Ok(None), |number| {
-        if number == 0 {
+        if number == 0 || number > 9_007_199_254_740_991 {
             Err(serde::de::Error::custom("expected a positive integer"))
         } else {
             Ok(Some(number))

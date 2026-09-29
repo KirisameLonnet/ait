@@ -2,9 +2,12 @@
 
 mod controls;
 mod native_sessions;
+mod placement;
+mod resume;
 mod voice;
-
-use std::path::Path;
+/// Initial Agent validation and placement for the composite Workspace creation operation.
+pub mod workspace_creation;
+mod worktrees;
 
 use serde_json::{Value, json};
 use server_domain::agent_runtime::PersistedAgentRuntimeRecord;
@@ -22,13 +25,27 @@ use crate::service::agent_runtime::AgentRuntimeDirectory;
 pub(crate) struct ExecutionState {
     pub(crate) manager: AgentManager,
     pub(crate) directory: AgentRuntimeDirectory,
-    pub(crate) registry: Box<dyn AgentRuntimeRegistry>,
+    pub(crate) registry: std::sync::Arc<dyn AgentRuntimeRegistry>,
     pub(crate) workspaces: Box<dyn WorkspaceRegistry>,
     pub(crate) projects: Box<dyn ProjectRegistry>,
     pub(crate) import_directory: Option<server_metadata::service::directory::Directory>,
+    pub(crate) workspace_automation: Option<
+        std::sync::Arc<
+            std::sync::Mutex<server_metadata::service::workspace_automation::WorkspaceAutomation>,
+        >,
+    >,
 }
 
 impl ExecutionState {
+    pub(crate) fn observe_wait(
+        &mut self,
+        identifier: &str,
+    ) -> Result<crate::service::agent_execution::waits::WaitObservation, ErrorCode> {
+        let id = self.resolve(identifier)?;
+        let last_message = self.manager.observe_last_message(&id);
+        Ok(crate::service::agent_execution::waits::WaitObservation { id, last_message })
+    }
+
     pub(crate) async fn execute(
         &mut self,
         method: &str,
@@ -40,6 +57,12 @@ impl ExecutionState {
             .map_err(|error| map_manager(&error))?;
         self.manager.dispatch_pending_inputs().await?;
         match method {
+            "internal.workspace.agent.create" => self.create_workspace_agent(params).await,
+            "internal.workspace.retire" => self.retire_workspaces(params).await,
+            "internal.agent.directory.prepare" => self.prepare_agent_directory(params),
+            "agent.list.request" if params.get("sync").is_some_and(|sync| !sync.is_null()) => {
+                self.synchronized_agents(params)
+            }
             "internal.voice.send" | "internal.voice.status" | "internal.voice.cancel" => {
                 self.voice(method, params).await
             }
@@ -90,7 +113,14 @@ impl ExecutionState {
                 let request: AgentIdRequest = decode(params)?;
                 let id = self.resolve(&request.agent_id)?;
                 let snapshot = self.snapshot(&id)?;
-                let status = if self.manager.active_turn(&id).is_some()
+                let status = if !self.manager.interruption_pending(&id)
+                    && (snapshot["attentionReason"] == "permission"
+                        || snapshot["pendingPermissions"]
+                            .as_array()
+                            .is_some_and(|permissions| !permissions.is_empty()))
+                {
+                    "permission"
+                } else if self.manager.active_turn(&id).is_some()
                     || self.manager.has_pending_input(&id)?
                 {
                     "running"
@@ -115,6 +145,53 @@ impl ExecutionState {
                 Ok(value)
             }
         }
+    }
+
+    async fn retire_workspaces(&mut self, params: Value) -> Result<Value, ErrorCode> {
+        let workspaces: Vec<String> = decode(params)?;
+        let archived = self
+            .manager
+            .archive_workspace_agents(&workspaces)
+            .map_err(|error| map_manager(&error))?;
+        self.manager
+            .reconcile()
+            .await
+            .map_err(|error| map_manager(&error))?;
+        Ok(json!(archived))
+    }
+
+    fn prepare_agent_directory(&self, params: Value) -> Result<Value, ErrorCode> {
+        let mut listing = super::agent_runtime::listing::prepare(&self.directory, decode(params)?)?;
+        for entry in &mut listing.entries {
+            self.decorate(entry)?;
+        }
+        let projected: std::collections::BTreeMap<_, _> = listing
+            .entries
+            .iter()
+            .filter_map(|entry| entry["agent"]["id"].as_str().map(|id| (id, entry)))
+            .collect();
+        if let Some(entries) = listing.response["entries"].as_array_mut() {
+            for entry in entries {
+                if let Some(projected) = entry["agent"]["id"]
+                    .as_str()
+                    .and_then(|id| projected.get(id))
+                {
+                    *entry = (*projected).clone();
+                }
+            }
+        }
+        listing.finish(&self.directory)
+    }
+
+    fn synchronized_agents(&self, params: Value) -> Result<Value, ErrorCode> {
+        let request: crate::protocol::agent_lifecycle::AgentListRequest = decode(params)?;
+        if request.subscribe.is_some() {
+            return Err(ErrorCode::UnsupportedCapability);
+        }
+        let cursor = request.sync.clone().unwrap_or_default();
+        let mut value = super::agent_runtime::sync_snapshot(&self.directory, request)?;
+        self.decorate(&mut value)?;
+        super::agent_runtime::synchronize(&self.directory, value, &cursor)
     }
 
     async fn timeline(&mut self, method: &str, params: Value) -> Result<Value, ErrorCode> {
@@ -194,13 +271,13 @@ impl ExecutionState {
     }
 
     async fn create(&mut self, params: Value) -> Result<Value, ErrorCode> {
-        let (request, intent) = parse_creation(params)?;
-        let workspace_id = self.workspace(request.workspace_id.as_deref(), &request.config.cwd)?;
+        let (mut request, intent) = parse_creation(params)?;
         if let Some(id) = &request.agent_id {
             Uuid::parse_str(id).map_err(|_| ErrorCode::InvalidMessage)?;
         }
         let key = request
             .idempotency_key
+            .take()
             .unwrap_or_else(|| Uuid::new_v4().to_string());
         let creations = self.manager.creations();
         let admission = creations.begin(
@@ -209,11 +286,53 @@ impl ExecutionState {
             intent,
         )?;
         if !admission.execute {
+            if admission.snapshot.phase == "completed"
+                && let Some(id) = &admission.snapshot.agent_id
+                && !self
+                    .directory
+                    .contains_identity(id)
+                    .map_err(|_| ErrorCode::AgentIo)?
+            {
+                return Err(ErrorCode::AgentNotFound);
+            }
             return Ok(
                 json!({"agentId":admission.snapshot.agent_id,"agent":admission.snapshot.agent,"error":admission.snapshot.error,"creation":admission.snapshot}),
             );
         }
-        let id = match admission.snapshot.agent_id.clone() {
+        if let Some(id) = &admission.snapshot.agent_id
+            && self
+                .directory
+                .contains_identity(id)
+                .map_err(|_| ErrorCode::AgentIo)?
+        {
+            creations.advance(
+                &admission.snapshot,
+                "failed",
+                None,
+                Some("Agent ID is already in use".into()),
+            )?;
+            return Err(ErrorCode::IdempotencyConflict);
+        }
+        let (workspace_id, created_worktree) = match self.creation_placement(&mut request).await {
+            Ok(placement) => placement,
+            Err(error) => {
+                creations.advance(&admission.snapshot, "failed", None, Some(error.to_string()))?;
+                return Err(error);
+            }
+        };
+        self.register_creation(request, &admission.snapshot, workspace_id, created_worktree)
+            .await
+    }
+
+    async fn register_creation(
+        &mut self,
+        request: CreateRequest,
+        admission: &server_metadata::protocol::creation::Snapshot,
+        workspace_id: String,
+        created_worktree: bool,
+    ) -> Result<Value, ErrorCode> {
+        let creations = self.manager.creations();
+        let id = match admission.agent_id.clone() {
             Some(id) => {
                 Uuid::parse_str(&id).map_err(|_| ErrorCode::InvalidMessage)?;
                 id
@@ -222,7 +341,7 @@ impl ExecutionState {
         };
         let created = self
             .manager
-            .create(
+            .create_with_environment(
                 &id,
                 &AgentSessionSpec {
                     provider: request.config.provider,
@@ -230,38 +349,64 @@ impl ExecutionState {
                     config: request.config.stored,
                 },
                 AgentRegistration {
-                    workspace_id: Some(workspace_id),
+                    workspace_id: Some(workspace_id.clone()),
                     title: request.config.title.map(|title| title.trim().to_owned()),
                     labels: request.labels,
                     internal: false,
                 },
+                &request.env,
             )
             .await;
         if let Err(error) = created {
-            creations.advance(&admission.snapshot, "failed", None, Some(error.to_string()))?;
+            let cleanup_failed = created_worktree
+                && self
+                    .cleanup_created_worktree(&id, &workspace_id)
+                    .await
+                    .is_err();
+            let message = if cleanup_failed {
+                format!("{error}; worktree cleanup failed for Workspace {workspace_id}")
+            } else {
+                error.to_string()
+            };
+            creations.advance(admission, "failed", None, Some(message))?;
             return Err(map_manager(&error));
         }
-        let result = json!({"agent":self.snapshot(&id)?});
-        let mut progress =
-            creations.advance(&admission.snapshot, "agent_ready", Some(result), None)?;
-        if request.initial_prompt.is_some()
+        if created_worktree {
+            self.start_worktree_setup(&workspace_id).await;
+        }
+        if request.auto_archive {
+            self.arm_auto_archive(&id, &workspace_id, created_worktree)?;
+        }
+        let prompt = (request.initial_prompt.is_some()
             || !request.images.is_empty()
-            || !request.attachments.is_empty()
-        {
-            let prompt = crate::protocol::prompt::AgentPrompt {
-                text: request.initial_prompt.unwrap_or_default(),
-                images: request.images,
-                attachments: request.attachments,
-                client_message_id: request.client_message_id,
-                output_schema: request.output_schema,
-            };
-            if let Err(error) = self.manager.send_input(&id, &prompt).await {
+            || !request.attachments.is_empty())
+        .then(|| crate::protocol::prompt::AgentPrompt {
+            text: request.initial_prompt.unwrap_or_default(),
+            images: request.images,
+            attachments: request.attachments,
+            client_message_id: request.client_message_id,
+            output_schema: request.output_schema,
+        });
+        self.finish_creation(&id, admission, prompt).await
+    }
+
+    async fn finish_creation(
+        &mut self,
+        id: &str,
+        admission: &server_metadata::protocol::creation::Snapshot,
+        prompt: Option<crate::protocol::prompt::AgentPrompt>,
+    ) -> Result<Value, ErrorCode> {
+        let creations = self.manager.creations();
+        let result = json!({"agent":self.snapshot(id)?});
+        let mut progress = creations.advance(admission, "agent_ready", Some(result), None)?;
+        if let Some(prompt) = prompt {
+            if let Err(error) = self.manager.send_input(id, &prompt).await {
                 creations.advance(&progress, "failed", None, Some(error.to_string()))?;
                 return Err(map_manager(&error));
             }
             progress = creations.advance(&progress, "prompt_started", None, None)?;
         }
-        let snapshot = self.snapshot(&id)?;
+        let snapshot = self.snapshot(id)?;
         progress = creations.advance(
             &progress,
             "completed",
@@ -271,30 +416,6 @@ impl ExecutionState {
         Ok(
             json!({"status":"agent_created","agentId":id,"agent":snapshot,"error":null,"creation":progress}),
         )
-    }
-
-    async fn resume(&mut self, params: Value) -> Result<Value, ErrorCode> {
-        only(&params, &["handle"])?;
-        let request: ResumeRequest = decode(params)?;
-        let records = self.registry.list().map_err(|_| ErrorCode::AgentIo)?;
-        let mut matching = records.iter().filter(|record| {
-            record.persistence.as_ref().is_some_and(|handle| {
-                handle.provider == request.handle.provider
-                    && handle.session_id == request.handle.session_id
-            })
-        });
-        let record = matching.next().ok_or(ErrorCode::AgentNotFound)?;
-        if matching.next().is_some() {
-            return Err(ErrorCode::InvalidMessage);
-        }
-        if record.archived_at.is_none() {
-            self.workspace(record.workspace_id.as_deref(), &record.cwd)?;
-        }
-        self.manager
-            .resume(&record.id)
-            .await
-            .map_err(|error| map_manager(&error))?;
-        Ok(json!({"status":"agent_resumed","agentId":record.id,"agent":self.snapshot(&record.id)?}))
     }
 
     async fn send(&mut self, params: Value) -> Result<Value, ErrorCode> {
@@ -359,7 +480,8 @@ impl ExecutionState {
                 .archived_at
                 .as_ref()
                 .is_some_and(|value| !value.is_empty())
-            || std::fs::canonicalize(&workspace.cwd).ok().as_ref() != Some(&canonical)
+            || (selected.is_none()
+                && std::fs::canonicalize(&workspace.cwd).ok().as_ref() != Some(&canonical))
         {
             return Err(ErrorCode::InvalidMessage);
         }
@@ -467,6 +589,12 @@ fn parse_creation(params: Value) -> Result<(CreateRequest, Value), ErrorCode> {
             "agentId",
             "config",
             "workspaceId",
+            "callerAgentId",
+            "autoArchive",
+            "env",
+            "worktree",
+            "git",
+            "worktreeName",
             "labels",
             "idempotencyKey",
             "subscribe",
@@ -497,8 +625,14 @@ fn parse_creation(params: Value) -> Result<(CreateRequest, Value), ErrorCode> {
     if let Some(object) = intent.as_object_mut() {
         object.remove("idempotencyKey");
         object.remove("subscribe");
+        if let Some(environment) = object.get_mut("env") {
+            use sha2::Digest;
+            // Creation receipts must bind retries without retaining environment secrets.
+            *environment = json!({"sha256":format!("{:x}", sha2::Sha256::digest(environment.to_string().as_bytes()))});
+        }
     }
     let request: CreateRequest = decode(params)?;
+    worktrees::intent(&request)?;
     if request.initial_prompt.is_some()
         || !request.images.is_empty()
         || !request.attachments.is_empty()
@@ -516,11 +650,11 @@ fn parse_creation(params: Value) -> Result<(CreateRequest, Value), ErrorCode> {
     if !matches!(request.config.provider.as_str(), "codex" | "claude") {
         return Err(ErrorCode::UnsupportedCapability);
     }
-    if !Path::new(&request.config.cwd).is_absolute()
-        || !Path::new(&request.config.cwd).is_dir()
-        || request.config.title.as_ref().is_some_and(|title| {
-            title.trim().is_empty() || title.trim().encode_utf16().count() > 200
-        })
+    if request
+        .config
+        .title
+        .as_ref()
+        .is_some_and(|title| title.trim().is_empty() || title.trim().encode_utf16().count() > 200)
         || request.labels.len() > 100
         || request
             .labels

@@ -99,5 +99,29 @@ pub(super) fn installed_capabilities(services: &Services) -> Vec<String> {
     .collect()
 }
 
+/// Behaviors that need versioned discovery even when their method names already existed.
+pub(super) fn features(services: &Services) -> Vec<String> {
+    let mut features = Vec::new();
+    if services.directory.is_some()
+        && (services.agent_runtime.is_some() || services.agent_execution.is_some())
+    {
+        features.extend(
+            ["directory-sync-v1", "directory-subscriptions-v1"]
+                .into_iter()
+                .map(str::to_owned),
+        );
+    }
+    if services.terminals.is_some() {
+        features.push("terminal-activity-v1".to_owned());
+    }
+    if services.agent_execution.is_some() {
+        features.push("agent-session-events-v1".to_owned());
+        if services.directory.is_some() {
+            features.push("creation-lifecycle-v1".to_owned());
+        }
+    }
+    features
+}
+
 #[cfg(test)]
 mod tests;

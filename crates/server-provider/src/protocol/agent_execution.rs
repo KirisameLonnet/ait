@@ -53,18 +53,35 @@ pub struct CreateRequest {
     pub agent_id: Option<String>,
     /// Native configuration.
     pub config: SessionConfig,
-    /// Existing active Workspace with matching directory.
+    /// Ephemeral native child environment, excluded from Agent persistence and responses.
+    #[serde(default)]
+    pub env: crate::ports::environment::AgentEnvironment,
+    /// Existing active Workspace whose directory replaces the draft directory.
     pub workspace_id: Option<String>,
+    /// Parent Agent used for inherited Workspace placement and parentage labeling.
+    pub caller_agent_id: Option<String>,
+    /// Archive this Agent after its first native completed, failed, or cancelled turn.
+    #[serde(default)]
+    pub auto_archive: bool,
+    /// Managed worktree selection that takes precedence over existing placement.
+    pub worktree: Option<super::creation::WorktreeTarget>,
+    /// Legacy Git placement, mutually exclusive with `worktree`.
+    pub git: Option<super::creation::GitOptions>,
+    /// Legacy name for a new managed worktree when `git` is omitted.
+    pub worktree_name: Option<String>,
     /// Initial public labels.
     #[serde(default)]
     pub labels: BTreeMap<String, String>,
 }
 
-/// Restore a previously registered native identity without creating a new history.
+/// Restore a native identity without creating a new provider history.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ResumeRequest {
-    /// Native identity already registered in this server.
+    /// Native identity; unknown handles require a cwd in metadata or overrides.
     pub handle: AgentPersistenceHandle,
+    /// Draft settings applied atomically when the interactive native session is restored.
+    #[serde(default)]
+    pub overrides: super::resume::Overrides,
 }
 
 /// Explicit delivery policy for an already active native turn.
@@ -120,6 +137,6 @@ impl SendRequest {
 pub struct WaitRequest {
     /// Full ID, unambiguous prefix, or exact title.
     pub agent_id: String,
-    /// Positive timeout, capped at 30 seconds by this server.
+    /// Positive timeout in milliseconds; omission waits until completion or caller cancellation.
     pub timeout_ms: Option<u64>,
 }

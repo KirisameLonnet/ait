@@ -87,8 +87,18 @@ fn create(worktrees: &Worktrees, request: WorktreeCreateRequest) -> Result<Dispa
             WorktreeCreateAction::BranchOff => CreateAction::BranchOff,
             WorktreeCreateAction::Checkout => CreateAction::Checkout,
         },
-        has_change_request_source: request.checkout_source.is_some()
-            || request.github_pr_number.is_some(),
+        checkout_source: request
+            .checkout_source
+            .map(crate::protocol::worktrees::ChangeRequestCheckoutSource::into_intent)
+            .or_else(|| {
+                request.github_pr_number.map(|number| {
+                    server_metadata::ports::worktrees::WorktreeChangeRequest {
+                        forge: Some("github".to_owned()),
+                        number,
+                        project_path: None,
+                    }
+                })
+            }),
         first_agent_prompt: context.as_ref().and_then(|context| context.prompt.clone()),
         expects_initial_agent: context.is_some(),
     };
@@ -140,17 +150,7 @@ fn archive(
     worktrees: &Worktrees,
     request: WorktreeArchiveRequest,
 ) -> Result<Dispatched, ErrorCode> {
-    let input = ArchiveWorktree {
-        worktree_path: request.worktree_path,
-        repo_root: request.repo_root,
-        worktree_slug: None,
-        branch_name: request.branch_name,
-        workspace_id: request.workspace_id,
-        scope: match request.scope {
-            WorktreeArchiveScope::Workspace => ArchiveScope::Workspace,
-            WorktreeArchiveScope::Worktree => ArchiveScope::Worktree,
-        },
-    };
+    let input = archive_input(request);
     match worktrees.archive(&input, &timestamp()) {
         Ok(_) => value(WorktreeArchiveResult {
             success: true,
@@ -165,7 +165,25 @@ fn archive(
     }
 }
 
-fn checkout_error(error: &WorktreesError) -> CheckoutError {
+/// Translate a decoded archive request for the host's resource-close coordination.
+#[must_use]
+pub fn archive_input(request: WorktreeArchiveRequest) -> ArchiveWorktree {
+    ArchiveWorktree {
+        worktree_path: request.worktree_path,
+        repo_root: request.repo_root,
+        worktree_slug: None,
+        branch_name: request.branch_name,
+        workspace_id: request.workspace_id,
+        scope: match request.scope {
+            WorktreeArchiveScope::Workspace => ArchiveScope::Workspace,
+            WorktreeArchiveScope::Worktree => ArchiveScope::Worktree,
+        },
+    }
+}
+
+/// Project a categorized worktree failure into its public, safe checkout error.
+#[must_use]
+pub fn checkout_error(error: &WorktreesError) -> CheckoutError {
     let code = checkout_error_code(error.kind());
     CheckoutError {
         code,
