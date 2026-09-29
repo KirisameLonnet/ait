@@ -44,14 +44,18 @@ fn pages_have_exclusive_boundaries_and_stale_cursors_reset() {
     assert_eq!(stale["reset"], true);
     assert_eq!(stale["staleCursor"], true);
     assert_eq!(stale["mergeWindow"], true);
-    assert!(
+    assert_eq!(
         fetch(
             &request(json!({"agentId":"a","direction":"before"})),
             "epoch",
             &rows,
             &Value::Null
         )
-        .is_err()
+        .unwrap()["entries"]
+            .as_array()
+            .unwrap()
+            .len(),
+        200
     );
     let empty = fetch(&request(json!({"agentId":"a"})), "empty", &[], &Value::Null).unwrap();
     assert!(empty["startCursor"].is_null());

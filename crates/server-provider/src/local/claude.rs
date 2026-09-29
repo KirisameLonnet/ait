@@ -33,6 +33,7 @@ pub struct ClaudeClient {
     config_dir: Option<PathBuf>,
     deadline: Duration,
     images: super::images::ImageStore,
+    environment: crate::ports::environment::AgentEnvironment,
     resolved_models: std::sync::Arc<std::sync::RwLock<std::collections::BTreeMap<String, String>>>,
 }
 
@@ -46,6 +47,7 @@ impl ClaudeClient {
             config_dir: std::env::var_os("CLAUDE_CONFIG_DIR").map(PathBuf::from),
             deadline: Duration::from_secs(30),
             images: super::images::ImageStore::default(),
+            environment: crate::ports::environment::AgentEnvironment::default(),
             resolved_models: std::sync::Arc::default(),
         }
     }
@@ -102,6 +104,27 @@ impl ClaudeClient {
 }
 
 impl AgentClient for ClaudeClient {
+    fn create_session_with_environment<'a>(
+        &'a self,
+        spec: &'a AgentSessionSpec,
+        environment: &'a crate::ports::environment::AgentEnvironment,
+    ) -> AgentSessionFuture<'a, Box<dyn AgentSession>> {
+        let mut client = self.clone();
+        client.environment = environment.clone();
+        client.resolved_models = std::sync::Arc::default();
+        if let Some((_, directory)) = environment
+            .entries()
+            .find(|(key, _)| *key == "CLAUDE_CONFIG_DIR")
+        {
+            client.config_dir = Some(PathBuf::from(directory));
+        } else if client.config_dir.is_none()
+            && let Some((_, home)) = environment.entries().find(|(key, _)| *key == "HOME")
+        {
+            client.config_dir = Some(PathBuf::from(home).join(".claude"));
+        }
+        Box::pin(async move { session::open(&client, spec, None).await })
+    }
+
     fn generate_metadata<'a>(
         &'a self,
         spec: &'a AgentSessionSpec,

@@ -82,10 +82,6 @@ impl Runtime {
         execute: impl FnOnce(&mut S) -> Result<R, ErrorCode> + Send + 'static,
     ) -> Result<R, ErrorCode> {
         let service = service.ok_or(ErrorCode::UnsupportedCapability)?;
-        let admission = self
-            .admission
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if self.cancellation.is_cancelled() {
             return Err(ErrorCode::ServerDraining);
         }
@@ -94,14 +90,51 @@ impl Runtime {
             .clone()
             .try_acquire_owned()
             .map_err(|_| ErrorCode::ResourceExhausted)?;
+        let job = self.spawn_tracked(service, failure, execute, permit)?;
+        job.await.map_err(|_| failure)?
+    }
+
+    /// Wait for the existing job budget to finish a step of an already admitted operation.
+    /// Waiting is cancelled by shutdown; an admitted blocking job remains tracked after disconnect.
+    /// # Errors
+    /// Returns missing services, shutdown, poisoned service locks or business failures.
+    pub async fn run_queued<S: Send + 'static, R: Send + 'static>(
+        &self,
+        service: Option<Arc<Mutex<S>>>,
+        failure: ErrorCode,
+        execute: impl FnOnce(&mut S) -> Result<R, ErrorCode> + Send + 'static,
+    ) -> Result<R, ErrorCode> {
+        let service = service.ok_or(ErrorCode::UnsupportedCapability)?;
+        let permit = tokio::select! {
+            biased;
+            () = self.cancellation.cancelled() => return Err(ErrorCode::ServerDraining),
+            permit = self.jobs.clone().acquire_owned() => permit.map_err(|_| ErrorCode::ServerDraining)?,
+        };
+        let job = self.spawn_tracked(service, failure, execute, permit)?;
+        job.await.map_err(|_| failure)?
+    }
+
+    fn spawn_tracked<S: Send + 'static, R: Send + 'static>(
+        &self,
+        service: Arc<Mutex<S>>,
+        failure: ErrorCode,
+        execute: impl FnOnce(&mut S) -> Result<R, ErrorCode> + Send + 'static,
+        permit: tokio::sync::OwnedSemaphorePermit,
+    ) -> Result<tokio::task::JoinHandle<Result<R, ErrorCode>>, ErrorCode> {
+        let _admission = self
+            .admission
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if self.cancellation.is_cancelled() {
+            return Err(ErrorCode::ServerDraining);
+        }
         let tracking = self.tasks.token();
         let job = tokio::task::spawn_blocking(move || {
             let (_tracking, _permit) = (tracking, permit);
             let mut service = service.lock().map_err(|_| failure)?;
             execute(&mut service)
         });
-        drop(admission);
-        job.await.map_err(|_| failure)?
+        Ok(job)
     }
 }
 

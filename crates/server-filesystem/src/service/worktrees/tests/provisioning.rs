@@ -2,6 +2,52 @@ use server_metadata::ports::worktrees::{WorktreeAction, WorktreeCreation, Worktr
 
 use super::*;
 
+#[test]
+fn legacy_directory_placement_normalizes_the_new_branch_before_using_the_git_owner() {
+    use server_metadata::ports::worktrees::DirectoryGit;
+    let managed = Managed::default();
+    let adapter = WorkspaceWorktrees::new(Arc::new(Mutex::new(service(
+        &Projects::default(),
+        &Workspaces::default(),
+        &managed,
+    ))));
+    adapter
+        .prepare_directory(
+            "/repo",
+            &DirectoryGit::BranchOff {
+                branch: "Feature Review".into(),
+                base: Some("release".into()),
+            },
+        )
+        .unwrap();
+    adapter
+        .prepare_directory(
+            "/repo",
+            &DirectoryGit::Checkout {
+                branch: "main".into(),
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        managed.state.lock().unwrap().directory_inputs,
+        vec![
+            (
+                "/repo".into(),
+                DirectoryGit::BranchOff {
+                    branch: "feature-review".into(),
+                    base: Some("release".into())
+                }
+            ),
+            (
+                "/repo".into(),
+                DirectoryGit::Checkout {
+                    branch: "main".into()
+                }
+            )
+        ]
+    );
+}
+
 fn intent() -> WorktreeCreation {
     WorktreeCreation {
         cwd: Some("/repo/app".to_owned()),
@@ -13,10 +59,38 @@ fn intent() -> WorktreeCreation {
         worktree_slug: Some("review".to_owned()),
         ref_name: None,
         action: WorktreeAction::BranchOff,
-        has_change_request_source: false,
+        checkout_source: None,
         first_agent_prompt: Some("Prompt fallback".to_owned()),
         expects_initial_agent: true,
     }
+}
+
+#[test]
+fn shared_provisioning_archive_removes_only_the_registered_owned_worktree() {
+    let projects = Projects::default();
+    let workspaces = Workspaces::default();
+    let managed = Managed::default();
+    let adapter = WorkspaceWorktrees::new(Arc::new(Mutex::new(service(
+        &projects,
+        &workspaces,
+        &managed,
+    ))));
+    let created = adapter.create(&intent(), "created").unwrap();
+    adapter
+        .archive(&created.workspace.workspace_id, "archived")
+        .unwrap();
+    assert_eq!(
+        workspaces
+            .get(&created.workspace.workspace_id)
+            .unwrap()
+            .unwrap()
+            .archived_at
+            .as_deref(),
+        Some("archived")
+    );
+    assert_eq!(managed.state.lock().unwrap().removed.len(), 1);
+    assert!(adapter.archive("unknown", "later").is_err());
+    assert_eq!(managed.state.lock().unwrap().removed.len(), 1);
 }
 
 #[test]
@@ -90,7 +164,11 @@ fn unified_creation_validates_sources_before_git_side_effects() {
         "archived_project"
     );
     input.project_id = None;
-    input.has_change_request_source = true;
+    input.checkout_source = Some(server_metadata::ports::worktrees::WorktreeChangeRequest {
+        forge: Some("gitlab".into()),
+        number: 1,
+        project_path: None,
+    });
     assert_eq!(
         adapter.create(&input, "now").unwrap_err().code,
         "unsupported_capability"

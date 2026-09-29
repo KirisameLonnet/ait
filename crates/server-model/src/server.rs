@@ -83,6 +83,10 @@ pub struct ServerInfo {
     /// Methods with real implementations installed by the host.
     #[serde(default)]
     pub implemented_capabilities: Vec<String>,
+    /// Optional behaviors within existing methods, separate from method admission.
+    /// An absent or empty list describes older servers without these extensions.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub features: Vec<String>,
     /// Enforced transport budgets.
     pub limits: Limits,
 }

@@ -15,6 +15,7 @@ pub struct EventHub(Arc<Mutex<Vec<Weak<Listener>>>>);
 #[derive(Debug)]
 struct Listener {
     id: String,
+    include_id: bool,
     keys: BTreeSet<String>,
     outbound: Outbound,
     delivery: Mutex<Delivery>,
@@ -41,8 +42,26 @@ impl EventHub {
         keys: BTreeSet<String>,
         outbound: Outbound,
     ) -> Subscription {
+        self.register(id, keys, outbound, true)
+    }
+
+    /// Register a paused operation observer whose events omit the connection subscription ID.
+    /// `id` remains local to the returned guard; dropping it ends the operation's observation.
+    #[must_use]
+    pub fn observe(&self, id: String, keys: BTreeSet<String>, outbound: Outbound) -> Subscription {
+        self.register(id, keys, outbound, false)
+    }
+
+    fn register(
+        &self,
+        id: String,
+        keys: BTreeSet<String>,
+        outbound: Outbound,
+        include_id: bool,
+    ) -> Subscription {
         let listener = Arc::new(Listener {
             id,
+            include_id,
             keys,
             outbound,
             delivery: Mutex::new(Delivery::default()),
@@ -75,7 +94,9 @@ impl EventHub {
         };
         for listener in listeners {
             let mut params = params.clone();
-            params["subscriptionId"] = Value::String(listener.id.clone());
+            if listener.include_id {
+                params["subscriptionId"] = Value::String(listener.id.clone());
+            }
             let message = ServerMessage::Event {
                 method: method.to_owned(),
                 params,

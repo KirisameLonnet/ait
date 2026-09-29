@@ -47,3 +47,23 @@ pub(super) async fn request(socket: &mut Socket, method: &str, params: Value) ->
         .unwrap();
     receive(socket).await
 }
+
+/// Creation progress belongs to the operation and can arrive before its final response.
+pub(super) async fn creation(
+    socket: &mut Socket,
+    method: &str,
+    params: Value,
+) -> (Value, Vec<Value>) {
+    let mut next = request(socket, method, params).await;
+    let mut progress = Vec::new();
+    while next["type"] == "event" {
+        if next["method"]
+            .as_str()
+            .is_some_and(|method| method.ends_with("create.update"))
+        {
+            progress.push(next);
+        }
+        next = receive(socket).await;
+    }
+    (next, progress)
+}

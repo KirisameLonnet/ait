@@ -2,6 +2,8 @@
 
 use std::collections::BTreeSet;
 
+pub(crate) mod listing;
+
 use chrono::{SecondsFormat, Utc};
 use serde_json::Value;
 use server_domain::agent_runtime::{
@@ -56,8 +58,12 @@ fn list(directory: &AgentRuntimeDirectory, request: AgentListRequest) -> Result<
     {
         return Err(ErrorCode::InvalidMessage);
     }
-    if request.subscribe.is_some() || request.sync.is_some() {
+    if request.subscribe.is_some() {
         return Err(ErrorCode::UnsupportedCapability);
+    }
+    if let Some(cursor) = request.sync.clone() {
+        let snapshot = sync_snapshot(directory, request)?;
+        return synchronize(directory, snapshot, &cursor);
     }
     let query = query(
         request.filter,
@@ -73,6 +79,52 @@ fn list(directory: &AgentRuntimeDirectory, request: AgentListRequest) -> Result<
     encode(page(
         &directory.list(&query).map_err(|error| map_error(&error))?,
     ))
+}
+
+pub(crate) fn sync_snapshot(
+    directory: &AgentRuntimeDirectory,
+    request: AgentListRequest,
+) -> Result<Value, ErrorCode> {
+    if request.scope.as_deref() != Some("active") || request.filter.is_some() {
+        return Err(ErrorCode::InvalidMessage);
+    }
+    if request
+        .page
+        .as_ref()
+        .is_some_and(|page| !(1..=200).contains(&page.limit))
+    {
+        return Err(ErrorCode::InvalidMessage);
+    }
+    let query = query(None, request.sort, None, QueryScope::Active, None)?;
+    let entries = directory
+        .matching_entries(&query)
+        .map_err(|error| map_error(&error))?;
+    encode(AgentDirectoryResult {
+        entries: entries.iter().map(entry).collect(),
+        page_info: AgentPageInfo {
+            next_cursor: None,
+            prev_cursor: None,
+            has_more: false,
+        },
+    })
+}
+
+pub(crate) fn synchronize(
+    directory: &AgentRuntimeDirectory,
+    mut snapshot: Value,
+    cursor: &server_model::directory_sync::Cursor,
+) -> Result<Value, ErrorCode> {
+    let Value::Array(rows) = snapshot["entries"].take() else {
+        return Err(ErrorCode::AgentIo);
+    };
+    let rows = rows.into_iter().map(|row| {
+        let id = row["agent"]["id"].as_str().unwrap_or_default().to_owned();
+        (id, row)
+    });
+    let read = directory.sync.synchronize("agents", rows, cursor);
+    snapshot["entries"] = Value::Array(read.values);
+    snapshot["sync"] = encode(read.sync)?;
+    Ok(snapshot)
 }
 
 fn history(
@@ -237,15 +289,8 @@ fn query(
     search: Option<String>,
 ) -> Result<AgentDirectoryQuery, ErrorCode> {
     let filter = filter.unwrap_or_default();
-    let (offset, limit) = match page {
-        Some(page) if (1..=200).contains(&page.limit) => (
-            page.cursor
-                .as_deref()
-                .map(str::parse)
-                .transpose()
-                .map_err(|_| ErrorCode::InvalidMessage)?,
-            page.limit,
-        ),
+    let (cursor, limit) = match page {
+        Some(page) if (1..=200).contains(&page.limit) => (page.cursor, page.limit),
         Some(_) => return Err(ErrorCode::InvalidMessage),
         None => (None, 200),
     };
@@ -277,7 +322,7 @@ fn query(
             .into_iter()
             .map(application_sort)
             .collect(),
-        offset: offset.unwrap_or_default(),
+        cursor,
         limit,
     })
 }
@@ -286,8 +331,8 @@ fn page(page: &ApplicationPage) -> AgentDirectoryResult {
     AgentDirectoryResult {
         entries: page.entries.iter().map(entry).collect(),
         page_info: AgentPageInfo {
-            next_cursor: page.next_offset.map(|offset| offset.to_string()),
-            prev_cursor: page.previous_offset.map(|offset| offset.to_string()),
+            next_cursor: page.next_cursor.clone(),
+            prev_cursor: page.prev_cursor.clone(),
             has_more: page.has_more,
         },
     }

@@ -9,7 +9,7 @@ use tokio::net::TcpListener;
 /// Serve the API with `into_make_service_with_connect_info::<LocalAddress>()` so a
 /// wildcard bind accepts only the Host authority of the actual destination interface.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct LocalAddress(SocketAddr);
+pub struct LocalAddress(pub(super) SocketAddr, pub(super) SocketAddr);
 
 impl Connected<IncomingStream<'_, TcpListener>> for LocalAddress {
     fn connect_info(stream: IncomingStream<'_, TcpListener>) -> Self {
@@ -18,11 +18,18 @@ impl Connected<IncomingStream<'_, TcpListener>> for LocalAddress {
                 .io()
                 .local_addr()
                 .expect("accepted TCP socket has a local address"),
+            *stream.remote_addr(),
         )
     }
 }
 
 impl LocalAddress {
+    pub(super) fn is_loopback_peer(self) -> bool {
+        matches!(self.1.ip().to_canonical(),
+            std::net::IpAddr::V4(ip) if ip == std::net::Ipv4Addr::LOCALHOST)
+            || self.1.ip() == std::net::Ipv6Addr::LOCALHOST
+    }
+
     pub(super) fn authorities(self) -> Vec<String> {
         let address = SocketAddr::new(self.0.ip().to_canonical(), self.0.port());
         allowed_authorities(address)

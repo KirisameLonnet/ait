@@ -120,8 +120,8 @@ pub struct WorkspaceWorktreeSource {
     /// Explicit new branch name.
     #[serde(default, deserialize_with = "optional_nonempty_ref")]
     pub branch_name: Option<String>,
-    /// Forge checkout source, retained for an explicit unsupported response.
-    pub checkout_source: Option<Value>,
+    /// Forge change-request checkout source.
+    pub checkout_source: Option<super::worktree_source::ChangeRequestCheckoutSource>,
     /// Legacy positive GitHub pull request number.
     pub github_pr_number: Option<std::num::NonZeroU64>,
 }
@@ -231,13 +231,13 @@ fn optional_idempotency_key<'de, D: serde::Deserializer<'de>>(
     Ok(value)
 }
 
-/// Project list request; directory synchronization is reserved for its dedicated service.
+/// Project list request with optional latest-state synchronization.
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectListRequest {
     /// Paseo directory synchronization cursor, when requested.
     #[serde(default)]
-    pub sync: Option<Value>,
+    pub sync: Option<server_model::directory_sync::Cursor>,
 }
 
 /// Active project directory snapshot.
@@ -310,7 +310,7 @@ pub struct WorkspaceListFilter {
 }
 
 /// Workspace sort key.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WorkspaceSortKey {
     /// Runtime status ordering.
@@ -324,7 +324,7 @@ pub enum WorkspaceSortKey {
 }
 
 /// Sort direction.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SortDirection {
     /// Ascending order.
@@ -334,7 +334,7 @@ pub enum SortDirection {
 }
 
 /// One ordered workspace sort clause.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceSort {
     /// Field to compare.
@@ -381,7 +381,7 @@ pub struct WorkspaceListRequest {
     pub subscribe: Option<SubscriptionRequest>,
     /// Optional directory synchronization cursor.
     #[serde(default)]
-    pub sync: Option<Value>,
+    pub sync: Option<server_model::directory_sync::Cursor>,
 }
 
 /// Workspace page metadata.

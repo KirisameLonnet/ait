@@ -13,6 +13,8 @@ use server_metadata::ports::registry::{
 
 use super::*;
 
+mod activity;
+
 #[derive(Debug, Clone, Default)]
 struct Agents(
     Arc<Mutex<Vec<PersistedAgentRuntimeRecord>>>,

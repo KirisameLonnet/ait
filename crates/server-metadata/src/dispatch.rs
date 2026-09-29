@@ -31,6 +31,8 @@ pub struct State {
     pub session_events: crate::service::session::SessionEvents,
     /// Whether Agent attention event production is installed.
     pub has_agent_execution: bool,
+    /// Whether terminal hook attention events are installed.
+    pub has_terminals: bool,
 }
 
 impl std::ops::Deref for State {
@@ -125,9 +127,19 @@ pub async fn dispatch(
         }
         Group::Creation => crate::connection::creation::dispatch(context, state, connection).await,
         Group::Directory if context.request.method == "workspace.create.request" => {
-            crate::connection::creation::create(context, state, connection).await
+            crate::connection::creation::create(context, state).await
         }
         Group::Session => crate::connection::session::subscribe(context, state, connection),
+        Group::Directory
+            if context.request.method == "workspace.list.request"
+                && context
+                    .request
+                    .params
+                    .get("subscribe")
+                    .is_some_and(|subscribe| !subscribe.is_null()) =>
+        {
+            crate::connection::directory::subscribe(context, state, connection).await
+        }
         Group::Directory => {
             context
                 .rpc(

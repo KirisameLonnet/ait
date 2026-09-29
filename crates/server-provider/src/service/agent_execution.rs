@@ -12,11 +12,11 @@ use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 
 mod voice;
+pub(crate) mod waits;
 
 use crate::ports::agent_runtime::AgentRuntimeRegistry;
-use crate::protocol::agent_execution::WaitRequest;
 use crate::rpc::ErrorCode;
-use crate::rpc::agent_execution::{ExecutionState, only};
+use crate::rpc::agent_execution::ExecutionState;
 use crate::service::agent_manager::AgentManager;
 use crate::service::agent_runtime::AgentRuntimeDirectory;
 
@@ -34,11 +34,18 @@ pub struct ExecutionDependencies {
     pub projects: Box<dyn ProjectRegistry>,
     /// Optional metadata coordinator for opening imported session Workspaces.
     pub import_directory: Option<server_metadata::service::directory::Directory>,
+    /// Shared setup coordinator, started only after a worktree Agent is registered.
+    pub workspace_automation:
+        Option<Arc<Mutex<server_metadata::service::workspace_automation::WorkspaceAutomation>>>,
     /// Host resource guard, such as the data-directory lease.
     pub lifetime: Arc<dyn Send + Sync>,
 }
 
 enum Command {
+    ObserveWait {
+        identifier: String,
+        reply: oneshot::Sender<Result<waits::WaitObservation, ErrorCode>>,
+    },
     Request {
         method: String,
         params: Value,
@@ -54,6 +61,7 @@ struct Worker {
     events: SessionEvents,
     timeline: crate::storage::timeline::Timeline,
     creations: server_metadata::service::creation::Creations,
+    registry: Arc<dyn AgentRuntimeRegistry>,
 }
 
 // Field drop order keeps the instance lease until the runtime has reaped its children,
@@ -100,6 +108,8 @@ impl AgentExecution {
             .map_err(|_| std::io::Error::other("recover Agent titles"))?;
         let creations = dependencies.manager.creations();
         let events = dependencies.manager.events();
+        let registry: Arc<dyn AgentRuntimeRegistry> = dependencies.registry.into();
+        let worker_registry = registry.clone();
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()?;
@@ -114,10 +124,11 @@ impl AgentExecution {
                 let state = ExecutionState {
                     manager: dependencies.manager,
                     directory: dependencies.directory,
-                    registry: dependencies.registry,
+                    registry: worker_registry,
                     workspaces: dependencies.workspaces,
                     projects: dependencies.projects,
                     import_directory: dependencies.import_directory,
+                    workspace_automation: dependencies.workspace_automation,
                 };
                 owned.runtime.block_on(serve(state, receiver));
             })?;
@@ -127,7 +138,20 @@ impl AgentExecution {
             events,
             timeline,
             creations,
+            registry,
         })))
+    }
+
+    /// Check an exact durable identity without waiting behind native startup or input execution.
+    /// Includes archived/internal Agents; callers must perform this blocking read off the reactor.
+    /// # Errors
+    /// Returns a registry error when the identity cannot be read.
+    pub fn contains_identity(&self, id: &str) -> Result<bool, ErrorCode> {
+        self.0
+            .registry
+            .get(id)
+            .map(|record| record.is_some())
+            .map_err(|_| ErrorCode::AgentIo)
     }
 
     /// Return the installed durable timeline projection and its observers.
@@ -159,27 +183,7 @@ impl AgentExecution {
         if method != "agent.finish.wait.request" {
             return self.call(method, params).await;
         }
-        only(&params, &["agentId", "timeoutMs"])?;
-        let request: WaitRequest =
-            serde_json::from_value(params).map_err(|_| ErrorCode::InvalidMessage)?;
-        let timeout = request.timeout_ms.unwrap_or(30_000);
-        if timeout == 0 || timeout > 30_000 {
-            return Err(ErrorCode::InvalidMessage);
-        }
-        let deadline = tokio::time::Instant::now() + Duration::from_millis(timeout);
-        loop {
-            let mut result = self
-                .call(method, json!({"agentId":request.agent_id}))
-                .await?;
-            if result["status"] != "running" {
-                return Ok(result);
-            }
-            if tokio::time::Instant::now() >= deadline {
-                result["status"] = json!("timeout");
-                return Ok(result);
-            }
-            tokio::time::sleep(Duration::from_millis(25)).await;
-        }
+        self.wait(params).await
     }
 
     /// Drain accepted commands, close native children, and join the owning thread.
@@ -240,6 +244,9 @@ async fn serve(mut state: ExecutionState, mut commands: mpsc::Receiver<Command>)
             command = commands.recv() => match command {
                 Some(Command::Request { method, params, reply, cancel }) => {
                     voice::dispatch(&mut state, &method, params, (reply, cancel)).await;
+                }
+                Some(Command::ObserveWait { identifier, reply }) => {
+                    let _ = reply.send(state.observe_wait(&identifier));
                 }
                 Some(Command::Shutdown(reply)) => {
                     commands.close();

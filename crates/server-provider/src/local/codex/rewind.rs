@@ -12,7 +12,7 @@ impl CodexClient {
         message: &str,
     ) -> Result<SessionHistory, AgentSessionError> {
         super::validate(spec)?;
-        let mut transport = Transport::spawn(&self.program, &spec.cwd, self.deadline)?;
+        let mut transport = self.launch_transport(&spec.cwd, false)?;
         let result = async {
             transport.initialize().await?;
             rewind(&mut transport, id, spec, message, &self.images).await

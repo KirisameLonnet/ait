@@ -3,8 +3,8 @@
 use std::sync::{Arc, Mutex};
 
 use server_metadata::ports::worktrees::{
-    CreatedWorktreeWorkspace, WorktreeAction, WorktreeCreation, WorktreeCreationError,
-    WorktreeProvisioning,
+    CreatedWorktreeWorkspace, DirectoryGit, WorktreeAction, WorktreeCreation,
+    WorktreeCreationError, WorktreeProvisioning,
 };
 
 use super::{CreateAction, CreateWorktree, Worktrees, WorktreesError, is_active_project};
@@ -25,6 +25,54 @@ impl WorkspaceWorktrees {
 }
 
 impl WorktreeProvisioning for WorkspaceWorktrees {
+    fn prepare_directory(
+        &self,
+        cwd: &str,
+        intent: &DirectoryGit,
+    ) -> Result<(), WorktreeCreationError> {
+        let intent = match intent {
+            DirectoryGit::BranchOff { branch, base } => DirectoryGit::BranchOff {
+                branch: super::slugify(branch),
+                base: base.clone(),
+            },
+            DirectoryGit::Checkout { .. } => intent.clone(),
+        };
+        self.worktrees
+            .lock()
+            .map_err(|_| failure(&WorktreesError::Registry))?
+            .managed
+            .prepare_directory(cwd, &intent)
+            .map_err(|error| failure(&error.into()))
+    }
+
+    fn archive(&self, workspace_id: &str, timestamp: &str) -> Result<(), WorktreeCreationError> {
+        let worktrees = self
+            .worktrees
+            .lock()
+            .map_err(|_| failure(&WorktreesError::Registry))?;
+        let workspace = worktrees
+            .workspaces
+            .get(workspace_id)
+            .map_err(|_| failure(&WorktreesError::Registry))?
+            .ok_or_else(|| failure(&WorktreeError::NotAllowed.into()))?;
+        let owned = super::workspace_ownership(worktrees.managed.as_ref(), &workspace)
+            .ok_or_else(|| failure(&WorktreeError::NotAllowed.into()))?;
+        worktrees
+            .archive(
+                &super::ArchiveWorktree {
+                    worktree_path: Some(owned.path),
+                    repo_root: None,
+                    worktree_slug: None,
+                    branch_name: None,
+                    workspace_id: Some(workspace_id.to_owned()),
+                    scope: super::ArchiveScope::Workspace,
+                },
+                timestamp,
+            )
+            .map(|_| ())
+            .map_err(|error| failure(&error))
+    }
+
     fn create(
         &self,
         input: &WorktreeCreation,
@@ -74,7 +122,7 @@ impl WorktreeProvisioning for WorkspaceWorktrees {
                         WorktreeAction::BranchOff => CreateAction::BranchOff,
                         WorktreeAction::Checkout => CreateAction::Checkout,
                     },
-                    has_change_request_source: input.has_change_request_source,
+                    checkout_source: input.checkout_source.clone(),
                     first_agent_prompt: input.first_agent_prompt.clone(),
                     expects_initial_agent: input.expects_initial_agent,
                 },

@@ -96,6 +96,7 @@ fn state(root: &std::path::Path, fail: bool) -> (State, std::sync::Arc<Generator
         protocol: server_model::server::VERSION,
         capabilities: vec![],
         implemented_capabilities: vec![],
+        features: Vec::new(),
         limits: server_model::Limits::default(),
     }));
     let generator = Arc::new(Generator {

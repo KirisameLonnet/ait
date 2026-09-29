@@ -64,7 +64,7 @@ impl Fixture {
 }
 
 #[tokio::test]
-async fn oversized_before_cursor_clamps_to_tail_while_incremental_gap_requests_reset() {
+async fn oversized_before_cursor_clamps_to_tail_while_future_after_cursor_is_empty() {
     let mut fixture = Fixture::start().await;
     let page = request(
         &mut fixture.client,
@@ -81,10 +81,11 @@ async fn oversized_before_cursor_clamps_to_tail_while_incremental_gap_requests_r
     assert_eq!(before["result"]["entries"].as_array().unwrap().len(), 1);
     assert_eq!(before["result"]["endCursor"]["seq"], newest);
     let after = request(&mut fixture.client, "agent.timeline.get.request", json!({"agentId":fixture.agent,"cursor":{"epoch":epoch,"seq":newest+100},"direction":"after","limit":1})).await;
-    assert_eq!(after["result"]["reset"], true);
-    assert_eq!(after["result"]["gap"], true);
+    assert_eq!(after["result"]["reset"], false);
+    assert_eq!(after["result"]["gap"], false);
     assert_eq!(after["result"]["staleCursor"], false);
-    assert_eq!(after["result"]["endCursor"]["seq"], newest);
+    assert_eq!(after["result"]["entries"], json!([]));
+    assert!(after["result"]["endCursor"].is_null());
     fixture.stop().await;
 }
 

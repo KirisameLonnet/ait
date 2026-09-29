@@ -1,5 +1,10 @@
 # 概念与架构文档
 
+- [ADR-065：Paseo 目录、时间线与会话 API 兼容行为](decisions/adr-065-paseo-directory-and-timeline-projections.md)：
+  ICU keyset 游标、目录同步订阅、Workspace/终端活动、时间线投影、恢复、会话事件、归档清理、PR 检出及初始 Agent 创建；
+  [逐接口对照与验证](reports/paseo-server-api-audit-2026-09-29.md)、
+  [PR 提交前完整验证](reports/paseo-server-pr-validation-2026-09-29.md)。
+
 - [Ait 0.0.9 发布说明](reports/release-0.0.9.md)：离线语音、终端和文件读取修复，升级说明与发布验证。
 
 - [ADR-064：默认离线语音与模型准备](decisions/adr-064-offline-speech.md)：Sherpa ONNX、后台模型准备、隔离推理与现有 Provider 配置兼容；[验证报告](reports/desktop-speech-terminal.md)。

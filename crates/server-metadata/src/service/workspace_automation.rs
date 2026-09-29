@@ -46,6 +46,18 @@ pub struct WorkspaceAutomation {
 }
 
 impl WorkspaceAutomation {
+    /// Retire process resources by Workspace identity, including already archived retry targets.
+    /// # Errors
+    /// Returns runtime cleanup failures without dropping the remaining process ownership.
+    pub fn close_workspaces(
+        &self,
+        workspace_ids: &[String],
+    ) -> Result<(), WorkspaceAutomationServiceError> {
+        self.runtime
+            .close_workspaces(workspace_ids)
+            .map_err(Into::into)
+    }
+
     /// Compose the independent registry and process runtime.
     #[must_use]
     pub fn new(

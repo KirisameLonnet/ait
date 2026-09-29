@@ -7,8 +7,10 @@ use chrono::{DateTime, Duration, SecondsFormat, Utc};
 use server_domain::agent_runtime::{
     AgentAttentionReason, AgentRuntimeStatus, PersistedAgentRuntimeRecord,
 };
+use server_metadata::model::workspace_activity::WorkspaceStateBucket;
 use server_metadata::ports::workspace_state::{
-    WorkspaceAttention, WorkspaceAttentionChanges, WorkspaceAttentionScan, WorkspaceStateError,
+    WorkspaceActivity, WorkspaceActivitySource, WorkspaceAttention, WorkspaceAttentionChanges,
+    WorkspaceAttentionScan, WorkspaceStateError,
 };
 
 use crate::ports::agent_runtime::{AgentRuntimeRegistry, AgentRuntimeRegistryError};
@@ -19,13 +21,103 @@ const PARENT_AGENT_ID_LABEL: &str = "paseo.parent-agent-id";
 #[derive(Debug)]
 pub struct AgentWorkspaceAttention {
     agents: Box<dyn AgentRuntimeRegistry>,
+    timeline: Option<crate::storage::timeline::Timeline>,
 }
 
 impl AgentWorkspaceAttention {
     /// Wrap the shared Agent registry without introducing another cache or writer.
     #[must_use]
     pub fn new(agents: Box<dyn AgentRuntimeRegistry>) -> Self {
-        Self { agents }
+        Self {
+            agents,
+            timeline: None,
+        }
+    }
+
+    /// Include running native children from the same timeline used by Agent execution.
+    #[must_use]
+    pub fn with_timeline(mut self, timeline: crate::storage::timeline::Timeline) -> Self {
+        self.timeline = Some(timeline);
+        self
+    }
+}
+
+impl WorkspaceActivitySource for AgentWorkspaceAttention {
+    fn snapshot(&self) -> Result<Vec<WorkspaceActivity>, WorkspaceStateError> {
+        let agents = self.agents.list().map_err(map_agent_error)?;
+        let by_id = agents
+            .iter()
+            .filter(|agent| !agent.internal && !is_archived(agent.archived_at.as_deref()))
+            .map(|agent| (agent.id.as_str(), agent))
+            .collect::<BTreeMap<_, _>>();
+        let mut activity: Vec<_> = by_id
+            .values()
+            .filter_map(|agent| {
+                let root_id = workspace_root_id(agent, &by_id)?;
+                let root = by_id.get(root_id)?;
+                let is_root = root_id == agent.id;
+                if !is_root && agent.last_status != AgentRuntimeStatus::Running {
+                    return None;
+                }
+                let bucket = if is_root {
+                    agent_bucket(agent)
+                } else {
+                    WorkspaceStateBucket::Running
+                };
+                Some(WorkspaceActivity {
+                    workspace_id: root.workspace_id.clone()?,
+                    bucket,
+                    changed_at: Some(
+                        agent
+                            .attention_timestamp
+                            .as_deref()
+                            .unwrap_or_else(|| effective_timestamp(agent))
+                            .to_owned(),
+                    ),
+                })
+            })
+            .collect();
+        if let Some(timeline) = &self.timeline {
+            for (parent, changed_at) in timeline
+                .running_subagent_activity()
+                .map_err(|_| WorkspaceStateError::AgentRegistry)?
+            {
+                let Some(agent) = by_id.get(parent.as_str()) else {
+                    continue;
+                };
+                let Some(root_id) = workspace_root_id(agent, &by_id) else {
+                    continue;
+                };
+                let Some(workspace_id) = by_id
+                    .get(root_id)
+                    .and_then(|root| root.workspace_id.as_ref())
+                else {
+                    continue;
+                };
+                activity.push(WorkspaceActivity {
+                    workspace_id: workspace_id.clone(),
+                    bucket: WorkspaceStateBucket::Running,
+                    changed_at,
+                });
+            }
+        }
+        Ok(activity)
+    }
+}
+
+fn agent_bucket(agent: &PersistedAgentRuntimeRecord) -> WorkspaceStateBucket {
+    if agent.attention_reason == Some(AgentAttentionReason::Permission) {
+        WorkspaceStateBucket::NeedsInput
+    } else if agent.last_status == AgentRuntimeStatus::Error
+        || agent.attention_reason == Some(AgentAttentionReason::Error)
+    {
+        WorkspaceStateBucket::Failed
+    } else if agent.last_status == AgentRuntimeStatus::Running {
+        WorkspaceStateBucket::Running
+    } else if agent.requires_attention {
+        WorkspaceStateBucket::Attention
+    } else {
+        WorkspaceStateBucket::Done
     }
 }
 

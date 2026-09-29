@@ -7,7 +7,7 @@ use crate::Error;
 use crate::protocol::{Input, Restore, Size};
 
 /// Validated process launch parameters.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Launch {
     /// Canonical working directory.
     pub cwd: String,
@@ -19,6 +19,17 @@ pub struct Launch {
     pub size: Size,
     /// Workspace-specific environment overrides.
     pub env: BTreeMap<String, String>,
+}
+
+impl std::fmt::Debug for Launch {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Launch")
+            .field("cwd", &self.cwd)
+            .field("command", &self.command)
+            .field("size", &self.size)
+            .finish_non_exhaustive()
+    }
 }
 
 /// Atomic screen/output observation at one revision.

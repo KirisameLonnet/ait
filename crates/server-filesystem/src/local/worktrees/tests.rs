@@ -2,6 +2,9 @@ use std::process::Command;
 
 use super::*;
 
+#[cfg(unix)]
+mod change_request;
+mod directory;
 mod paseo;
 
 struct Fixture {
@@ -188,6 +191,7 @@ fn checkout_unknown_branch_has_stable_error_and_checked_out_branch_is_copied() {
         })
         .expect("copy checked-out branch");
     assert_eq!(copied.branch_name, "main-1");
+    assert_eq!(copied.comparison_base_ref.as_deref(), Some("main"));
 }
 
 #[test]

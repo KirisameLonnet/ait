@@ -30,7 +30,7 @@ pub(super) fn compose(
     data: &Path,
     execution: AgentExecution,
     directory: Directory,
-    worktrees: Worktrees,
+    worktrees: Arc<Mutex<Worktrees>>,
 ) -> anyhow::Result<Schedules> {
     let data = data
         .canonicalize()
@@ -59,7 +59,7 @@ pub(super) fn compose(
         Arc::new(AgentRunner {
             execution,
             directory,
-            worktrees: Arc::new(Mutex::new(worktrees)),
+            worktrees,
         }),
     )
     .context("start schedule worker")
@@ -157,7 +157,7 @@ impl AgentRunner {
                             worktree_slug: None,
                             ref_name: None,
                             action: CreateAction::BranchOff,
-                            has_change_request_source: false,
+                            checkout_source: None,
                             first_agent_prompt: Some(prompt),
                             expects_initial_agent: true,
                         },

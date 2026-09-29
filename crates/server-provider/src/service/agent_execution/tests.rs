@@ -1,4 +1,10 @@
 use super::*;
+
+mod auto_archive;
+mod environment;
+mod placement;
+mod resume;
+mod waits;
 use crate::ports::agent_runtime::AgentRuntimeRegistry;
 use crate::storage::agent_runtime::FileBackedAgentRuntimeRegistry;
 use crate::test_support::Fixture;
@@ -182,6 +188,16 @@ async fn assert_configuration_after_restart(fixture: &Fixture, id: &str) {
 }
 
 fn worker(fixture: &Fixture) -> (AgentExecution, FileBackedAgentRuntimeRegistry) {
+    worker_with_creations(
+        fixture,
+        server_metadata::service::creation::Creations::default(),
+    )
+}
+
+fn worker_with_creations(
+    fixture: &Fixture,
+    creations: server_metadata::service::creation::Creations,
+) -> (AgentExecution, FileBackedAgentRuntimeRegistry) {
     let registry = FileBackedAgentRuntimeRegistry::new(fixture.root.path().join("agents.json"));
     registry.initialize().unwrap();
     let projects = FileBackedProjectRegistry::new(fixture.root.path().join("projects.json"));
@@ -203,12 +219,15 @@ fn worker(fixture: &Fixture) -> (AgentExecution, FileBackedAgentRuntimeRegistry)
             server_metadata::ports::registry::WorkspaceMutationContext::default(),
         )
         .unwrap();
-    let mut manager = AgentManager::new(Box::new(registry.clone())).with_timeline(
-        crate::storage::timeline::Timeline::open(&fixture.root.path().join("timeline.sqlite"))
-            .unwrap(),
-    );
+    let mut manager = AgentManager::new(Box::new(registry.clone()))
+        .with_creations(creations)
+        .with_timeline(
+            crate::storage::timeline::Timeline::open(&fixture.root.path().join("timeline.sqlite"))
+                .unwrap(),
+        );
     manager.register_client(Box::new(fixture.client())).unwrap();
     let worker = AgentExecution::spawn(ExecutionDependencies {
+        workspace_automation: None,
         manager,
         directory: AgentRuntimeDirectory::new(
             Box::new(registry.clone()),
@@ -338,7 +357,7 @@ async fn worker_runs_cancels_waits_and_restores_durable_native_identity() {
 }
 
 #[tokio::test]
-async fn archive_delete_and_history_resume_never_leave_a_writer_or_resurrect_records() {
+async fn explicit_resume_reactivates_archived_agents_and_delete_does_not_resurrect_them() {
     let fixture = Fixture::new();
     let (execution, registry) = worker(&fixture);
     let created = create(&execution, &fixture).await;
@@ -363,15 +382,28 @@ async fn archive_delete_and_history_resume_never_leave_a_writer_or_resurrect_rec
         )
         .await
         .unwrap();
-    let rejected = execution
+    assert!(registry.get(id).unwrap().unwrap().archived_at.is_none());
+    assert!(
+        fixture
+            .requests()
+            .iter()
+            .any(|request| request["method"] == "thread/resume")
+    );
+    let accepted = execution
         .execute(
             "agent.message.send.request",
-            json!({"agentId":id,"text":"no"}),
+            json!({"agentId":id,"text":"restored"}),
         )
         .await
         .unwrap();
-    assert_eq!(rejected["accepted"], false);
-    assert_eq!(fixture.requests().last().unwrap()["method"], "thread/read");
+    assert_eq!(accepted["accepted"], true);
+    assert_eq!(
+        execution
+            .execute("agent.finish.wait.request", json!({"agentId":id}))
+            .await
+            .unwrap()["lastMessage"],
+        "Echo: restored"
+    );
     execution
         .execute("agent.delete.request", json!({"agentId":id}))
         .await

@@ -181,6 +181,10 @@ impl AgentManager {
         if let Some(timeline) = &self.timeline {
             timeline.events().publish(id,"agent_stream",&json!({"agentId":id,"event":{"type":"permission_resolved","provider":agent.record.provider,"requestId":request,"resolution":response}}));
         }
+        self.events.publish(
+            server_metadata::protocol::session::SessionEventKind::AgentPermissionResolved,
+            &json!({"agentId":id,"requestId":request,"resolution":response}),
+        );
         Ok(())
     }
 
@@ -467,6 +471,10 @@ pub(super) fn publish_permission(
         timeline.events().publish(id,"agent_stream",&json!({"agentId":id,"event":{"type":"permission_requested","provider":agent.record.provider,"request":request}}));
     }
     events.publish(
+        server_metadata::protocol::session::SessionEventKind::AgentPermissionRequest,
+        &json!({"agentId":id,"request":request}),
+    );
+    events.publish(
         server_metadata::protocol::session::SessionEventKind::AgentAttention,
         &json!({"agentId":id,"reason":"permission","timestamp":now}),
     );
@@ -476,6 +484,7 @@ pub(super) fn publish_permission(
 pub(super) fn resolve_permission(
     registry: &dyn crate::ports::agent_runtime::AgentRuntimeRegistry,
     timeline: Option<&crate::storage::timeline::Timeline>,
+    events: &server_metadata::service::session::SessionEvents,
     agent: &super::LiveAgent,
     request: &str,
 ) -> Result<(), super::AgentManagerError> {
@@ -504,11 +513,17 @@ pub(super) fn resolve_permission(
             "resolution":{"behavior":"deny","message":"Resolved by native provider"}}}),
         );
     }
+    events.publish(
+        server_metadata::protocol::session::SessionEventKind::AgentPermissionResolved,
+        &json!({"agentId":id,"requestId":request,
+            "resolution":{"behavior":"deny","message":"Resolved by native provider"}}),
+    );
     Ok(())
 }
 
 pub(super) fn publish_subagent(
     timeline: Option<&crate::storage::timeline::Timeline>,
+    events: &server_metadata::service::session::SessionEvents,
     agent: &super::LiveAgent,
     event: &crate::ports::controls::SubagentEvent,
 ) -> Result<(), ErrorCode> {
@@ -539,6 +554,10 @@ pub(super) fn publish_subagent(
                 "agent.provider_subagents.update",
                 &json!({"kind":"upsert","subagent":descriptor}),
             );
+            events.publish(
+                server_metadata::protocol::session::SessionEventKind::ProviderSubagents,
+                &json!({"kind":"upsert","subagent":descriptor}),
+            );
             Ok(())
         }
         SubagentEvent::Progress {
@@ -552,11 +571,13 @@ pub(super) fn publish_subagent(
 
 pub(super) fn publish_children(
     timeline: Option<&crate::storage::timeline::Timeline>,
+    events: &server_metadata::service::session::SessionEvents,
     agent: &super::LiveAgent,
 ) -> Result<(), super::AgentManagerError> {
     for child in agent.session.subagents() {
         publish_subagent(
             timeline,
+            events,
             agent,
             &crate::ports::controls::SubagentEvent::Upsert(child),
         )

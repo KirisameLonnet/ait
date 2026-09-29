@@ -1,5 +1,6 @@
 //! Independent PTY terminal protocol, application service, and local process adapter.
 
+pub mod activity;
 pub mod capabilities;
 pub mod dispatch;
 pub mod local;

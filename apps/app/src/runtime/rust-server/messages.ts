@@ -19,6 +19,12 @@ export function rpcError(
 // Only advertise behavior supported by this adapter AND the Rust implementation.
 export function serverInfo(info: Payload, implemented: Set<string>): Payload {
   const has = (method: string) => implemented.has(method);
+  const supportsDirectories = [
+    "project.list.request",
+    "workspace.list.request",
+    "agent.list.request",
+  ].every(has);
+  const features = new Set(Array.isArray(info.features) ? info.features : []);
   return session("status", {
     status: "server_info",
     serverId: info.server_id,
@@ -30,6 +36,16 @@ export function serverInfo(info: Payload, implemented: Set<string>): Payload {
       ...(has("daemon.config.get.request") ? ["status.daemon_config_changed"] : []),
       ...(has("provider.snapshot.get.request")
         ? ["providers_snapshot_update", "agent_attention_required"]
+        : []),
+      ...(features.has("terminal-activity-v1") && has("terminal.list.request")
+        ? ["terminal_attention_required"]
+        : []),
+      ...(features.has("agent-session-events-v1") && has("agent.permission.resolve.request")
+        ? [
+            "agent_permission_request",
+            "agent_permission_resolved",
+            "agent.provider_subagents.update",
+          ]
         : []),
     ],
     features: {
@@ -62,9 +78,11 @@ export function serverInfo(info: Payload, implemented: Set<string>): Payload {
       agentDetach: has("agent.detach.request"),
       agentTimelinePromptIndex: has("agent.timeline.list_prompts.request"),
       rewind: has("agent.rewind.request"),
-      // Rust directories support snapshots, but not owned directory streams.
-      directorySync: false,
-      directorySubscriptions: false,
+      directorySync: supportsDirectories && features.has("directory-sync-v1"),
+      directorySubscriptions:
+        supportsDirectories &&
+        has("subscription.release.request") &&
+        features.has("directory-subscriptions-v1"),
       daemonPairing: false,
       providerConfiguration: false,
       projectList: has("project.list.request"),
@@ -79,9 +97,14 @@ export function serverInfo(info: Payload, implemented: Set<string>): Payload {
         has("daemon.config.get.request") &&
         has("daemon.config.set.request") &&
         has("agent.config.apply.request"),
-      creationLifecycle: false,
-      agentRequestReceipts: false,
-      workspaceRequestReceipts: false,
+      creationLifecycle:
+        features.has("creation-lifecycle-v1") &&
+        has("agent.create.request") &&
+        has("workspace.create.request") &&
+        has("creation.subscribe.request"),
+      agentRequestReceipts: features.has("creation-lifecycle-v1") && has("agent.create.request"),
+      workspaceRequestReceipts:
+        features.has("creation-lifecycle-v1") && has("workspace.create.request"),
       projectedSubagentTimeline: has("agent.provider_subagents.timeline.get.request"),
     },
   });

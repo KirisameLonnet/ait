@@ -67,3 +67,49 @@ pub async fn close_many(state: &State, ids: Vec<String>) -> Result<serde_json::V
     })
     .await
 }
+
+/// Apply a local HTTP activity report under the same bounded terminal admission as RPC calls.
+/// # Errors
+/// Returns shutdown, admission, or native terminal errors.
+pub async fn report_activity(
+    state: &State,
+    terminal_id: String,
+    token: secrecy::SecretString,
+    activity: crate::activity::ReportState,
+) -> Result<bool, ErrorCode> {
+    use secrecy::ExposeSecret;
+    crate::connection::run(state, move |terminals| {
+        terminals.report_activity(&terminal_id, token.expose_secret(), activity)
+    })
+    .await
+}
+
+/// Clear focused-terminal attention after the metadata owner validates a visible heartbeat.
+/// # Errors
+/// Returns shutdown or admission errors; absent terminal services are ignored.
+pub async fn clear_attention(state: &State, terminal_id: String) -> Result<(), ErrorCode> {
+    if state.terminals.is_none() {
+        return Ok(());
+    }
+    crate::connection::run(state, move |terminals| {
+        terminals.clear_attention(&terminal_id);
+        Ok(())
+    })
+    .await
+}
+
+/// Close processes whose Workspace or Project was archived before checkout removal.
+/// # Errors
+/// Returns admission, registry, or native cleanup failures while retaining failed ownership.
+pub async fn reconcile_workspaces(
+    state: &State,
+    workspace_ids: Vec<String>,
+) -> Result<(), ErrorCode> {
+    if state.terminals.is_none() {
+        return Ok(());
+    }
+    crate::connection::run(state, move |terminals| {
+        terminals.close_workspaces(&workspace_ids)
+    })
+    .await
+}

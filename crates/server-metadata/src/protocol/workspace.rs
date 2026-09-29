@@ -43,25 +43,7 @@ pub enum WorkspaceKind {
     Worktree,
 }
 
-/// Paseo `WorkspaceStateBucket` values; legacy wire variants remain accepted.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum WorkspaceStateBucket {
-    /// Serialized as `needs_input`.
-    #[serde(rename = "needs_input")]
-    NeedsInput,
-    /// Serialized as `failed`.
-    #[serde(rename = "failed")]
-    Failed,
-    /// Serialized as `running`.
-    #[serde(rename = "running")]
-    Running,
-    /// Serialized as `attention`.
-    #[serde(rename = "attention")]
-    Attention,
-    /// Serialized as `done`.
-    #[serde(rename = "done")]
-    Done,
-}
+pub use crate::model::workspace_activity::WorkspaceStateBucket;
 
 /// Paseo `WorkspaceScriptType` values; legacy wire variants remain accepted.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

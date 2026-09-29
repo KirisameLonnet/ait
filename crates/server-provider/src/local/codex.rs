@@ -37,9 +37,27 @@ pub struct CodexClient {
     deadline: Duration,
     capabilities: std::sync::Arc<std::sync::atomic::AtomicU8>,
     images: super::images::ImageStore,
+    environment: crate::ports::environment::AgentEnvironment,
 }
 
 impl CodexClient {
+    fn launch_transport(&self, cwd: &str, goals: bool) -> Result<Transport, AgentSessionError> {
+        if self.environment.is_empty() {
+            return if goals {
+                Transport::spawn_with_goals(&self.program, cwd, self.deadline, true)
+            } else {
+                Transport::spawn(&self.program, cwd, self.deadline)
+            };
+        }
+        Transport::spawn_with_environment(
+            &self.program,
+            cwd,
+            self.deadline,
+            goals,
+            &self.environment,
+        )
+    }
+
     /// Use `program` directly without invoking a shell. Requests have a ten-second deadline.
     #[must_use]
     pub fn new(program: PathBuf) -> Self {
@@ -48,6 +66,7 @@ impl CodexClient {
             deadline: Duration::from_secs(10),
             capabilities: std::sync::Arc::default(),
             images: super::images::ImageStore::default(),
+            environment: crate::ports::environment::AgentEnvironment::default(),
         }
     }
 
@@ -77,14 +96,13 @@ impl CodexClient {
         resume: Option<(&AgentPersistenceHandle, AgentResumePurpose)>,
     ) -> Result<Box<dyn AgentSession>, AgentSessionError> {
         self.validate_remote(spec).await?;
-        let mut transport = Transport::spawn(&self.program, &spec.cwd, self.deadline)?;
+        let mut transport = self.launch_transport(&spec.cwd, false)?;
         let result = async {
             transport.initialize().await?;
             self.inspect_workflows(&mut transport).await?;
             if self.goals() {
                 transport.close().await?;
-                transport =
-                    Transport::spawn_with_goals(&self.program, &spec.cwd, self.deadline, true)?;
+                transport = self.launch_transport(&spec.cwd, true)?;
                 transport.initialize().await?;
             }
             let history = resume.is_some_and(|(_, purpose)| purpose == AgentResumePurpose::History);
@@ -172,6 +190,16 @@ impl CodexClient {
 }
 
 impl AgentClient for CodexClient {
+    fn create_session_with_environment<'a>(
+        &'a self,
+        spec: &'a AgentSessionSpec,
+        environment: &'a crate::ports::environment::AgentEnvironment,
+    ) -> AgentSessionFuture<'a, Box<dyn AgentSession>> {
+        let mut client = self.clone();
+        client.environment = environment.clone();
+        Box::pin(async move { client.open(spec, None).await })
+    }
+
     fn generate_metadata<'a>(
         &'a self,
         spec: &'a AgentSessionSpec,
@@ -211,6 +239,28 @@ impl AgentClient for CodexClient {
         json!({"availableModes":self.modes(),"features":self.features(config),
             "capabilities":{"supportsDynamicModes":true,"supportsRewindConversation":true,"supportsMcpServers":true,
                 "supportsStreaming":true,"supportsReasoningStream":true,"supportsSessionListing":true}})
+    }
+
+    fn draft_features<'a>(
+        &'a self,
+        spec: &'a AgentSessionSpec,
+    ) -> AgentSessionFuture<'a, Vec<Value>> {
+        Box::pin(async move {
+            let Some(model) = &spec.config.model else {
+                return Ok(Vec::new());
+            };
+            if !self.is_available().await? {
+                return Err(AgentSessionError::Unavailable);
+            }
+            let catalog = self.discover_native(&spec.cwd).await?;
+            let fast_available = catalog
+                .models
+                .iter()
+                .any(|entry| entry["id"] == *model && entry["supportsFastMode"] == true);
+            let mut features = self.features(&spec.config);
+            features.retain(|feature| feature["id"] != "fast_mode" || fast_available);
+            Ok(features)
+        })
     }
 
     fn validate_selection<'a>(&'a self, spec: &'a AgentSessionSpec) -> AgentSessionFuture<'a, ()> {
@@ -512,12 +562,9 @@ impl CodexSession {
         }
         // Thread-level MCP/config changes require a new native process; resuming an
         // already-loaded thread can return its cached configuration unchanged.
-        let mut transport = Transport::spawn_with_goals(
-            &self.client.program,
-            &self.cwd,
-            self.client.deadline,
-            self.client.goals(),
-        )?;
+        let mut transport = self
+            .client
+            .launch_transport(&self.cwd, self.client.goals())?;
         let result = async {
             transport.initialize().await?;
             let (approval, sandbox, _) = controls::policy(config);

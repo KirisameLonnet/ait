@@ -1,5 +1,7 @@
 //! Bounded GitHub CLI adapter for forge search and pull request operations.
 
+mod worktree_checkout;
+
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
@@ -76,7 +78,7 @@ impl LocalForge {
     }
 
     #[cfg(test)]
-    fn with_executable(executable: PathBuf) -> Self {
+    pub(crate) fn with_executable(executable: PathBuf) -> Self {
         Self { executable }
     }
 

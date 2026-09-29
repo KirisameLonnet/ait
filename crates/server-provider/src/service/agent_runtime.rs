@@ -1,6 +1,5 @@
 //! Durable Paseo Agent runtime directory and metadata lifecycle use cases.
 
-use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::DateTime;
@@ -11,8 +10,12 @@ use server_metadata::model::registry::{
     PersistedProjectKind, PersistedProjectRecord, PersistedWorkspaceKind, PersistedWorkspaceRecord,
 };
 use server_metadata::ports::registry::{ProjectRegistry, RegistryError, WorkspaceRegistry};
+use server_model::pagination::{self, Direction, Entry, Sort, SortValue};
 
 use crate::ports::agent_runtime::{AgentRuntimeRegistry, AgentRuntimeRegistryError};
+
+pub(crate) mod archive;
+mod search;
 
 const PARENT_AGENT_ID_LABEL: &str = "paseo.parent-agent-id";
 const OPEN_AGENT_TAB_LABEL_PREFIX: &str = "paseo.open-agent-tab.";
@@ -70,8 +73,8 @@ pub struct AgentDirectoryQuery {
     pub search: Option<String>,
     /// Ordered sort fields.
     pub sort: Vec<AgentSort>,
-    /// Zero-based page offset decoded from the wire cursor.
-    pub offset: usize,
+    /// Opaque keyset boundary from the preceding page.
+    pub cursor: Option<String>,
     /// Requested page size.
     pub limit: usize,
 }
@@ -115,10 +118,10 @@ pub struct AgentDirectoryEntry {
 pub struct AgentDirectoryPage {
     /// Matching rows.
     pub entries: Vec<AgentDirectoryEntry>,
-    /// Offset for the next page.
-    pub next_offset: Option<usize>,
-    /// Offset used for this page.
-    pub previous_offset: Option<usize>,
+    /// Keyset cursor for the next page.
+    pub next_cursor: Option<String>,
+    /// Cursor used for this page.
+    pub prev_cursor: Option<String>,
     /// Whether another matching page exists.
     pub has_more: bool,
 }
@@ -170,6 +173,7 @@ pub enum AgentRuntimeError {
 /// Durable Agent runtime directory independent of provider execution.
 #[derive(Debug)]
 pub struct AgentRuntimeDirectory {
+    pub(crate) sync: server_model::directory_sync::DirectorySync,
     agents: Box<dyn AgentRuntimeRegistry>,
     workspaces: Box<dyn WorkspaceRegistry>,
     projects: Box<dyn ProjectRegistry>,
@@ -184,10 +188,23 @@ impl AgentRuntimeDirectory {
         projects: Box<dyn ProjectRegistry>,
     ) -> Self {
         Self {
+            sync: server_model::directory_sync::DirectorySync::new(
+                uuid::Uuid::new_v4().to_string(),
+            ),
             agents,
             workspaces,
             projects,
         }
+    }
+
+    /// Use the host's shared directory generation and collection checkpoints.
+    #[must_use]
+    pub fn with_directory_sync(
+        mut self,
+        sync: server_model::directory_sync::DirectorySync,
+    ) -> Self {
+        self.sync = sync;
+        self
     }
 
     /// List active Agent directory rows.
@@ -210,6 +227,17 @@ impl AgentRuntimeDirectory {
         query: &AgentDirectoryQuery,
     ) -> Result<AgentDirectoryPage, AgentRuntimeError> {
         self.query(query)
+    }
+
+    /// Check whether an exact identity is occupied, including internal and archived Agents.
+    /// This creation guard does not apply user-facing prefix or title resolution.
+    /// # Errors
+    /// Returns a registry error when the identity cannot be checked.
+    pub fn contains_identity(&self, id: &str) -> Result<bool, AgentRuntimeError> {
+        self.agents
+            .get(id)
+            .map(|agent| agent.is_some())
+            .map_err(map_agent_registry)
     }
 
     /// Resolve a full ID, unique ID prefix, or exact full title.
@@ -286,17 +314,18 @@ impl AgentRuntimeDirectory {
         agent_id: &str,
         archived_at: &str,
     ) -> Result<PersistedAgentRuntimeRecord, AgentRuntimeError> {
-        let current = self
-            .agents
-            .get(agent_id)
-            .map_err(map_agent_registry)?
-            .ok_or_else(|| AgentRuntimeError::NotFound(agent_id.to_owned()))?;
-        if current.archived_at.is_some() {
-            return Ok(current);
-        }
-        let archived = self.archive_one(agent_id, archived_at)?;
-        self.archive_children(&archived, archived_at)?;
-        Ok(archived)
+        archive::archive(self.agents.as_ref(), agent_id, archived_at)
+    }
+
+    /// Archive all Agents in the selected Workspace, retaining cross-Workspace descendants.
+    /// # Errors
+    /// Returns registry failures after any previously committed Agent updates.
+    pub fn archive_workspaces(
+        &self,
+        workspace_ids: &[String],
+        archived_at: &str,
+    ) -> Result<Vec<String>, AgentRuntimeError> {
+        archive::archive_workspaces(self.agents.as_ref(), workspace_ids, archived_at)
     }
 
     /// Permanently remove one Agent snapshot.
@@ -346,37 +375,23 @@ impl AgentRuntimeDirectory {
         agent_id: &str,
         updated_at: &str,
     ) -> Result<PersistedAgentRuntimeRecord, AgentRuntimeError> {
-        let current = self
-            .agents
-            .get(agent_id)
-            .map_err(map_agent_registry)?
-            .ok_or_else(|| AgentRuntimeError::NotFound(agent_id.to_owned()))?;
-        let has_parent = current
-            .labels
-            .get(PARENT_AGENT_ID_LABEL)
-            .is_some_and(|parent| !parent.trim().is_empty());
-        if !has_parent {
-            return Ok(current);
-        }
-        self.agents
-            .update(agent_id, &|current| {
-                let mut next = current.clone();
-                next.labels.remove(PARENT_AGENT_ID_LABEL);
-                next.labels
-                    .retain(|label, _| !label.starts_with(OPEN_AGENT_TAB_LABEL_PREFIX));
-                updated_at.clone_into(&mut next.updated_at);
-                next
-            })
-            .map_err(map_agent_registry)?
-            .ok_or_else(|| AgentRuntimeError::NotFound(agent_id.to_owned()))
+        archive::detach(self.agents.as_ref(), agent_id, updated_at)
     }
 
     fn query(&self, query: &AgentDirectoryQuery) -> Result<AgentDirectoryPage, AgentRuntimeError> {
         if !(1..=DEFAULT_PAGE_LIMIT).contains(&query.limit) {
             return Err(AgentRuntimeError::InvalidRequest);
         }
+        Self::paginate(self.matching_entries(query)?, query)
+    }
+
+    pub(crate) fn matching_entries(
+        &self,
+        query: &AgentDirectoryQuery,
+    ) -> Result<Vec<AgentDirectoryEntry>, AgentRuntimeError> {
         let placements = self.placements()?;
-        let mut entries = self
+        let search = search::Query::new(query.search.as_deref().unwrap_or_default());
+        Ok(self
             .public_records()?
             .into_iter()
             .filter(|record| query.include_archived || record.archived_at.is_none())
@@ -384,8 +399,14 @@ impl AgentRuntimeDirectory {
                 let placement = placements.get(agent.workspace_id.as_deref()?)?.clone();
                 Some(AgentDirectoryEntry { agent, placement })
             })
-            .filter(|entry| matches_query(entry, query))
-            .collect::<Vec<_>>();
+            .filter(|entry| matches_query(entry, query, &search))
+            .collect::<Vec<_>>())
+    }
+
+    pub(crate) fn paginate(
+        entries: Vec<AgentDirectoryEntry>,
+        query: &AgentDirectoryQuery,
+    ) -> Result<AgentDirectoryPage, AgentRuntimeError> {
         let sort = if query.sort.is_empty() {
             vec![AgentSort {
                 key: AgentSortKey::UpdatedAt,
@@ -394,17 +415,39 @@ impl AgentRuntimeDirectory {
         } else {
             query.sort.clone()
         };
-        entries.sort_by(|left, right| compare_entries(left, right, &sort));
-        if query.offset > entries.len() {
-            return Err(AgentRuntimeError::InvalidRequest);
-        }
-        let end = query.offset.saturating_add(query.limit).min(entries.len());
-        let has_more = end < entries.len();
+        let entries = entries
+            .into_iter()
+            .map(|entry| Entry {
+                id: entry.agent.id.clone(),
+                values: sort
+                    .iter()
+                    .map(|sort| {
+                        (
+                            sort_key(sort.key).to_owned(),
+                            sort_value(&entry.agent, sort.key),
+                        )
+                    })
+                    .collect(),
+                value: entry,
+            })
+            .collect();
+        let sort = sort
+            .iter()
+            .map(|sort| Sort {
+                key: sort_key(sort.key).to_owned(),
+                direction: match sort.direction {
+                    SortDirection::Asc => Direction::Asc,
+                    SortDirection::Desc => Direction::Desc,
+                },
+            })
+            .collect::<Vec<_>>();
+        let page = pagination::paginate(entries, &sort, query.limit, query.cursor.as_deref())
+            .map_err(|_| AgentRuntimeError::InvalidRequest)?;
         Ok(AgentDirectoryPage {
-            entries: entries[query.offset..end].to_vec(),
-            next_offset: has_more.then_some(end),
-            previous_offset: (query.offset > 0).then_some(query.offset.saturating_sub(query.limit)),
-            has_more,
+            entries: page.entries,
+            next_cursor: page.next_cursor,
+            prev_cursor: page.prev_cursor,
+            has_more: page.has_more,
         })
     }
 
@@ -455,64 +498,6 @@ impl AgentRuntimeDirectory {
             _ => Err(AgentRuntimeError::Ambiguous(title.to_owned())),
         }
     }
-
-    fn archive_one(
-        &self,
-        agent_id: &str,
-        archived_at: &str,
-    ) -> Result<PersistedAgentRuntimeRecord, AgentRuntimeError> {
-        self.agents
-            .update(agent_id, &|current| {
-                if current.archived_at.is_some() {
-                    return current.clone();
-                }
-                let mut next = current.clone();
-                next.archived_at = Some(archived_at.to_owned());
-                if matches!(
-                    next.last_status,
-                    AgentRuntimeStatus::Running | AgentRuntimeStatus::Initializing
-                ) {
-                    next.last_status = AgentRuntimeStatus::Idle;
-                }
-                next.requires_attention = false;
-                next.attention_reason = None;
-                next.attention_timestamp = None;
-                next
-            })
-            .map_err(map_agent_registry)?
-            .ok_or_else(|| AgentRuntimeError::NotFound(agent_id.to_owned()))
-    }
-
-    fn archive_children(
-        &self,
-        parent: &PersistedAgentRuntimeRecord,
-        archived_at: &str,
-    ) -> Result<(), AgentRuntimeError> {
-        let children = self
-            .public_records()?
-            .into_iter()
-            .filter(|record| record.archived_at.is_none())
-            .filter(|record| {
-                record.labels.get(PARENT_AGENT_ID_LABEL).map(String::as_str)
-                    == Some(parent.id.as_str())
-            })
-            .collect::<Vec<_>>();
-        for child in children {
-            let has_open_tab = child.labels.iter().any(|(label, value)| {
-                label.starts_with(OPEN_AGENT_TAB_LABEL_PREFIX) && value == "true"
-            });
-            let cross_workspace = parent.workspace_id.is_some()
-                && child.workspace_id.is_some()
-                && parent.workspace_id != child.workspace_id;
-            if has_open_tab || cross_workspace {
-                self.detach(&child.id, archived_at)?;
-            } else {
-                let archived = self.archive_one(&child.id, archived_at)?;
-                self.archive_children(&archived, archived_at)?;
-            }
-        }
-        Ok(())
-    }
 }
 
 fn placement(
@@ -544,7 +529,11 @@ fn placement(
     }
 }
 
-fn matches_query(entry: &AgentDirectoryEntry, query: &AgentDirectoryQuery) -> bool {
+fn matches_query(
+    entry: &AgentDirectoryEntry,
+    query: &AgentDirectoryQuery,
+    search: &search::Query,
+) -> bool {
     let agent = &entry.agent;
     if query.active_scope && (agent.archived_at.is_some() || !entry.placement.active) {
         return false;
@@ -578,92 +567,46 @@ fn matches_query(entry: &AgentDirectoryEntry, query: &AgentDirectoryQuery) -> bo
     {
         return false;
     }
-    query.search.as_ref().is_none_or(|search| {
-        let search = search.trim().to_lowercase();
-        search.is_empty()
-            || agent
-                .title
-                .as_ref()
-                .is_some_and(|title| title.to_lowercase().contains(&search))
-            || entry
-                .placement
-                .workspace_name
-                .to_lowercase()
-                .contains(&search)
-            || entry
-                .placement
-                .current_branch
-                .as_ref()
-                .is_some_and(|branch| branch.to_lowercase().contains(&search))
-            || entry
-                .placement
-                .project_name
-                .to_lowercase()
-                .contains(&search)
-    })
+    search.matches([
+        &entry.placement.workspace_name,
+        agent.title.as_deref().unwrap_or_default(),
+        entry
+            .placement
+            .current_branch
+            .as_deref()
+            .unwrap_or_default(),
+        &entry.placement.project_name,
+    ])
 }
 
-fn compare_entries(
-    left: &AgentDirectoryEntry,
-    right: &AgentDirectoryEntry,
-    sort: &[AgentSort],
-) -> Ordering {
-    sort.iter()
-        .find_map(|term| {
-            let ordering = match term.key {
-                AgentSortKey::StatusPriority => {
-                    status_priority(&left.agent).cmp(&status_priority(&right.agent))
-                }
-                AgentSortKey::CreatedAt => {
-                    compare_timestamp_values(&left.agent.created_at, &right.agent.created_at)
-                }
-                AgentSortKey::UpdatedAt => compare_updated_at(&left.agent, &right.agent),
-                AgentSortKey::Title => left
-                    .agent
-                    .title
-                    .as_deref()
-                    .unwrap_or_default()
-                    .to_lowercase()
-                    .cmp(
-                        &right
-                            .agent
-                            .title
-                            .as_deref()
-                            .unwrap_or_default()
-                            .to_lowercase(),
-                    ),
-            };
-            let ordering = match term.direction {
-                SortDirection::Asc => ordering,
-                SortDirection::Desc => ordering.reverse(),
-            };
-            (ordering != Ordering::Equal).then_some(ordering)
-        })
-        .unwrap_or_else(|| left.agent.id.cmp(&right.agent.id))
+const fn sort_key(key: AgentSortKey) -> &'static str {
+    match key {
+        AgentSortKey::StatusPriority => "status_priority",
+        AgentSortKey::CreatedAt => "created_at",
+        AgentSortKey::UpdatedAt => "updated_at",
+        AgentSortKey::Title => "title",
+    }
+}
+
+fn sort_value(agent: &PersistedAgentRuntimeRecord, key: AgentSortKey) -> SortValue {
+    match key {
+        AgentSortKey::StatusPriority => SortValue::Number(i64::from(status_priority(agent))),
+        AgentSortKey::CreatedAt => {
+            parse_timestamp(&agent.created_at).map_or(SortValue::Null, SortValue::Number)
+        }
+        AgentSortKey::UpdatedAt => {
+            parse_timestamp(resolved_updated_at(agent)).map_or(SortValue::Null, SortValue::Number)
+        }
+        AgentSortKey::Title => {
+            SortValue::Text(agent.title.as_deref().unwrap_or_default().to_lowercase())
+        }
+    }
 }
 
 fn parse_timestamp(value: &str) -> Option<i64> {
     DateTime::parse_from_rfc3339(value)
         .ok()
         .map(|timestamp| timestamp.timestamp_millis())
-}
-
-fn compare_updated_at(
-    left: &PersistedAgentRuntimeRecord,
-    right: &PersistedAgentRuntimeRecord,
-) -> Ordering {
-    let left_value = resolved_updated_at(left);
-    let right_value = resolved_updated_at(right);
-    compare_timestamp_values(left_value, right_value)
-}
-
-fn compare_timestamp_values(left: &str, right: &str) -> Ordering {
-    match (parse_timestamp(left), parse_timestamp(right)) {
-        (Some(left_timestamp), Some(right_timestamp)) => left_timestamp
-            .cmp(&right_timestamp)
-            .then_with(|| left.cmp(right)),
-        _ => left.cmp(right),
-    }
 }
 
 /// Resolve the normalized runtime thinking selection, falling back to stored configuration.

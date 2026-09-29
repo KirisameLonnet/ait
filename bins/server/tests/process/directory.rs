@@ -62,10 +62,17 @@ async fn assert_seeded_directory(client: &mut Socket) {
     let workspaces = request(
         client,
         "workspace.list.request",
-        json!({"filter":{"query":"ALPHA"},"page":{"limit":20}}),
+        json!({"filter":{"query":"MAIN"},"page":{"limit":20}}),
     )
     .await;
     assert_eq!(workspaces["result"]["entries"][0]["id"], "wks_a");
+    let by_project_name = request(
+        client,
+        "workspace.list.request",
+        json!({"filter":{"query":"ALPHA"}}),
+    )
+    .await;
+    assert_eq!(by_project_name["result"]["entries"], json!([]));
 }
 
 async fn add_project(client: &mut Socket, existing: &Path) -> String {
@@ -269,10 +276,8 @@ async fn assert_metadata_updates(client: &mut Socket) {
     .await;
     assert_eq!(titled["result"]["title"], "Review");
 
-    assert_eq!(
-        request(client, "workspace.list.request", json!({"subscribe":{}})).await["code"],
-        "unsupported_capability"
-    );
+    let subscribed = request(client, "workspace.list.request", json!({"subscribe":{}})).await;
+    assert!(subscribed["result"]["subscriptionId"].is_string());
 }
 
 async fn assert_legacy_names_are_rejected(client: &mut Socket, existing: &Path) {

@@ -54,28 +54,28 @@ async fn durable_timeline_discovery_creation_and_connection_lifetimes_work_over_
     .await;
     assert!(watched["result"]["snapshot"].is_null());
     let intent = json!({"config":{"provider":"codex","cwd":fixture.cwd},"idempotencyKey":"create-one","initialPrompt":"first history","subscribe":true});
-    let created = request(&mut client, "agent.create.request", intent.clone()).await;
+    let (created, inline_progress) =
+        super::transport::creation(&mut client, "agent.create.request", intent.clone()).await;
     assert_eq!(created["type"], "response", "{created}");
     assert_eq!(created["result"]["creation"]["phase"], "completed");
     let id = created["result"]["agentId"].as_str().unwrap().to_owned();
-    for phase in ["accepted", "agent_ready", "prompt_started", "completed"] {
+    for (phase, inline) in ["accepted", "agent_ready", "prompt_started", "completed"]
+        .into_iter()
+        .zip(&inline_progress)
+    {
         let event = receive(&mut observer).await;
         assert_eq!(event["method"], "agent.create.update");
         assert_eq!(event["params"]["phase"], phase);
-        let inline = receive(&mut client).await;
         assert_eq!(inline["method"], "agent.create.update");
         assert_eq!(inline["params"]["phase"], phase);
+        assert!(inline["params"].get("subscriptionId").is_none());
         assert_eq!(
-            inline["params"]["subscriptionId"],
-            created["result"]["subscriptionId"]
+            event["params"]["subscriptionId"],
+            watched["result"]["subscriptionId"]
         );
     }
-    request(
-        &mut client,
-        "subscription.release.request",
-        json!({"subscriptionId":created["result"]["subscriptionId"]}),
-    )
-    .await;
+    assert_eq!(inline_progress.len(), 4);
+    assert!(created["result"].get("subscriptionId").is_none());
     let replay = request(&mut client, "agent.create.request", intent.clone()).await;
     assert_eq!(replay["result"]["agentId"], id);
     let mut conflict = intent.clone();
@@ -235,18 +235,17 @@ async fn assert_plugin_append_and_release(
 
 async fn assert_workspace_receipt(client: &mut super::transport::Socket, cwd: &std::path::Path) {
     let intent = json!({"source":{"kind":"directory","path":cwd},"idempotencyKey":"workspace-one","subscribe":true});
-    let created = request(client, "workspace.create.request", intent).await;
+    let (created, progress) =
+        super::transport::creation(client, "workspace.create.request", intent).await;
     assert_eq!(created["type"], "response", "{created}");
-    for phase in ["accepted", "workspace_ready", "completed"] {
-        let event = receive(client).await;
+    for (phase, event) in ["accepted", "workspace_ready", "completed"]
+        .into_iter()
+        .zip(&progress)
+    {
         assert_eq!(event["params"]["phase"], phase);
     }
-    request(
-        client,
-        "subscription.release.request",
-        json!({"subscriptionId":created["result"]["subscriptionId"]}),
-    )
-    .await;
+    assert_eq!(progress.len(), 3);
+    assert!(created["result"].get("subscriptionId").is_none());
     let snapshot = request(
         client,
         "creation.subscribe.request",

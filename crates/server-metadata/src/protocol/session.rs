@@ -14,6 +14,18 @@ pub enum SessionEventKind {
     /// Committed Agent completion or failure attention.
     #[serde(rename = "agent_attention_required")]
     AgentAttention,
+    /// Native approval or structured input requested by an Agent.
+    #[serde(rename = "agent_permission_request")]
+    AgentPermissionRequest,
+    /// Native approval answered or withdrawn.
+    #[serde(rename = "agent_permission_resolved")]
+    AgentPermissionResolved,
+    /// A native child Agent descriptor changed.
+    #[serde(rename = "agent.provider_subagents.update")]
+    ProviderSubagents,
+    /// Terminal hook completion or input attention.
+    #[serde(rename = "terminal_attention_required")]
+    TerminalAttention,
     /// Server lifecycle and public metadata changed.
     #[serde(rename = "status.server_info")]
     ServerInfo,
@@ -29,6 +41,10 @@ impl SessionEventKind {
         match self {
             Self::ProvidersSnapshot => "providers_snapshot_update",
             Self::AgentAttention => "agent_attention_required",
+            Self::AgentPermissionRequest => "agent_permission_request",
+            Self::AgentPermissionResolved => "agent_permission_resolved",
+            Self::ProviderSubagents => "agent.provider_subagents.update",
+            Self::TerminalAttention => "terminal_attention_required",
             Self::ServerInfo => "status.server_info",
             Self::DaemonConfig => "status.daemon_config_changed",
         }

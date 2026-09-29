@@ -2,6 +2,19 @@ use super::*;
 use crate::outbound::Frame;
 use serde_json::json;
 
+#[test]
+fn operation_observers_emit_progress_without_connection_subscription_identity() {
+    let hub = EventHub::default();
+    let (outbound, mut receiver) = Outbound::new();
+    let operation = hub.observe("operation".into(), BTreeSet::from(["key".into()]), outbound);
+    hub.publish("key", "progress", &json!({"phase":"accepted"}));
+    operation.activate().unwrap();
+    assert_eq!(next(&mut receiver)["params"], json!({"phase":"accepted"}));
+    drop(operation);
+    hub.publish("key", "progress", &json!({"phase":"completed"}));
+    assert!(receiver.try_recv().is_err());
+}
+
 fn next(receiver: &mut tokio::sync::mpsc::Receiver<crate::outbound::Queued>) -> Value {
     let message = receiver.try_recv().unwrap();
     let Frame::Text(text) = message.message else {

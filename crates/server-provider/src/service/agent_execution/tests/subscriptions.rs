@@ -32,6 +32,7 @@ impl Peer {
                     protocol: VERSION,
                     capabilities: Vec::new(),
                     implemented_capabilities: Vec::new(),
+                    features: Vec::new(),
                     limits: Limits::default(),
                 })),
                 agents: None,

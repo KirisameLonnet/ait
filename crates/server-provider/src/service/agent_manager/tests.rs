@@ -7,8 +7,11 @@ use server_domain::agent_runtime::{AgentPersistenceHandle, StoredAgentConfig};
 
 use super::*;
 
+mod auto_archive;
+mod environment;
 mod generated_titles;
 mod paseo;
+mod resume;
 mod titles;
 mod usage;
 
@@ -93,6 +96,7 @@ struct FakeState {
     handle_session_id: String,
     create_calls: usize,
     resume_purposes: Vec<AgentResumePurpose>,
+    resume_specs: Vec<AgentSessionSpec>,
     close_calls: usize,
     events: std::collections::VecDeque<AgentTurnEvent>,
     start_result: Result<(), AgentSessionError>,
@@ -112,6 +116,7 @@ impl Default for FakeState {
             handle_session_id: "native-1".to_owned(),
             create_calls: 0,
             resume_purposes: Vec::new(),
+            resume_specs: Vec::new(),
             close_calls: 0,
             events: std::collections::VecDeque::new(),
             start_result: Ok(()),
@@ -156,11 +161,16 @@ impl AgentClient for FakeClient {
     fn resume_session<'a>(
         &'a self,
         _handle: &'a AgentPersistenceHandle,
-        _spec: &'a AgentSessionSpec,
+        spec: &'a AgentSessionSpec,
         purpose: AgentResumePurpose,
     ) -> AgentSessionFuture<'a, Box<dyn AgentSession>> {
         Box::pin(async move {
             self.0.lock().expect("state").resume_purposes.push(purpose);
+            self.0
+                .lock()
+                .expect("state")
+                .resume_specs
+                .push(spec.clone());
             if let Some(registry) = &self.0.lock().expect("state").during_resume {
                 registry
                     .update("agent-1", &|current| {

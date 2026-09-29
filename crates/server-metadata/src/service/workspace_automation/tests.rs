@@ -11,6 +11,15 @@ use super::*;
 
 mod paseo;
 
+#[test]
+fn archive_cleanup_delegates_identities_even_after_workspace_records_are_archived() {
+    let (service, _, runtime) = service();
+    service
+        .close_workspaces(&["archived".into(), "missing".into()])
+        .unwrap();
+    assert_eq!(*runtime.retired.lock().unwrap(), ["archived", "missing"]);
+}
+
 #[derive(Debug, Clone)]
 struct Workspaces(Arc<Mutex<Vec<PersistedWorkspaceRecord>>>);
 
@@ -82,9 +91,15 @@ impl MutationSubscription for Subscription {}
 struct Runtime {
     setups: Arc<Mutex<Vec<WorkspacePlacement>>>,
     scripts: Arc<Mutex<Vec<(String, String)>>>,
+    retired: Arc<Mutex<Vec<String>>>,
 }
 
 impl WorkspaceAutomationRuntime for Runtime {
+    fn close_workspaces(&self, ids: &[String]) -> Result<(), WorkspaceAutomationError> {
+        self.retired.lock().unwrap().extend_from_slice(ids);
+        Ok(())
+    }
+
     fn list_scripts(
         &self,
         workspace: &WorkspacePlacement,

@@ -3,14 +3,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use chrono::Utc;
 use serde_json::{Value, json};
 
-use super::{CodexClient, Transport};
+use super::CodexClient;
 use crate::ports::agent_session::AgentSessionError;
 use crate::protocol::provider::Details;
 use crate::protocol::timeline::NativeItem;
 
 impl CodexClient {
     pub(super) async fn discover_native(&self, cwd: &str) -> Result<Details, AgentSessionError> {
-        let mut transport = Transport::spawn(&self.program, cwd, self.deadline)?;
+        let mut transport = self.launch_transport(cwd, false)?;
         let result = async {
             transport.initialize().await?;
             self.inspect_workflows(&mut transport).await?;

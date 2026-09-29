@@ -33,6 +33,67 @@ impl std::ops::Deref for State {
 pub(crate) mod agent_execution;
 mod agent_runtime;
 
+/// Check exact Agent resource occupancy without serializing behind a native startup.
+/// # Errors
+/// Returns unavailable-service, admission, or registry failures.
+pub async fn contains_identity(state: &State, id: String) -> Result<bool, ErrorCode> {
+    if let Some(execution) = state.agent_execution.clone() {
+        return state
+            .runtime
+            .run_queued(
+                Some(Arc::new(Mutex::new(execution))),
+                ErrorCode::AgentIo,
+                move |execution| execution.contains_identity(&id).map_err(Into::into),
+            )
+            .await;
+    }
+    state
+        .runtime
+        .run_queued(
+            state.agent_runtime.clone(),
+            ErrorCode::AgentIo,
+            move |directory| {
+                directory
+                    .contains_identity(&id)
+                    .map_err(|_| ErrorCode::AgentIo)
+            },
+        )
+        .await
+}
+
+/// Archive and close native Agents after their owning Workspace records become inactive.
+/// # Errors
+/// Returns registry, worker, or native cleanup failures; the caller must retain checkout files.
+pub async fn retire_workspaces(
+    state: &State,
+    workspace_ids: Vec<String>,
+) -> Result<Vec<String>, ErrorCode> {
+    if let Some(execution) = &state.agent_execution {
+        let value = execution
+            .execute(
+                "internal.workspace.retire",
+                serde_json::json!(workspace_ids),
+            )
+            .await?;
+        return serde_json::from_value(value).map_err(|_| ErrorCode::AgentIo);
+    }
+    if state.agent_runtime.is_none() {
+        return Ok(Vec::new());
+    }
+    state
+        .runtime
+        .run(
+            state.agent_runtime.clone(),
+            ErrorCode::AgentIo,
+            move |directory| {
+                directory
+                    .archive_workspaces(&workspace_ids, &chrono::Utc::now().to_rfc3339())
+                    .map_err(|_| ErrorCode::AgentIo)
+            },
+        )
+        .await
+}
+
 /// Remaining composition work after provider dispatch has completed.
 pub enum Completion {
     /// Provider has delivered the response or registered a tracked completion wait.
@@ -67,6 +128,16 @@ pub async fn dispatch(
                 )
                 .await
         }
+        Group::AgentRuntime
+            if context.request.method == "agent.list.request"
+                && context
+                    .request
+                    .params
+                    .get("subscribe")
+                    .is_some_and(|subscribe| !subscribe.is_null()) =>
+        {
+            crate::connection::directory::subscribe(context, state, connection).await
+        }
         Group::AgentRuntime => {
             let params = std::mem::take(&mut context.request.params);
             match agent_runtime::dispatch(&context.request.method, params, state).await {
@@ -82,7 +153,7 @@ pub async fn dispatch(
             }
         }
         Group::AgentExecution if context.request.method == "agent.create.request" => {
-            connection.create(context, state).await
+            crate::connection::Connection::create(context, state).await
         }
         Group::AgentExecution if context.request.method == "agent.finish.wait.request" => {
             agent_execution::wait(

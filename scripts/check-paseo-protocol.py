@@ -5,7 +5,7 @@ import pathlib
 import re
 import subprocess
 
-PIN = "2c8e8a826810337492cc5a38bb0bbd705b6fb632"
+PIN = "30178c4f58b67f8472901356e1484022bd835de0"
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "crates/server-protocol/src/methods/fixtures/paseo-inbound.txt"
 

@@ -35,6 +35,25 @@ async fn provider_identity_changes_commit_before_completion_and_retry_failed_reg
 #[tokio::test]
 async fn native_permission_withdrawal_clears_durable_attention_without_ending_the_turn() {
     let (mut manager, registry, client) = make_manager();
+    let connection = manager.events().connect();
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let captured = events.clone();
+    let subscription = connection
+        .subscribe(
+            server_metadata::protocol::session::EventsRequest {
+                events: vec![
+                    "agent_permission_request".into(),
+                    "agent_permission_resolved".into(),
+                ],
+                notifications: false,
+            },
+            Arc::new(move |kind, value| {
+                captured.lock().unwrap().push((kind, value));
+                Ok(())
+            }),
+        )
+        .unwrap();
+    subscription.activate().unwrap();
     manager
         .create("agent-1", &spec(), AgentRegistration::default())
         .await
@@ -59,6 +78,13 @@ async fn native_permission_withdrawal_clears_durable_attention_without_ending_th
     manager.poll().await.unwrap();
     assert!(!registry.get("agent-1").unwrap().unwrap().requires_attention);
     assert!(manager.active_turn("agent-1").is_some());
+    let published = events.lock().unwrap().clone();
+    assert_eq!(published.len(), 2);
+    assert_eq!(published[0].0, SessionEventKind::AgentPermissionRequest);
+    assert_eq!(published[0].1["request"]["id"], "permission");
+    assert_eq!(published[1].0, SessionEventKind::AgentPermissionResolved);
+    assert_eq!(published[1].1["requestId"], "permission");
+    assert_eq!(published[1].1["resolution"]["behavior"], "deny");
     manager.close_all().await.unwrap();
 }
 

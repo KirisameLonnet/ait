@@ -4,12 +4,15 @@ use std::sync::{Arc, Mutex};
 
 use super::*;
 
+mod current;
+
 #[derive(Debug)]
 struct ProbeState {
     available: Result<bool, AgentSessionError>,
     discovery: Result<Details, AgentSessionError>,
     availability_calls: usize,
     discovery_cwds: Vec<String>,
+    draft_configs: Vec<server_domain::agent_runtime::StoredAgentConfig>,
 }
 
 #[derive(Debug, Clone)]
@@ -33,12 +36,23 @@ impl Probe {
                 }),
                 availability_calls: 0,
                 discovery_cwds: Vec::new(),
+                draft_configs: Vec::new(),
             })),
         }
     }
 }
 
 impl AgentClient for Probe {
+    fn settings(&self, config: &server_domain::agent_runtime::StoredAgentConfig) -> Value {
+        self.state
+            .lock()
+            .unwrap()
+            .draft_configs
+            .push(config.clone());
+        json!({"features":[{"id":"fast_mode","type":"toggle","value":config.feature_values
+            .as_ref().and_then(|values| values.get("fast_mode")).cloned().unwrap_or(json!(false))}]})
+    }
+
     fn provider(&self) -> &'static str {
         self.provider
     }
@@ -317,7 +331,11 @@ async fn directory_cache_evicts_the_oldest_scope_at_its_bound() {
     }
     assert_eq!(catalog.snapshots.len(), 16);
     let oldest = root.path().join("0").canonicalize().unwrap();
-    assert!(!catalog.snapshots.contains_key(oldest.to_str().unwrap()));
+    assert!(
+        !catalog
+            .snapshots
+            .contains_key(&Some(oldest.to_str().unwrap().to_owned()))
+    );
     snapshot(&mut catalog, &probes, &oldest).await;
     assert_eq!(probes[0].state.lock().unwrap().discovery_cwds.len(), 18);
     assert_eq!(catalog.snapshots.len(), 16);

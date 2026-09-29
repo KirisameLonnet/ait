@@ -43,6 +43,8 @@ struct State {
     scripts: HashMap<(String, String), ScriptProcess>,
     setups: HashMap<String, SetupSnapshot>,
     setup_running: HashSet<String>,
+    setup_cancelled: HashSet<String>,
+    setup_cleanup: HashMap<String, Child>,
     workspace_ports: HashMap<String, u16>,
 }
 
@@ -80,10 +82,17 @@ impl Drop for Inner {
                 let _ = terminate_child(child);
             }
         }
+        for child in state.setup_cleanup.values_mut() {
+            let _ = terminate_child(child);
+        }
     }
 }
 
 impl WorkspaceAutomationRuntime for LocalWorkspaceAutomation {
+    fn close_workspaces(&self, workspace_ids: &[String]) -> Result<(), WorkspaceAutomationError> {
+        retirement::close(&self.inner, workspace_ids)
+    }
+
     fn list_scripts(
         &self,
         workspace: &WorkspacePlacement,
@@ -178,12 +187,13 @@ impl WorkspaceAutomationRuntime for LocalWorkspaceAutomation {
             .get_mut(&key)
             .ok_or_else(|| WorkspaceAutomationError::NotRunning(script_name.to_owned()))?;
         refresh_process(process)?;
-        let Some(mut child) = process.child.take() else {
+        let Some(child) = process.child.as_mut() else {
             return Err(WorkspaceAutomationError::NotRunning(script_name.to_owned()));
         };
-        let status = terminate_child(&mut child).map_err(|error| {
+        let status = terminate_child(child).map_err(|error| {
             WorkspaceAutomationError::Io(format!("Failed to reap script '{script_name}': {error}"))
         })?;
+        process.child = None;
         process.exit_code = status.code();
         Ok(process.snapshot(script_name))
     }
@@ -203,9 +213,15 @@ impl WorkspaceAutomationRuntime for LocalWorkspaceAutomation {
             }
         };
         let mut state = lock(&self.inner.state);
+        if state.setup_cleanup.contains_key(&workspace.workspace_id) {
+            return Err(WorkspaceAutomationError::Io(
+                "Previous setup cleanup is still pending".to_owned(),
+            ));
+        }
         if !state.setup_running.insert(workspace.workspace_id.clone()) {
             return Ok(false);
         }
+        state.setup_cancelled.remove(&workspace.workspace_id);
         let port = match workspace_port(&mut state, &workspace.workspace_id) {
             Ok(port) => port,
             Err(error) => {
@@ -591,6 +607,11 @@ fn run_setup_command(
     script: &str,
     port: u16,
 ) -> Result<(ExitStatus, String, bool), WorkspaceAutomationError> {
+    if retirement::cancelled(inner, &workspace.workspace_id) {
+        return Err(WorkspaceAutomationError::Io(
+            "Workspace setup was cancelled".to_owned(),
+        ));
+    }
     let mut capture = tempfile::tempfile().map_err(setup_io)?;
     let stdout = capture.try_clone().map_err(setup_io)?;
     let stderr = capture.try_clone().map_err(setup_io)?;
@@ -607,15 +628,15 @@ fn run_setup_command(
         if let Some(status) = child.try_wait().map_err(setup_io)? {
             break status;
         }
-        if inner.upgrade().is_none() {
-            let _ = terminate_child(&mut child);
+        if retirement::cancelled(inner, &workspace.workspace_id) {
+            retirement::terminate_setup(inner, &workspace.workspace_id, child)?;
             return Err(WorkspaceAutomationError::Io(
                 "Workspace setup was cancelled".to_owned(),
             ));
         }
         let capture_too_large = capture.metadata().map_err(setup_io)?.len() > CAPTURE_BYTES;
         if started.elapsed() >= SETUP_TIMEOUT || capture_too_large {
-            let _ = terminate_child(&mut child);
+            retirement::terminate_setup(inner, &workspace.workspace_id, child)?;
             let reason = if capture_too_large {
                 "Setup command output exceeded 8 MiB"
             } else {
@@ -631,6 +652,8 @@ fn run_setup_command(
     let (output, truncated) = bound_output(&output);
     Ok((status, output, truncated))
 }
+
+mod retirement;
 
 fn bound_output(output: &[u8]) -> (String, bool) {
     if output.len() <= OUTPUT_BYTES {
@@ -662,6 +685,13 @@ fn terminate_child(child: &mut Child) -> std::io::Result<ExitStatus> {
         let deadline = Instant::now() + Duration::from_secs(1);
         loop {
             if let Some(status) = child.try_wait()? {
+                // The shell can exit before a background descendant handles TERM.
+                let _ = Command::new("/bin/kill")
+                    .args(["-KILL", "--", &process_group])
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .status();
                 return Ok(status);
             }
             if Instant::now() >= deadline {

@@ -12,8 +12,11 @@ use crate::Shared;
 use crate::outbound::{Frame, Outbound, QueueError};
 use server_model::{Context, Request};
 
+mod creation_receipts;
 mod dispatch;
 mod routing;
+mod workspace_archive;
+mod workspace_creation;
 
 const HELLO_TIMEOUT: Duration = Duration::from_secs(10);
 const WRITE_TIMEOUT: Duration = Duration::from_secs(5);
@@ -306,13 +309,28 @@ async fn process_event(
     if method == server_metadata::protocol::server::HEARTBEAT_METHOD
         && capabilities.iter().any(|capability| capability == &method)
     {
+        let focused_terminal = params["appVisible"]
+            .as_bool()
+            .filter(|visible| *visible)
+            .and_then(|_| params["focusedTerminalId"].as_str())
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
+            .map(str::to_owned);
         if let Err(code) =
             server_metadata::connection::session::heartbeat(params, &subscriptions.metadata)
         {
             error(outbound, None, code)?;
+            return Ok(());
         } else if let Err(code) =
             server_metadata::connection::push::heartbeat(&state.metadata, &subscriptions.metadata)
                 .await
+        {
+            error(outbound, None, code)?;
+            return Ok(());
+        }
+        if let Some(terminal_id) = focused_terminal
+            && let Err(code) =
+                server_terminal::dispatch::clear_attention(&state.terminal, terminal_id).await
         {
             error(outbound, None, code)?;
         }

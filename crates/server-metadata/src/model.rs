@@ -2,3 +2,5 @@
 
 pub mod registry;
 pub mod workspace_labels;
+
+pub mod workspace_activity;

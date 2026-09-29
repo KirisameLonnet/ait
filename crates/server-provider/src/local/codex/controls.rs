@@ -14,7 +14,7 @@ impl CodexClient {
         method: &str,
         params: Value,
     ) -> Result<Value, AgentSessionError> {
-        let mut transport = Transport::spawn(&self.program, cwd, self.deadline)?;
+        let mut transport = self.launch_transport(cwd, false)?;
         let result = async {
             transport.initialize().await?;
             transport.request(method, params).await
@@ -36,7 +36,7 @@ impl CodexClient {
                 .as_ref()
                 .is_some_and(|values| values.contains_key("plan_mode"))
         {
-            let mut transport = Transport::spawn(&self.program, &spec.cwd, self.deadline)?;
+            let mut transport = self.launch_transport(&spec.cwd, false)?;
             let result = async {
                 transport.initialize().await?;
                 self.inspect_workflows(&mut transport).await?;
@@ -64,7 +64,7 @@ impl CodexClient {
     }
 
     pub(super) async fn native_commands(&self, cwd: &str) -> Result<Vec<Value>, AgentSessionError> {
-        let mut transport = Transport::spawn(&self.program, cwd, self.deadline)?;
+        let mut transport = self.launch_transport(cwd, false)?;
         let result = async {
             transport.initialize().await?;
             self.inspect_workflows(&mut transport).await?;
@@ -84,7 +84,7 @@ impl CodexClient {
         &self,
         cwd: &str,
     ) -> Result<Vec<NativeSubagent>, AgentSessionError> {
-        let mut transport = Transport::spawn(&self.program, cwd, self.deadline)?;
+        let mut transport = self.launch_transport(cwd, false)?;
         let result = async {
             transport.initialize().await?;
             child_pages(&mut transport).await

@@ -32,7 +32,7 @@ impl Row {
     pub fn value(&self) -> Value {
         let mut value = json!({"provider":self.provider,"item":self.entry.item,
             "timestamp":self.entry.timestamp,"seqStart":self.seq,"seqEnd":self.seq,
-            "sourceSeqRanges":[{"startSeq":self.seq,"endSeq":self.seq}],"collapsed":["identity"]});
+            "sourceSeqRanges":[{"startSeq":self.seq,"endSeq":self.seq}],"collapsed":[]});
         if let Some(turn) = &self.entry.turn_id {
             value["turnId"] = json!(turn);
         }

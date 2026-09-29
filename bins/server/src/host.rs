@@ -1,5 +1,5 @@
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::Context;
@@ -16,7 +16,7 @@ use server_filesystem::local::{
 use server_filesystem::service::checkout::Checkout;
 use server_filesystem::service::files::Files;
 use server_filesystem::service::forge::Forge;
-use server_filesystem::service::worktrees::Worktrees;
+use server_filesystem::service::worktrees::{WorkspaceWorktrees, Worktrees};
 use server_filesystem::service::{
     github_projects::GithubProjects, workspace_recovery::WorkspaceRecovery,
 };
@@ -176,8 +176,10 @@ fn compose_services(
         generator: metadata_generator,
         names: workspace_names,
     } = compose_metadata(&config.data_dir, &workspace_registry);
-    let worktrees = compose_worktrees(config, &project_registry, &workspace_registry, &server_id)
-        .with_workspace_names(workspace_names.clone());
+    let worktrees = Arc::new(Mutex::new(
+        compose_worktrees(config, &project_registry, &workspace_registry, &server_id)
+            .with_workspace_names(workspace_names.clone()),
+    ));
     let WorkspaceServices {
         automation: workspace_automation,
         state: workspace_state,
@@ -189,10 +191,23 @@ fn compose_services(
         &agent_runtime_registry,
     );
     let daemon = compose_daemon(config_store, address, &server_id)?;
+    let workspace_automation = Arc::new(Mutex::new(workspace_automation));
+    let timeline = open_timeline(&config.data_dir)?;
+    let terminals = server_terminal::service::Terminals::new(
+        Box::new(workspace_registry.clone()),
+        Box::new(project_registry.clone()),
+        Box::new(server_terminal::local::LocalRuntime),
+    );
     let directory = compose_directory(config, &project_registry, &workspace_registry, server_id)?
-        .with_workspace_names(workspace_names.clone());
+        .with_worktrees(Arc::new(WorkspaceWorktrees::new(worktrees.clone())))
+        .with_workspace_names(workspace_names.clone())
+        .with_activity_source(Arc::new(
+            AgentWorkspaceAttention::new(Box::new(agent_runtime_registry.clone()))
+                .with_timeline(timeline.clone()),
+        ))
+        .with_activity_source(Arc::new(terminals.activity_source()));
     let agent_execution = compose_provider(
-        agent_runtime_registry,
+        (agent_runtime_registry, timeline),
         (&workspace_registry, &project_registry),
         instance,
         &config.data_dir,
@@ -200,19 +215,14 @@ fn compose_services(
             directory.clone(),
             metadata_generator.clone(),
             workspace_names.clone(),
+            workspace_automation.clone(),
         ),
     )?;
     let schedules = schedule::compose(
         &config.data_dir,
         agent_execution.clone(),
         directory.clone(),
-        compose_worktrees(
-            config,
-            &project_registry,
-            &workspace_registry,
-            &instance.server_id.to_string(),
-        )
-        .with_workspace_names(workspace_names.clone()),
+        worktrees.clone(),
     )?;
     let github_projects =
         GithubProjects::new(directory.clone(), Box::new(LocalGithubProjects::new()));
@@ -224,11 +234,7 @@ fn compose_services(
         skills: Some(compose_skills(&config.data_dir)?),
         push_tokens: Some(compose_push(&config.data_dir)?),
         speech: Some(voice::compose(agent_execution.clone(), &config.data_dir)?),
-        terminals: Some(server_terminal::service::Terminals::new(
-            Box::new(workspace_registry.clone()),
-            Box::new(project_registry.clone()),
-            Box::new(server_terminal::local::LocalRuntime),
-        )),
+        terminals: Some(terminals),
         agent_execution: Some(agent_execution),
         agents: Some(agents),
         checkout: Some(Checkout::new(Box::new(LocalCheckout::new(
@@ -376,19 +382,31 @@ fn compose_daemon(
     Ok(daemon)
 }
 
+fn open_timeline(
+    data_dir: &std::path::Path,
+) -> anyhow::Result<server_provider::storage::timeline::Timeline> {
+    server_provider::storage::timeline::Timeline::open(&data_dir.join("agents/timeline.sqlite3"))
+        .map_err(|_| anyhow::anyhow!("initialize Agent timeline"))
+}
+
 fn compose_provider(
-    agent_runtime_registry: FileBackedAgentRuntimeRegistry,
+    agent_storage: (
+        FileBackedAgentRuntimeRegistry,
+        server_provider::storage::timeline::Timeline,
+    ),
     registries: (&FileBackedWorkspaceRegistry, &FileBackedProjectRegistry),
     instance: &Arc<InstanceLease>,
     data_dir: &std::path::Path,
-    metadata: (Directory, Arc<dyn MetadataGenerator>, WorkspaceNames),
+    metadata: (
+        Directory,
+        Arc<dyn MetadataGenerator>,
+        WorkspaceNames,
+        Arc<Mutex<WorkspaceAutomation>>,
+    ),
 ) -> anyhow::Result<AgentExecution> {
-    let (directory, generator, names) = metadata;
+    let (directory, generator, names, workspace_automation) = metadata;
+    let (agent_runtime_registry, timeline) = agent_storage;
     let (workspace_registry, project_registry) = registries;
-    let timeline = server_provider::storage::timeline::Timeline::open(
-        &data_dir.join("agents/timeline.sqlite3"),
-    )
-    .map_err(|_| anyhow::anyhow!("initialize Agent timeline"))?;
     let mut manager = AgentManager::new(Box::new(agent_runtime_registry.clone()))
         .with_timeline(timeline)
         .with_creations(directory.creations())
@@ -403,11 +421,13 @@ fn compose_provider(
             Box::new(agent_runtime_registry.clone()),
             Box::new(workspace_registry.clone()),
             Box::new(project_registry.clone()),
-        ),
+        )
+        .with_directory_sync(directory.directory_sync()),
         registry: Box::new(agent_runtime_registry),
         workspaces: Box::new(workspace_registry.clone()),
         lifetime: instance.clone(),
         import_directory: Some(directory),
+        workspace_automation: Some(workspace_automation),
         projects: Box::new(project_registry.clone()),
     })
     .context("start Provider worker")

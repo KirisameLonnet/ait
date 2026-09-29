@@ -7,12 +7,14 @@ import sys
 import time
 import subprocess
 import threading
-import time
 import uuid
 
 # Diagnostic calls use the host cwd; their test-specific override is data beside the launcher link.
 cwd_override = Path(sys.argv[0]).with_suffix(".cwd")
 root = Path(cwd_override.read_text()) if cwd_override.exists() else Path.cwd()
+if (root / "capture-environment").exists():
+    with (root / "native-environment.jsonl").open("a") as output:
+        output.write(json.dumps({"value": os.environ.get("AIT_TEST_AGENT_ENV")}) + "\n")
 mode = (root / "behavior").read_text() if (root / "behavior").exists() else "normal"
 output_lock = threading.Lock()
 pending = None
@@ -96,7 +98,7 @@ for line in sys.stdin:
     if mode == "wrong-id":
         emit({"id": 999999, "result": {}})
         continue
-    if mode == "error":
+    if mode == "error" or (mode == "reject-first-input" and method == "turn/start"):
         emit({"id": request["id"], "error": {"message": "sensitive native error"}})
         continue
     result = {}
@@ -106,6 +108,10 @@ for line in sys.stdin:
         result = {"data":[{"name":"Plan","mode":"plan","model":"offline-model","reasoning_effort":"high"},
             {"name":"Default","mode":"default","model":"offline-model"}]} if mode == "workflows" else {"data":[]}
     elif method in ("thread/start", "thread/resume", "thread/read"):
+        if method == "thread/start" and mode == "delayed-create":
+            deadline = time.monotonic() + 10
+            while not (root / "release-create").exists() and time.monotonic() < deadline:
+                time.sleep(0.01)
         thread_id = params.get("threadId", str(uuid.uuid4()))
         if mode == "wrong-thread":
             thread_id = "wrong-thread"

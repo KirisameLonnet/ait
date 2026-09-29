@@ -9,7 +9,7 @@ impl CodexClient {
         prompt: &str,
         schema: &Value,
     ) -> Result<String, AgentSessionError> {
-        let mut transport = Transport::spawn(&self.program, &spec.cwd, self.deadline)?;
+        let mut transport = self.launch_transport(&spec.cwd, false)?;
         let result = async {
             transport.initialize().await?;
             let effective = transport.request("config/read", json!({"includeLayers":false})).await?;

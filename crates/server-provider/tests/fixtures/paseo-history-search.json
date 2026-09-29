@@ -1,0 +1,1107 @@
+{
+  "source": {
+    "revision": "30178c4f58b67f8472901356e1484022bd835de0",
+    "upstreamTestsExecuted": 9,
+    "sourceFiles": {
+      "packages/protocol/src/search/text-match.ts": "6c503b03948f51a27dd0a9055ddf1681f4914dc50a644fd307978848e65050b0",
+      "packages/server/src/server/agent-history-search.ts": "0a6464580b51ba51f84610568fdf48ef46f8150f91ccc41c7c55b85f8df3635d",
+      "packages/server/src/server/agent-history-search.test.ts": "68d8ddcf451ac2960ae72d69f8fced479e9d06a449fe315fe0acb79c4c15acd2"
+    }
+  },
+  "cases": [
+    {
+      "name": "rejects scattered letters across words while keeping within-word subsequences",
+      "query": "terminal",
+      "fields": [
+        "",
+        "Let me diagnose this problem in a diagnose this problem and",
+        "",
+        "getpaseo/paseo"
+      ],
+      "expected": false
+    },
+    {
+      "name": "rejects scattered letters across words while keeping within-word subsequences",
+      "query": "trmnl",
+      "fields": [
+        "",
+        "Fix terminal resizing",
+        "",
+        "getpaseo/paseo"
+      ],
+      "expected": true
+    },
+    {
+      "name": "matches the workspace name",
+      "query": "stripe",
+      "fields": [
+        "Add Stripe billing",
+        "",
+        "",
+        "getpaseo/paseo"
+      ],
+      "expected": true
+    },
+    {
+      "name": "matches the agent title",
+      "query": "entitlements",
+      "fields": [
+        "",
+        "Reshape entitlements",
+        "",
+        "getpaseo/paseo"
+      ],
+      "expected": true
+    },
+    {
+      "name": "matches the branch name",
+      "query": "billing",
+      "fields": [
+        "",
+        "",
+        "add-stripe-billing",
+        "getpaseo/paseo"
+      ],
+      "expected": true
+    },
+    {
+      "name": "matches the project name",
+      "query": "paseo",
+      "fields": [
+        "",
+        "",
+        "",
+        "getpaseo/paseo"
+      ],
+      "expected": true
+    },
+    {
+      "name": "requires every token to match somewhere",
+      "query": "stripe main",
+      "fields": [
+        "Add Stripe billing",
+        "",
+        "main",
+        "getpaseo/paseo"
+      ],
+      "expected": true
+    },
+    {
+      "name": "requires every token to match somewhere",
+      "query": "stripe rosetta",
+      "fields": [
+        "Add Stripe billing",
+        "",
+        "main",
+        "getpaseo/paseo"
+      ],
+      "expected": false
+    },
+    {
+      "name": "tolerates a typo",
+      "query": "bulling",
+      "fields": [
+        "Add Stripe billing",
+        "",
+        "",
+        "getpaseo/paseo"
+      ],
+      "expected": true
+    },
+    {
+      "name": "tolerates a transposed branch name",
+      "query": "mian",
+      "fields": [
+        "",
+        "",
+        "main",
+        "getpaseo/paseo"
+      ],
+      "expected": true
+    },
+    {
+      "name": "tolerates a transposed branch name",
+      "query": "rain",
+      "fields": [
+        "",
+        "",
+        "main",
+        "getpaseo/paseo"
+      ],
+      "expected": false
+    },
+    {
+      "name": "keeps candidates for a blank query",
+      "query": "   ",
+      "fields": [
+        "",
+        "anything",
+        "",
+        "getpaseo/paseo"
+      ],
+      "expected": true
+    }
+  ],
+  "distances": [
+    {
+      "query": "typescript",
+      "word": "typescript",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "configuration",
+      "word": "configuratixon",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "typescript",
+      "word": "typscript",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "configuration",
+      "word": "confxiguxration",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "billing",
+      "word": "bzlnz",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "regression",
+      "word": "regression",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "regression",
+      "word": "regession",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "terminal",
+      "word": "termnixal",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "billing",
+      "word": "blinz",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "typescript",
+      "word": "xtypescxript",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "abcdef",
+      "word": "abcdef",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "regression",
+      "word": "rergession",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "configuration",
+      "word": "configuztion",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "terminal",
+      "word": "termnxial",
+      "budget": 2,
+      "expected": false
+    },
+    {
+      "query": "typescript",
+      "word": "typeszrz",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "regression",
+      "word": "regression",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "terminal",
+      "word": "terzinal",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "terminal",
+      "word": "etxrminal",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "typescript",
+      "word": "zpeszript",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "regression",
+      "word": "rxegressixno",
+      "budget": 2,
+      "expected": false
+    },
+    {
+      "query": "workspace",
+      "word": "workspace",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "abcdef",
+      "word": "abcdxef",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "regression",
+      "word": "rgrezsion",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "billing",
+      "word": "bxxilling",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "terminal",
+      "word": "terzal",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "typescript",
+      "word": "typescript",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "typescript",
+      "word": "tpescript",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "billing",
+      "word": "billixng",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "abcdef",
+      "word": "zcde",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "abcdef",
+      "word": "axbxdcef",
+      "budget": 2,
+      "expected": false
+    },
+    {
+      "query": "terminal",
+      "word": "terminal",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "regression",
+      "word": "rergession",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "configuration",
+      "word": "configuztion",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "configuration",
+      "word": "ocnfgiuxration",
+      "budget": 2,
+      "expected": false
+    },
+    {
+      "query": "configuration",
+      "word": "ofiguratzoz",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "billing",
+      "word": "billing",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "billing",
+      "word": "bilzing",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "configuration",
+      "word": "ocnfiguratxion",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "billing",
+      "word": "bzllng",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "billing",
+      "word": "bilxnlxig",
+      "budget": 2,
+      "expected": false
+    },
+    {
+      "query": "abcdef",
+      "word": "abcdef",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "abcdef",
+      "word": "abxcdef",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "typescript",
+      "word": "tzpesript",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "configuration",
+      "word": "configurtaxioxn",
+      "budget": 2,
+      "expected": false
+    },
+    {
+      "query": "abcdef",
+      "word": "acdz",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "billing",
+      "word": "billing",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "billing",
+      "word": "blling",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "typescript",
+      "word": "tyepscxript",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "abcdef",
+      "word": "adez",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "billing",
+      "word": "ibllxixng",
+      "budget": 2,
+      "expected": false
+    },
+    {
+      "query": "regression",
+      "word": "regression",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "workspace",
+      "word": "workpsace",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "abcdef",
+      "word": "acdez",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "configuration",
+      "word": "configxuration",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "billing",
+      "word": "izzin",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "billing",
+      "word": "billing",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "workspace",
+      "word": "workzpace",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "regression",
+      "word": "regressixno",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "typescript",
+      "word": "tyzesrzpt",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "configuration",
+      "word": "ocnfigxurtaioxn",
+      "budget": 2,
+      "expected": false
+    },
+    {
+      "query": "terminal",
+      "word": "terminal",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "billing",
+      "word": "xbilling",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "typescript",
+      "word": "tpescript",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "abcdef",
+      "word": "axxbcdef",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "terminal",
+      "word": "zerzal",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "terminal",
+      "word": "terminal",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "typescript",
+      "word": "typescrip",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "abcdef",
+      "word": "xabdcef",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "workspace",
+      "word": "wrkpacz",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "billing",
+      "word": "ibxllixng",
+      "budget": 2,
+      "expected": false
+    },
+    {
+      "query": "terminal",
+      "word": "terminal",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "abcdef",
+      "word": "abcdfe",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "billing",
+      "word": "bzllin",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "terminal",
+      "word": "etrxminal",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "regression",
+      "word": "regzezon",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "terminal",
+      "word": "terminal",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "configuration",
+      "word": "cozfiguration",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "billing",
+      "word": "bilxling",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "abcdef",
+      "word": "abzde",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "workspace",
+      "word": "woxrkpxasce",
+      "budget": 2,
+      "expected": false
+    },
+    {
+      "query": "typescript",
+      "word": "typescript",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "billing",
+      "word": "bixlling",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "configuration",
+      "word": "conizuration",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "regression",
+      "word": "regxressixon",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "terminal",
+      "word": "trmzaz",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "typescript",
+      "word": "typescript",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "regression",
+      "word": "regresion",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "regression",
+      "word": "rexgression",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "regression",
+      "word": "rezesion",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "workspace",
+      "word": "wrokxspaxce",
+      "budget": 2,
+      "expected": false
+    },
+    {
+      "query": "abcdef",
+      "word": "abcdef",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "abcdef",
+      "word": "abcdfe",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "typescript",
+      "word": "tyzescrpt",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "abcdef",
+      "word": "xbacdfe",
+      "budget": 2,
+      "expected": false
+    },
+    {
+      "query": "typescript",
+      "word": "zypesriz",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "abcdef",
+      "word": "abcdef",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "typescript",
+      "word": "typescrzpt",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "abcdef",
+      "word": "bacdxef",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "billing",
+      "word": "bilznz",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "typescript",
+      "word": "ytepscrixxpt",
+      "budget": 2,
+      "expected": false
+    },
+    {
+      "query": "terminal",
+      "word": "terminal",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "terminal",
+      "word": "terminxal",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "typescript",
+      "word": "typszript",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "configuration",
+      "word": "ocnfigurxatxion",
+      "budget": 2,
+      "expected": false
+    },
+    {
+      "query": "abcdef",
+      "word": "cdez",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "abcdef",
+      "word": "abcdef",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "typescript",
+      "word": "typescrip",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "terminal",
+      "word": "txerminal",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "workspace",
+      "word": "okspacz",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "abcdef",
+      "word": "xabxcdef",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "abcdef",
+      "word": "abcdef",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "typescript",
+      "word": "ytpescript",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "configuration",
+      "word": "conzigurtion",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "typescript",
+      "word": "xtypsecirpt",
+      "budget": 2,
+      "expected": false
+    },
+    {
+      "query": "regression",
+      "word": "egezsion",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "abcdef",
+      "word": "abcdef",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "workspace",
+      "word": "wozkspace",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "regression",
+      "word": "regrxessino",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "terminal",
+      "word": "trmznaz",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "configuration",
+      "word": "confgxiuxration",
+      "budget": 2,
+      "expected": false
+    },
+    {
+      "query": "abcdef",
+      "word": "abcdef",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "terminal",
+      "word": "texrminal",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "terminal",
+      "word": "terzial",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "terminal",
+      "word": "terxminxal",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "configuration",
+      "word": "confiuzztin",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "typescript",
+      "word": "typescript",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "typescript",
+      "word": "typescrip",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "abcdef",
+      "word": "abcxdef",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "billing",
+      "word": "izlin",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "billing",
+      "word": "billnxixg",
+      "budget": 2,
+      "expected": false
+    },
+    {
+      "query": "regression",
+      "word": "regression",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "workspace",
+      "word": "workspaec",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "billing",
+      "word": "bzllng",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "billing",
+      "word": "ibxlling",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "terminal",
+      "word": "tzzinl",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "configuration",
+      "word": "configuration",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "typescript",
+      "word": "typzscript",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "terminal",
+      "word": "etxrminal",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "configuration",
+      "word": "conziurztion",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "configuration",
+      "word": "cxonxfiugartion",
+      "budget": 2,
+      "expected": false
+    },
+    {
+      "query": "typescript",
+      "word": "typescript",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "workspace",
+      "word": "workspaxce",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "terminal",
+      "word": "trminaz",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "typescript",
+      "word": "yxtxpescript",
+      "budget": 2,
+      "expected": false
+    },
+    {
+      "query": "configuration",
+      "word": "confzuratiz",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "workspace",
+      "word": "workspace",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "workspace",
+      "word": "workspac",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "regression",
+      "word": "regrsexsion",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "configuration",
+      "word": "configuraoz",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "typescript",
+      "word": "typxescrixpt",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "billing",
+      "word": "billing",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "configuration",
+      "word": "cofniguration",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "configuration",
+      "word": "confiuratioz",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "billing",
+      "word": "billnixg",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "billing",
+      "word": "bilzn",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "billing",
+      "word": "billing",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "workspace",
+      "word": "wozkspace",
+      "budget": 1,
+      "expected": true
+    },
+    {
+      "query": "billing",
+      "word": "bixlling",
+      "budget": 2,
+      "expected": true
+    },
+    {
+      "query": "typescript",
+      "word": "tzpscrizt",
+      "budget": 1,
+      "expected": false
+    },
+    {
+      "query": "workspace",
+      "word": "xowrxkspaec",
+      "budget": 2,
+      "expected": false
+    }
+  ]
+}

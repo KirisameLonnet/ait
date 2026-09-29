@@ -167,7 +167,7 @@ fn alias(primary: Option<&str>, legacy: Option<&str>) -> Result<String, ErrorCod
         .ok_or(ErrorCode::InvalidMessage)
 }
 
-fn new_record(
+pub(super) fn new_record(
     history: &SessionHistory,
     handle: AgentPersistenceHandle,
 ) -> PersistedAgentRuntimeRecord {

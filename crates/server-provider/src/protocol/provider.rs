@@ -30,8 +30,16 @@ pub struct Details {
 pub struct ListRequest {
     /// Provider identity.
     pub provider: String,
-    /// Existing absolute directory; defaults to the server's working directory.
+    /// Optional directory scope. Missing, null and blank select the global catalog.
     pub cwd: Option<String>,
+}
+
+/// Preview features for the current draft without creating or changing an Agent.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct FeaturesRequest {
+    /// Proposed provider, directory, model, mode and feature values.
+    pub draft_config: super::agent_execution::SessionConfig,
 }
 
 /// Fetch cached discovery facts, optionally reusing an unchanged snapshot.

@@ -16,6 +16,8 @@ use crate::ports::registry::{
     WorkspaceMutationContext, WorkspaceRegistry,
 };
 
+mod activity;
+
 /// Safe application error for registry-backed directory operations.
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum DirectoryError {
@@ -34,6 +36,9 @@ pub enum DirectoryError {
     /// The target child directory already exists.
     #[error("directory already exists")]
     DirectoryExists,
+    /// Creation cannot replace a Workspace already registered under the selected identity.
+    #[error("workspace ID is already in use")]
+    WorkspaceIdConflict,
     /// Filesystem permissions rejected the requested operation.
     #[error("permission denied")]
     PermissionDenied,
@@ -134,6 +139,8 @@ pub struct WorkspaceCreation<'a> {
 /// Blocking project/workspace coordinator; clones share the same registries and adapters.
 #[derive(Debug, Clone)]
 pub struct Directory {
+    sync: server_model::directory_sync::DirectorySync,
+    activity: activity::ActivityProjection,
     creations: super::creation::Creations,
     names: Option<super::workspace_names::WorkspaceNames>,
     worktree_provisioning: Option<Arc<dyn crate::ports::worktrees::WorktreeProvisioning>>,
@@ -167,6 +174,10 @@ impl Directory {
     #[must_use]
     pub fn new(dependencies: DirectoryDependencies) -> Self {
         Self {
+            sync: server_model::directory_sync::DirectorySync::new(
+                uuid::Uuid::new_v4().to_string(),
+            ),
+            activity: activity::ActivityProjection::default(),
             creations: super::creation::Creations::default(),
             names: None,
             worktree_provisioning: None,
@@ -177,6 +188,24 @@ impl Directory {
             icon_store: dependencies.icon_store.into(),
             server_id: dependencies.server_id,
         }
+    }
+
+    /// Share the process generation and directory checkpoints with other projection owners.
+    #[must_use]
+    pub fn directory_sync(&self) -> server_model::directory_sync::DirectorySync {
+        self.sync.clone()
+    }
+
+    /// Add a shared read-only activity source to Workspace list status projection.
+    ///
+    /// The returned directory shares its status transition history across clones.
+    #[must_use]
+    pub fn with_activity_source(
+        mut self,
+        source: Arc<dyn crate::ports::workspace_state::WorkspaceActivitySource>,
+    ) -> Self {
+        self.activity.add(source);
+        self
     }
 
     /// Install the shared first-prompt naming coordinator.
@@ -220,6 +249,14 @@ impl Directory {
     #[must_use]
     pub fn worktrees(&self) -> Option<&dyn crate::ports::worktrees::WorktreeProvisioning> {
         self.worktree_provisioning.as_deref()
+    }
+
+    /// Share worktree lifecycle ownership with an Agent that requested automatic cleanup.
+    #[must_use]
+    pub fn shared_worktrees(
+        &self,
+    ) -> Option<Arc<dyn crate::ports::worktrees::WorktreeProvisioning>> {
+        self.worktree_provisioning.clone()
     }
 
     /// Register or refresh the oldest active project for a selected directory.
@@ -286,13 +323,25 @@ impl Directory {
             expects_initial_agent,
             timestamp,
         } = creation;
+        let workspace_id = match workspace_id {
+            Some(id) => id,
+            None => generate_workspace_id()?,
+        };
+        if self
+            .workspaces
+            .get(&workspace_id)
+            .map_err(map_error)?
+            .is_some()
+        {
+            return Err(DirectoryError::WorkspaceIdConflict);
+        }
         let checkout = self.source.inspect(path).map_err(map_source)?;
         let project = match project_id {
             Some(project_id) => self.require_active_project(project_id, &checkout, timestamp)?,
             None => self.project_for_checkout(&checkout, timestamp)?,
         };
         let mut workspace = workspace_record(
-            workspace_id.unwrap_or(generate_workspace_id()?),
+            workspace_id,
             &project.project_id,
             &checkout,
             normalize_optional_text(title),
@@ -385,6 +434,21 @@ impl Directory {
     /// Returns `DirectoryError::Registry` when the registry cannot be read.
     pub fn list_workspaces(&self) -> Result<Vec<PersistedWorkspaceRecord>, DirectoryError> {
         self.workspaces.list().map_err(map_error)
+    }
+
+    /// Check a completed creation's exact Workspace record and directory, including archived records.
+    /// Returns false when either was removed, without reopening or recreating anything.
+    /// # Errors
+    /// Returns registry or filesystem inspection failures other than a missing directory.
+    pub fn contains_workspace_directory(&self, id: &str) -> Result<bool, DirectoryError> {
+        let Some(workspace) = self.workspaces.get(id).map_err(map_error)? else {
+            return Ok(false);
+        };
+        match self.source.canonical(&workspace.cwd) {
+            Ok(_) => Ok(true),
+            Err(DirectorySourceError::NotFound) => Ok(false),
+            Err(error) => Err(map_source(error)),
+        }
     }
 
     /// Read `ait.json` for a known active project root.

@@ -2,6 +2,7 @@ use super::*;
 use crate::protocol::{Resize, Size};
 use crate::test_support::{fixture, request};
 
+mod archive;
 mod paseo;
 
 #[test]
@@ -185,3 +186,4 @@ fn closed_terminal_keeps_tail_only_for_existing_observers() {
     service.shutdown().unwrap();
     assert!(service.entries.is_empty());
 }
+mod activity;

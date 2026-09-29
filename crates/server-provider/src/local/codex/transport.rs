@@ -43,7 +43,24 @@ impl Transport {
         deadline: Duration,
         goals: bool,
     ) -> Result<Self, AgentSessionError> {
+        Self::spawn_with_environment(
+            program,
+            cwd,
+            deadline,
+            goals,
+            &crate::ports::environment::AgentEnvironment::default(),
+        )
+    }
+
+    pub(super) fn spawn_with_environment(
+        program: &Path,
+        cwd: &str,
+        deadline: Duration,
+        goals: bool,
+        environment: &crate::ports::environment::AgentEnvironment,
+    ) -> Result<Self, AgentSessionError> {
         let mut command = Command::new(program);
+        command.envs(environment.entries());
         if goals {
             command.args(["--enable", "goals"]);
         }

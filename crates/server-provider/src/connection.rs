@@ -11,9 +11,12 @@ use uuid::Uuid;
 use crate::dispatch::State;
 use crate::protocol::timeline::SubscriptionRequest;
 
+pub(crate) mod directory;
+
 /// Provider connection state. The diagnostic client label never grants additional authority.
 #[derive(Debug, Default)]
 pub struct Connection {
+    directories: BTreeMap<String, server_model::polling::Subscription>,
     subscriptions: BTreeMap<String, Subscription>,
     plugin: Option<String>,
 }
@@ -42,29 +45,26 @@ impl Connection {
     /// Count active observers toward the transport's shared subscription budget.
     #[must_use]
     pub fn len(&self) -> usize {
-        self.subscriptions.len()
+        self.subscriptions.len() + self.directories.len()
     }
 
     /// Whether no Provider observers remain.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.subscriptions.is_empty()
+        self.subscriptions.is_empty() && self.directories.is_empty()
     }
 
     /// Stop one observer only if it belongs to this physical connection.
     pub fn release(&mut self, id: &str) {
         self.subscriptions.remove(id);
+        self.directories.remove(id);
     }
 
     pub(crate) fn plugin(&self) -> Option<&str> {
         self.plugin.as_deref()
     }
 
-    pub(crate) async fn create(
-        &mut self,
-        mut context: Context<'_>,
-        state: &State,
-    ) -> Result<(), QueueError> {
+    pub(crate) async fn create(mut context: Context<'_>, state: &State) -> Result<(), QueueError> {
         if !context.request.params.is_object() {
             return context.respond(Err(ErrorCode::InvalidMessage));
         }
@@ -95,7 +95,7 @@ impl Connection {
                     Some(std::sync::Arc::new(std::sync::Mutex::new(creations))),
                     ErrorCode::RegistryIo,
                     move |creations| {
-                        creations.subscribe(
+                        creations.observe(
                             server_metadata::protocol::creation::Kind::Agent,
                             &key,
                             outbound,
@@ -104,12 +104,15 @@ impl Connection {
                 )
                 .await;
             match result {
-                Ok((_, subscription)) => Some(subscription),
+                Ok(subscription) => Some(subscription),
                 Err(error) => return context.respond(Err(error)),
             }
         } else {
             None
         };
+        if let Some(subscription) = &pending {
+            subscription.activate()?;
+        }
         let result = super::dispatch::agent_execution::dispatch(
             "agent.create.request",
             std::mem::take(&mut context.request.params),
@@ -117,16 +120,8 @@ impl Connection {
         )
         .await;
         match result {
-            Ok(mut value) => {
-                if let Some(subscription) = &pending {
-                    value["subscriptionId"] = json!(subscription.id());
-                }
+            Ok(value) => {
                 context.respond(Ok(value))?;
-                if let Some(subscription) = pending {
-                    subscription.activate()?;
-                    self.subscriptions
-                        .insert(subscription.id().to_owned(), subscription);
-                }
                 Ok(())
             }
             Err(error) => context.respond(Err(error)),
