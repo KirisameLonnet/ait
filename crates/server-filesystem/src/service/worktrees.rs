@@ -287,7 +287,7 @@ impl Worktrees {
         let untrusted_source = change_request.as_ref().and_then(|target| {
             target.untrusted_repository.as_ref().map(|repository| {
                 server_metadata::model::registry::UntrustedWorkspaceSource::ChangeRequest {
-                    forge: "github".to_owned(),
+                    forge: target.forge.clone(),
                     number: target.number,
                     head_repository: repository.clone(),
                 }

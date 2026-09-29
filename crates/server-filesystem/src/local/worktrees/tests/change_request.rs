@@ -7,6 +7,8 @@ use server_metadata::ports::worktrees::WorktreeChangeRequest;
 
 const GH_FIXTURE: &str = include_str!("../../../../tests/fixtures/gh_checkout.py");
 
+mod gitlab;
+
 fn fixture(cross: bool) -> (Fixture, LocalManagedWorktrees, PathBuf) {
     let fixture = Fixture::new();
     run(&fixture.repository, &["checkout", "-b", "topic"]);

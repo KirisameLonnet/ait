@@ -1,13 +1,13 @@
-//! GitHub checkout facts, without mutating the source checkout.
+//! Forge checkout facts, without mutating the source checkout.
 
-use super::{ForgeContext, LocalForge, READ_TIMEOUT, Value, require_git_directory};
-use crate::ports::worktrees::{ChangeRequestCheckout, WorktreeError};
+use super::{ForgeContext, ForgeKind, LocalForge, READ_TIMEOUT, Value, require_git_directory};
+use crate::ports::worktrees::{ChangeRequestCheckout, ChangeRequestCheckoutRef, WorktreeError};
 use server_metadata::ports::worktrees::WorktreeChangeRequest;
 
 const CHECKOUT_QUERY: &str = "query PullRequestCheckoutTarget($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $number) { number baseRefName headRefName isCrossRepository headRepositoryOwner { login } headRepository { sshUrl url } } } }";
 
 impl LocalForge {
-    /// Resolve a selected GitHub/GHES request through the existing authenticated CLI.
+    /// Resolve a selected GitHub/GitLab request through the existing authenticated CLI.
     /// # Errors
     /// Rejects unsupported forges, invalid identities, unavailable CLI, or malformed forge data.
     pub(crate) fn worktree_checkout(
@@ -19,7 +19,7 @@ impl LocalForge {
         if source
             .forge
             .as_deref()
-            .is_some_and(|forge| forge != "github")
+            .is_some_and(|forge| !matches!(forge, "github" | "gitlab"))
         {
             return Err(WorktreeError::ForgeUnavailable);
         }
@@ -29,18 +29,44 @@ impl LocalForge {
             ));
         }
         let cwd = require_git_directory(cwd).map_err(|_| lookup_failed())?;
-        let context = match Self::forge_context(&cwd) {
+        let context = match self.forge_context(&cwd) {
             Ok(context) => context,
-            Err(error) if error.kind == super::ForgeFailureKind::NoRemote => ForgeContext {
-                host: "github.com".to_owned(),
-                project_path: String::new(),
-            },
+            Err(error)
+                if error.kind == super::ForgeFailureKind::NoRemote
+                    && source.forge.as_deref() == Some("github") =>
+            {
+                ForgeContext {
+                    kind: ForgeKind::Github,
+                    host: "github.com".to_owned(),
+                    project_path: String::new(),
+                }
+            }
             Err(_) => return Err(lookup_failed()),
         };
+        let name = match context.kind {
+            ForgeKind::Github => "github",
+            ForgeKind::Gitlab => "gitlab",
+        };
+        if source.forge.as_deref().is_some_and(|forge| forge != name) {
+            return Err(WorktreeError::ForgeUnavailable);
+        }
+        if context.kind == ForgeKind::Gitlab {
+            return super::gitlab::checkout(self, &cwd, &context, source.number, head_ref);
+        }
+        self.github_checkout(&cwd, &context, source.number, head_ref)
+    }
+
+    fn github_checkout(
+        &self,
+        cwd: &std::path::Path,
+        context: &ForgeContext,
+        number: u64,
+        head_ref: Option<&str>,
+    ) -> Result<ChangeRequestCheckout, WorktreeError> {
         let repository = self
             .gh(
-                &cwd,
-                &context,
+                cwd,
+                context,
                 &[
                     "repo".into(),
                     "view".into(),
@@ -57,8 +83,8 @@ impl LocalForge {
         let name = repository["name"].as_str().ok_or_else(lookup_failed)?;
         let response = self
             .gh(
-                &cwd,
-                &context,
+                cwd,
+                context,
                 &[
                     "api".into(),
                     "graphql".into(),
@@ -69,26 +95,26 @@ impl LocalForge {
                     "-F".into(),
                     format!("name={name}"),
                     "-F".into(),
-                    format!("number={}", source.number),
+                    format!("number={number}"),
                 ],
                 READ_TIMEOUT,
             )
             .map_err(|_| lookup_failed())?;
         let response: Value = serde_json::from_str(&response).map_err(|_| lookup_failed())?;
         let facts = &response["data"]["repository"]["pullRequest"];
-        if facts["number"].as_u64() != Some(source.number) {
+        if facts["number"].as_u64() != Some(number) {
             return Err(lookup_failed());
         }
-        let mut target = parse_target(facts, source.number, head_ref)?;
+        let mut target = parse_target(facts, number, head_ref)?;
         if target.head_ref.is_empty() {
             let response = self
                 .gh(
-                    &cwd,
-                    &context,
+                    cwd,
+                    context,
                     &[
                         "pr".into(),
                         "view".into(),
-                        source.number.to_string(),
+                        number.to_string(),
                         "--json".into(),
                         "headRefName".into(),
                     ],
@@ -100,7 +126,7 @@ impl LocalForge {
                 .as_str()
                 .ok_or_else(lookup_failed)?
                 .to_owned();
-            target = parse_target(facts, source.number, Some(&head))?;
+            target = parse_target(facts, number, Some(&head))?;
         }
         Ok(target)
     }
@@ -148,6 +174,7 @@ fn parse_target(
         head.clone()
     };
     Ok(ChangeRequestCheckout {
+        forge: "github".to_owned(),
         number,
         head_ref: head,
         base_ref: value["baseRefName"]
@@ -159,6 +186,13 @@ fn parse_target(
         track_origin: !cross,
         push_remote_url,
         untrusted_repository: cross.then(|| repository_identity(owner, url.or(ssh))),
+        checkout_refs: ["origin", "upstream"]
+            .into_iter()
+            .map(|remote| ChangeRequestCheckoutRef {
+                remote: remote.to_owned(),
+                reference: format!("refs/pull/{number}/head"),
+            })
+            .collect(),
     })
 }
 

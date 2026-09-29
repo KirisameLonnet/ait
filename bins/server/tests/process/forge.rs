@@ -9,6 +9,9 @@ use serde_json::json;
 use super::transport::{connect, request};
 use super::{ready, start_with_path, terminate};
 
+#[path = "forge/gitlab.rs"]
+mod gitlab;
+
 #[tokio::test]
 async fn binary_serves_all_forge_and_pull_request_methods() {
     let root = tempfile::tempdir().unwrap();

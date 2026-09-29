@@ -1,0 +1,630 @@
+{
+  "measured_at_utc": "2026-09-29T06:37:44.738348+00:00",
+  "base_revision": "0b57724a959b21f9ef7440082011c5d636b07211",
+  "revision": "base_revision plus source_sha256 below; only documentation changes after this measurement",
+  "paseo_reference_revision": "30178c4f58b67f8472901356e1484022bd835de0",
+  "toolchain": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: aarch64-apple-darwin\nrelease: 1.98.1\nLLVM version: 22.1.8",
+  "coverage_tool": "cargo-llvm-cov 0.8.4",
+  "scope": {
+    "workspace": true,
+    "features": "default",
+    "platform": "aarch64-apple-darwin",
+    "file_filter": "cargo-llvm-cov defaults",
+    "explicit_file_exclusions": [],
+    "doctest_coverage": false
+  },
+  "commands": [
+    "cargo test --workspace",
+    "cargo build --workspace",
+    "cargo clippy --workspace --all-targets -- -D warnings",
+    "cargo fmt --all --check",
+    "cargo llvm-cov --workspace --html",
+    "cargo llvm-cov report --json --summary-only --output-path /tmp/ait-gitlab-coverage-raw.json",
+    "cargo llvm-cov report --lcov --output-path /tmp/ait-gitlab-coverage.lcov"
+  ],
+  "test_execution": {
+    "passed": 1484,
+    "failed": 0,
+    "ignored": 3,
+    "log_sha256": "9c021ff73e233c12855109a3a36975999cd0f3e5f3ec5890054166a7823a3a93"
+  },
+  "coverage_test_execution": {
+    "passed": 1484,
+    "failed": 0,
+    "ignored": 3,
+    "log_sha256": "f54a0d6df94de913737624d51a53b2602d37f7b6b3e4d0effb89d8bc4179dd6f"
+  },
+  "app_test_execution": {
+    "files": 6,
+    "passed": 94,
+    "failed": 0,
+    "log_sha256": "477b496c31eba9cf0af2dad30b86e626790f0ec1ebff64363eeed0f0b1d81a14"
+  },
+  "workspace": {
+    "covered": 41648,
+    "total": 45322,
+    "percent": 91.89
+  },
+  "crate_totals": {
+    "bins/server": {
+      "covered": 870,
+      "total": 922,
+      "percent": 94.36
+    },
+    "crates/server-api": {
+      "covered": 1635,
+      "total": 1711,
+      "percent": 95.56
+    },
+    "crates/server-browser": {
+      "covered": 707,
+      "total": 726,
+      "percent": 97.38
+    },
+    "crates/server-domain": {
+      "covered": 121,
+      "total": 121,
+      "percent": 100.0
+    },
+    "crates/server-filesystem": {
+      "covered": 9415,
+      "total": 10535,
+      "percent": 89.37
+    },
+    "crates/server-metadata": {
+      "covered": 6862,
+      "total": 7566,
+      "percent": 90.7
+    },
+    "crates/server-model": {
+      "covered": 629,
+      "total": 659,
+      "percent": 95.45
+    },
+    "crates/server-protocol": {
+      "covered": 57,
+      "total": 57,
+      "percent": 100.0
+    },
+    "crates/server-provider": {
+      "covered": 17346,
+      "total": 18606,
+      "percent": 93.23
+    },
+    "crates/server-schedule": {
+      "covered": 802,
+      "total": 820,
+      "percent": 97.8
+    },
+    "crates/server-terminal": {
+      "covered": 1549,
+      "total": 1701,
+      "percent": 91.06
+    },
+    "crates/server-voice": {
+      "covered": 1655,
+      "total": 1898,
+      "percent": 87.2
+    }
+  },
+  "new_gitlab_adapter_and_resolver": {
+    "covered": 934,
+    "total": 978,
+    "percent": 95.5
+  },
+  "baseline": {
+    "artifact": "paseo-server-pr-coverage-2026-09-29.json",
+    "workspace": {
+      "covered": 40580,
+      "total": 44250,
+      "percent": 91.71
+    },
+    "percentage_point_change": 0.18,
+    "note": "Same-scope historical macOS/default-feature measurement from main; exact base not remeasured, so this is not an isolated PR effect."
+  },
+  "source_sha256": {
+    "apps/app/src/runtime/rust-server/messages.test.ts": "eb5c202fbec7dc77b93f7d60aa690f1f06bb929384ac806193510d5bb30c92f9",
+    "apps/app/src/runtime/rust-server/messages.ts": "33c0bdac417554dc16ba89d2bab46bf9bf0bb11016640fe7a4f4072d274964a7",
+    "bins/server/tests/process/forge.rs": "b322cf900dbf9046e6e3d7a50c6e8ff706d6e938490e62b259fee2667bfa7983",
+    "bins/server/tests/process/forge/gitlab.rs": "8115664d097a4f64f71ddcefb2a866bc87700ed22edcc40ba276089153a9800a",
+    "bins/server/tests/process/forge/gitlab/glab.sh": "be7a207f4dd7de40ce06565d4d97e80ab39b63adfb426157a4310fe815bd344b",
+    "bins/server/tests/process/worktrees/creation.rs": "61acaf811e64918c550acbe4a940f5adca9aeeedc27f9f2eb8b44fe3b4f803ce",
+    "crates/server-api/src/capabilities.rs": "c61cb4df5fba7f0ba82a22fa70314c47346e317c0d68b43128fd7791a1192c56",
+    "crates/server-filesystem/src/local/forge.rs": "a14a8208fc804a7d3bcae975b4a8c2c3ef065a0970a79bc45ac589be170113d8",
+    "crates/server-filesystem/src/local/forge/gitlab.rs": "08716634070c72811f30da5e4c8a978cde0170e9ebde47dff0e9238247196deb",
+    "crates/server-filesystem/src/local/forge/gitlab/checkout.rs": "d30095a8e175bd0e8f043497139c6a8a565b0825147ba2028b14b1d85ed7678d",
+    "crates/server-filesystem/src/local/forge/gitlab/pipeline.rs": "613ba024865e47b35fe412898cfdcd429fb692831c4e9695ba1aaf6742072a06",
+    "crates/server-filesystem/src/local/forge/gitlab/status.rs": "ce71f9e1ca757fc103fb408bfc0e597603d2dbb70e1a00b8104a693c679affc1",
+    "crates/server-filesystem/src/local/forge/gitlab/tests.rs": "ded871f819ba2e4ce68281aba4434c97102a24fa32617f15d983913be8892d67",
+    "crates/server-filesystem/src/local/forge/gitlab/tests/commands.rs": "cb69f49b6a68b8ab6b6067e5d4fc6a8ac99684bfaeee3c6126bfb9a01e190701",
+    "crates/server-filesystem/src/local/forge/gitlab/timeline.rs": "dd0d2db6f9f8baf6008cfec808af3ed43001cf22cd2a59a4a47b8bb027aeaa54",
+    "crates/server-filesystem/src/local/forge/resolver.rs": "d0c727640bf06e169a7da607ccd669fc3e38e432e41b61ffb95426137759dbca",
+    "crates/server-filesystem/src/local/forge/resolver/tests.rs": "89506d90f29c66c779824a6fe99f2e329d91756ad617f7cc7a7c6a34b0da045b",
+    "crates/server-filesystem/src/local/forge/tests/commands.rs": "38fa176ce23960663531a6b7711f09f8b221e4eaa890dd4c9162972e884a195b",
+    "crates/server-filesystem/src/local/forge/tests/paseo.rs": "faf763c3d84e4b89b62eb36ef9953660a753792bcd8f69da6ba5c9c0480eee91",
+    "crates/server-filesystem/src/local/forge/worktree_checkout.rs": "82692e9ce70c1c07914176e4d72b8c8a9825e3eb7b8f20e08335cc31654dc24a",
+    "crates/server-filesystem/src/local/worktrees/change_request.rs": "e713b12c9457eaa47135edb4623aac44b2e557f9e960ed6cbb076c3980bf5a4c",
+    "crates/server-filesystem/src/local/worktrees/tests/change_request.rs": "c6f9252cd72f6bc786710d884e73ec9861c1a9de054feabf7b17c25c5b54c0f5",
+    "crates/server-filesystem/src/local/worktrees/tests/change_request/gitlab.rs": "6d6d1348d3a11a28eb7cbfa16f3f433f09beb1a2022db3f9b9b67c3d1e86c4fd",
+    "crates/server-filesystem/src/ports/forge.rs": "389dcbd5eda9725fa9d70111fae11b947660236038a40979cbca4cb79a0b4a90",
+    "crates/server-filesystem/src/ports/worktrees.rs": "236f1a4d4311e3fc74dd732f4cf558454eb2fcf0c40ccd661af472878b37e56f",
+    "crates/server-filesystem/src/rpc/forge.rs": "f2e5d221d0f0bde7fa36c5c50953f74c944dc9293d9634ae9631940ae581ae13",
+    "crates/server-filesystem/src/service/forge.rs": "154c4e6425c9d57ae7adf1eb0523d43ebe9e2aefd478b102c01282e1a62a7e58",
+    "crates/server-filesystem/src/service/forge/tests.rs": "1f28a9c26dfdfbbcbe927167b9c532cd9a41fec012bac275b5d9c70c5d7cc580",
+    "crates/server-filesystem/src/service/worktrees.rs": "2e86c83ad16cf7c5b264fa08eab3d95a40158b50431c18c91d845b15e497ad77"
+  },
+  "changed_production_files": {
+    "crates/server-api/src/capabilities.rs": {
+      "lines": {
+        "covered": 102,
+        "total": 102,
+        "percent": 100.0
+      },
+      "uncovered_lcov_lines": []
+    },
+    "crates/server-filesystem/src/local/forge.rs": {
+      "lines": {
+        "covered": 1016,
+        "total": 1177,
+        "percent": 86.32
+      },
+      "uncovered_lcov_lines": [
+        75,
+        76,
+        77,
+        138,
+        140,
+        141,
+        142,
+        143,
+        144,
+        159,
+        160,
+        161,
+        162,
+        170,
+        193,
+        261,
+        284,
+        337,
+        364,
+        384,
+        385,
+        388,
+        467,
+        468,
+        471,
+        473,
+        474,
+        477,
+        479,
+        480,
+        483,
+        490,
+        501,
+        518,
+        519,
+        578,
+        579,
+        580,
+        583,
+        585,
+        586,
+        587,
+        588,
+        589,
+        592,
+        593,
+        601,
+        602,
+        603,
+        604,
+        607,
+        608,
+        609,
+        610,
+        624,
+        691,
+        712,
+        764,
+        766,
+        800,
+        802,
+        803,
+        820,
+        835,
+        836,
+        837,
+        838,
+        839,
+        840,
+        841,
+        842,
+        843,
+        845,
+        846,
+        847,
+        848,
+        849,
+        850,
+        851,
+        852,
+        854,
+        855,
+        857,
+        858,
+        860,
+        861,
+        862,
+        863,
+        926,
+        929,
+        980,
+        1004,
+        1025,
+        1039,
+        1053,
+        1054,
+        1055,
+        1063,
+        1079,
+        1103,
+        1104,
+        1105,
+        1106,
+        1107,
+        1108,
+        1109,
+        1110,
+        1111,
+        1112,
+        1115,
+        1116,
+        1117,
+        1118,
+        1119,
+        1120,
+        1121,
+        1122,
+        1123,
+        1124,
+        1314,
+        1315,
+        1316,
+        1318,
+        1344,
+        1345,
+        1346,
+        1347,
+        1348,
+        1349,
+        1350,
+        1380,
+        1381,
+        1382
+      ]
+    },
+    "crates/server-filesystem/src/local/forge/gitlab.rs": {
+      "lines": {
+        "covered": 380,
+        "total": 398,
+        "percent": 95.48
+      },
+      "uncovered_lcov_lines": [
+        165,
+        232,
+        270,
+        273,
+        366,
+        372,
+        380,
+        381,
+        448
+      ]
+    },
+    "crates/server-filesystem/src/local/forge/gitlab/checkout.rs": {
+      "lines": {
+        "covered": 46,
+        "total": 49,
+        "percent": 93.88
+      },
+      "uncovered_lcov_lines": []
+    },
+    "crates/server-filesystem/src/local/forge/gitlab/pipeline.rs": {
+      "lines": {
+        "covered": 190,
+        "total": 198,
+        "percent": 95.96
+      },
+      "uncovered_lcov_lines": [
+        70,
+        137,
+        200,
+        201,
+        202,
+        203
+      ]
+    },
+    "crates/server-filesystem/src/local/forge/gitlab/status.rs": {
+      "lines": {
+        "covered": 101,
+        "total": 102,
+        "percent": 99.02
+      },
+      "uncovered_lcov_lines": []
+    },
+    "crates/server-filesystem/src/local/forge/gitlab/timeline.rs": {
+      "lines": {
+        "covered": 131,
+        "total": 143,
+        "percent": 91.61
+      },
+      "uncovered_lcov_lines": [
+        43,
+        52,
+        69,
+        130,
+        131,
+        132,
+        133
+      ]
+    },
+    "crates/server-filesystem/src/local/forge/resolver.rs": {
+      "lines": {
+        "covered": 86,
+        "total": 88,
+        "percent": 97.73
+      },
+      "uncovered_lcov_lines": [
+        115,
+        124
+      ]
+    },
+    "crates/server-filesystem/src/local/forge/worktree_checkout.rs": {
+      "lines": {
+        "covered": 179,
+        "total": 212,
+        "percent": 84.43
+      },
+      "uncovered_lcov_lines": [
+        51,
+        106,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115,
+        116,
+        117,
+        118,
+        119,
+        120,
+        123,
+        124,
+        125,
+        126,
+        127,
+        128,
+        129,
+        212,
+        213,
+        214
+      ]
+    },
+    "crates/server-filesystem/src/local/worktrees/change_request.rs": {
+      "lines": {
+        "covered": 112,
+        "total": 123,
+        "percent": 91.06
+      },
+      "uncovered_lcov_lines": [
+        14,
+        19,
+        20,
+        21,
+        45,
+        66,
+        103,
+        120,
+        131,
+        143,
+        144
+      ]
+    },
+    "crates/server-filesystem/src/ports/forge.rs": {
+      "lines": {
+        "covered": 3,
+        "total": 3,
+        "percent": 100.0
+      },
+      "uncovered_lcov_lines": []
+    },
+    "crates/server-filesystem/src/ports/worktrees.rs": {
+      "lines": {
+        "covered": 8,
+        "total": 8,
+        "percent": 100.0
+      },
+      "uncovered_lcov_lines": []
+    },
+    "crates/server-filesystem/src/rpc/forge.rs": {
+      "lines": {
+        "covered": 372,
+        "total": 461,
+        "percent": 80.69
+      },
+      "uncovered_lcov_lines": [
+        28,
+        39,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        143,
+        156,
+        162,
+        163,
+        211,
+        212,
+        213,
+        214,
+        219,
+        220,
+        221,
+        222,
+        223,
+        224,
+        225,
+        226,
+        227,
+        228,
+        229,
+        230,
+        251,
+        270,
+        271,
+        272,
+        273,
+        274,
+        275,
+        286,
+        287,
+        288,
+        289,
+        290,
+        352,
+        353,
+        402,
+        404,
+        431,
+        432,
+        433,
+        434,
+        435,
+        436,
+        437,
+        442,
+        444,
+        445,
+        446,
+        447,
+        449,
+        451,
+        463,
+        464,
+        465,
+        466,
+        484,
+        485,
+        486,
+        487,
+        488,
+        489,
+        490,
+        491,
+        511,
+        512,
+        513,
+        520,
+        521,
+        522,
+        530,
+        531,
+        532
+      ]
+    },
+    "crates/server-filesystem/src/service/forge.rs": {
+      "lines": {
+        "covered": 94,
+        "total": 94,
+        "percent": 100.0
+      },
+      "uncovered_lcov_lines": []
+    },
+    "crates/server-filesystem/src/service/worktrees.rs": {
+      "lines": {
+        "covered": 441,
+        "total": 505,
+        "percent": 87.33
+      },
+      "uncovered_lcov_lines": [
+        160,
+        163,
+        166,
+        169,
+        171,
+        173,
+        330,
+        331,
+        332,
+        333,
+        376,
+        377,
+        378,
+        379,
+        380,
+        475,
+        536,
+        585,
+        586,
+        587,
+        588,
+        589,
+        597,
+        598,
+        599,
+        600,
+        601,
+        602,
+        603,
+        604,
+        605,
+        607,
+        611,
+        612,
+        613,
+        614,
+        615,
+        616,
+        617,
+        618,
+        619,
+        620,
+        629,
+        630,
+        631,
+        632,
+        633,
+        634,
+        635,
+        715,
+        716,
+        717,
+        718,
+        719,
+        720,
+        721,
+        722
+      ]
+    }
+  },
+  "metric_note": "Line totals use LLVM JSON summary; uncovered line numbers use LCOV DA, whose counting differs. These denominators are not mixed.",
+  "unverified": [
+    "Authenticated GitLab/glab and self-managed SSO/proxy/custom HTTP ports",
+    "Electron GUI and Desktop 0.0.8 release package",
+    "Linux and Windows",
+    "TypeScript line coverage",
+    "Resolver cache expiry/eviction and poisoned-lock branches; process/OS failures are not exhaustive"
+  ],
+  "raw_llvm_summary_sha256": "2a5c6916328c741c5391a1aa4da21034e71d8ec79bb4ecdd91f15be0d87f8a4f",
+  "lcov_sha256": "55976ffbf359e067502f80583dbd39119874ff106d3d3c6a09982cfa6793108c"
+}

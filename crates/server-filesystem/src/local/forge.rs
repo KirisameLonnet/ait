@@ -1,4 +1,4 @@
-//! Bounded GitHub CLI adapter for forge search and pull request operations.
+//! Bounded GitHub and GitLab CLI adapters for forge operations.
 
 mod worktree_checkout;
 
@@ -7,6 +7,7 @@ use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use chrono::DateTime;
@@ -19,6 +20,11 @@ use crate::ports::forge::{
     PullRequestStatus, PullRequestStatusRead, PullRequestTimeline, PullRequestTimelineItem,
     TimelineCommentLocation, TimelineError, TimelineErrorKind, TimelineReviewState,
 };
+
+mod gitlab;
+mod resolver;
+
+use resolver::{ForgeKind, HostCache};
 
 const READ_TIMEOUT: Duration = Duration::from_secs(30);
 const WRITE_TIMEOUT: Duration = Duration::from_secs(120);
@@ -56,10 +62,13 @@ query PullRequestTimeline($owner: String!, $name: String!, $number: Int!) {
   }
 }";
 
-/// Stateless GitHub CLI adapter. The CLI uses the user's existing authentication.
+/// Forge router using the host's existing GitHub/GitLab CLI authentication.
 #[derive(Debug, Clone)]
 pub struct LocalForge {
     executable: PathBuf,
+    gitlab_executable: PathBuf,
+    ssh_executable: PathBuf,
+    hosts: Arc<Mutex<HostCache>>,
 }
 
 impl Default for LocalForge {
@@ -69,34 +78,29 @@ impl Default for LocalForge {
 }
 
 impl LocalForge {
-    /// Use `gh` resolved from the server process environment.
+    /// Resolve `gh`, `glab` and SSH aliases from the server process environment.
     #[must_use]
     pub fn new() -> Self {
         Self {
             executable: PathBuf::from("gh"),
+            gitlab_executable: PathBuf::from("glab"),
+            ssh_executable: PathBuf::from("ssh"),
+            hosts: Arc::default(),
         }
     }
 
     #[cfg(test)]
     pub(crate) fn with_executable(executable: PathBuf) -> Self {
-        Self { executable }
+        Self {
+            gitlab_executable: executable.with_file_name("glab"),
+            ssh_executable: executable.with_file_name("ssh"),
+            executable,
+            hosts: Arc::default(),
+        }
     }
 
-    fn forge_context(cwd: &Path) -> Result<ForgeContext, ForgeRuntimeError> {
-        let remote = git_optional(cwd, &["config", "--get", "remote.origin.url"], READ_TIMEOUT)?
-            .ok_or_else(|| {
-                forge_error(ForgeFailureKind::NoRemote, "No origin remote is configured")
-            })?;
-        let location = parse_remote(&remote).ok_or_else(|| {
-            forge_error(
-                ForgeFailureKind::NoRemote,
-                "No supported forge remote is configured for this workspace",
-            )
-        })?;
-        Ok(ForgeContext {
-            host: location.host,
-            project_path: location.project_path,
-        })
+    fn forge_context(&self, cwd: &Path) -> Result<ForgeContext, ForgeRuntimeError> {
+        resolver::resolve(self, cwd)
     }
 
     fn gh(
@@ -112,9 +116,7 @@ impl LocalForge {
             .current_dir(cwd)
             .env("GIT_TERMINAL_PROMPT", "0")
             .env("GH_PROMPT_DISABLED", "1");
-        if context.host != "github.com" {
-            command.env("GH_HOST", &context.host);
-        }
+        command.env("GH_HOST", &context.host).env_remove("GH_REPO");
         run_command(command, timeout, CommandFamily::Forge).map(|output| output.stdout)
     }
 
@@ -123,6 +125,12 @@ impl LocalForge {
         cwd: &Path,
         context: &ForgeContext,
     ) -> Result<PullRequestStatusRead, ForgeRuntimeError> {
+        if context.kind == ForgeKind::Gitlab {
+            return gitlab::status(self, cwd, context).map_err(|mut error| {
+                error.forge = Some("gitlab".to_owned());
+                error
+            });
+        }
         let branch = git_optional(
             cwd,
             &["symbolic-ref", "--quiet", "--short", "HEAD"],
@@ -165,6 +173,10 @@ impl LocalForge {
 }
 
 impl ForgeRuntime for LocalForge {
+    fn providers(&self) -> &'static [&'static str] {
+        &["github", "gitlab"]
+    }
+
     fn search(
         &self,
         cwd: &str,
@@ -173,13 +185,16 @@ impl ForgeRuntime for LocalForge {
         kinds: &[ForgeSearchKind],
     ) -> Result<ForgeSearch, ForgeRuntimeError> {
         let cwd = require_git_directory(cwd)?;
-        let context = match Self::forge_context(&cwd) {
+        let context = match self.forge_context(&cwd) {
             Ok(context) => context,
             Err(error) if error.kind == ForgeFailureKind::NoRemote => {
                 return Ok(unavailable_search(ForgeAuthState::NoRemote));
             }
             Err(error) => return Err(error),
         };
+        if context.kind == ForgeKind::Gitlab {
+            return gitlab::search(self, &cwd, &context, (query, limit, kinds));
+        }
         let limit = limit.clamp(1, 50);
         let mut attempts = Vec::new();
         if kinds.contains(&ForgeSearchKind::Issue) {
@@ -261,7 +276,7 @@ impl ForgeRuntime for LocalForge {
         base_ref: Option<&str>,
     ) -> Result<PullRequestCreated, ForgeRuntimeError> {
         let cwd = require_git_directory(cwd)?;
-        let context = Self::forge_context(&cwd)?;
+        let context = self.forge_context(&cwd)?;
         let head = git_required(
             &cwd,
             &["symbolic-ref", "--quiet", "--short", "HEAD"],
@@ -269,6 +284,19 @@ impl ForgeRuntime for LocalForge {
         )?;
         let base = resolve_base(&cwd, base_ref, &head)?;
         git_required(&cwd, &["push", "-u", "origin", &head], WRITE_TIMEOUT)?;
+        if context.kind == ForgeKind::Gitlab {
+            return gitlab::create(
+                self,
+                &cwd,
+                &context,
+                gitlab::CreateRequest {
+                    title,
+                    body,
+                    head: &head,
+                    base: &base,
+                },
+            );
+        }
         let arguments = vec![
             "api".to_owned(),
             "-X".to_owned(),
@@ -297,7 +325,7 @@ impl ForgeRuntime for LocalForge {
         cwd: &str,
     ) -> Result<PullRequestStatusRead, ForgeRuntimeError> {
         let cwd = require_git_directory(cwd)?;
-        let context = match Self::forge_context(&cwd) {
+        let context = match self.forge_context(&cwd) {
             Ok(context) => context,
             Err(error) if error.kind == ForgeFailureKind::NoRemote => {
                 return Ok(PullRequestStatusRead {
@@ -317,8 +345,11 @@ impl ForgeRuntime for LocalForge {
         merge_method: PullRequestMergeMethod,
     ) -> Result<(), ForgeRuntimeError> {
         let cwd = require_git_directory(cwd)?;
-        let context = Self::forge_context(&cwd)?;
+        let context = self.forge_context(&cwd)?;
         let status = self.status_with_context(&cwd, &context)?;
+        if context.kind == ForgeKind::Gitlab {
+            return gitlab::merge(self, &cwd, &context, &status, merge_method);
+        }
         let number = current_number(&status, "merge")?;
         self.gh(
             &cwd,
@@ -341,8 +372,11 @@ impl ForgeRuntime for LocalForge {
         merge_method: Option<PullRequestMergeMethod>,
     ) -> Result<(), ForgeRuntimeError> {
         let cwd = require_git_directory(cwd)?;
-        let context = Self::forge_context(&cwd)?;
+        let context = self.forge_context(&cwd)?;
         let status = self.status_with_context(&cwd, &context)?;
+        if context.kind == ForgeKind::Gitlab {
+            return gitlab::auto_merge(self, &cwd, &context, &status, (enabled, merge_method));
+        }
         let number = current_number(&status, "auto-merge")?;
         let mut arguments = strings(&["pr", "merge", &number.to_string()]);
         if enabled {
@@ -369,7 +403,10 @@ impl ForgeRuntime for LocalForge {
         repo_name: &str,
     ) -> Result<PullRequestTimeline, ForgeRuntimeError> {
         let cwd = require_git_directory(cwd)?;
-        let context = Self::forge_context(&cwd)?;
+        let context = self.forge_context(&cwd)?;
+        if context.kind == ForgeKind::Gitlab {
+            return gitlab::timeline(self, &cwd, &context, pr_number);
+        }
         let arguments = vec![
             "api".to_owned(),
             "graphql".to_owned(),
@@ -414,6 +451,11 @@ impl ForgeRuntime for LocalForge {
         cwd: &str,
         query: crate::ports::forge::CheckDetailsQuery<'_>,
     ) -> Result<CheckDetails, ForgeRuntimeError> {
+        let cwd = require_git_directory(cwd)?;
+        let context = self.forge_context(&cwd)?;
+        if context.kind == ForgeKind::Gitlab {
+            return gitlab::check_details(self, &cwd, &context, query);
+        }
         let crate::ports::forge::CheckDetailsQuery {
             repo_owner,
             repo_name,
@@ -421,8 +463,6 @@ impl ForgeRuntime for LocalForge {
             workflow_run_id,
             ..
         } = query;
-        let cwd = require_git_directory(cwd)?;
-        let context = Self::forge_context(&cwd)?;
         let owner = repo_owner.ok_or_else(|| {
             forge_error(
                 ForgeFailureKind::Invalid,
@@ -504,6 +544,7 @@ impl ForgeRuntime for LocalForge {
 
 #[derive(Debug)]
 struct ForgeContext {
+    kind: ForgeKind,
     host: String,
     project_path: String,
 }
@@ -645,7 +686,7 @@ fn run_command_with_codes(
         .stderr(stderr.try_clone().map_err(|error| io_error(&error))?);
     let mut child = command.spawn().map_err(|error| {
         if error.kind() == std::io::ErrorKind::NotFound && matches!(family, CommandFamily::Forge) {
-            forge_error(ForgeFailureKind::CliMissing, "GitHub CLI is not installed")
+            forge_error(ForgeFailureKind::CliMissing, "Forge CLI is not installed")
         } else {
             io_error(&error)
         }
@@ -727,6 +768,8 @@ fn classify_command_error(family: CommandFamily, message: &str) -> ForgeFailureK
         || lower.contains("authentication")
         || lower.contains("authenticate")
         || lower.contains("gh auth login")
+        || lower.contains("glab auth login")
+        || lower.contains("not logged in")
         || lower.contains("http 401")
         || lower.contains("bad credentials")
     {
@@ -1340,6 +1383,7 @@ fn io_error(error: &std::io::Error) -> ForgeRuntimeError {
 
 fn forge_error(kind: ForgeFailureKind, message: impl Into<String>) -> ForgeRuntimeError {
     ForgeRuntimeError {
+        forge: None,
         kind,
         message: message.into(),
     }

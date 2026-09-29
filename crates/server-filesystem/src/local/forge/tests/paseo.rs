@@ -13,6 +13,7 @@ fn status(fields: Value) -> PullRequestStatus {
         &value.to_string(),
         "local-head",
         &ForgeContext {
+            kind: ForgeKind::Github,
             host: "github.example".into(),
             project_path: "fork/project".into(),
         },

@@ -21,6 +21,12 @@ impl Forge {
         Self { runtime }
     }
 
+    /// Installed platform implementations advertised during the server handshake.
+    #[must_use]
+    pub fn providers(&self) -> &'static [&'static str] {
+        self.runtime.providers()
+    }
+
     /// Search issues and change requests.
     ///
     /// # Errors
@@ -48,6 +54,7 @@ impl Forge {
     ) -> Result<PullRequestCreated, ForgeRuntimeError> {
         if title.trim().is_empty() || body.trim().is_empty() {
             return Err(ForgeRuntimeError {
+                forge: None,
                 kind: ForgeFailureKind::Invalid,
                 message: "Pull request title and body are required".to_owned(),
             });
@@ -91,12 +98,14 @@ impl Forge {
     ) -> Result<(), ForgeRuntimeError> {
         if enabled && merge_method.is_none() {
             return Err(ForgeRuntimeError {
+                forge: None,
                 kind: ForgeFailureKind::Invalid,
                 message: "mergeMethod is required when enabling auto-merge".to_owned(),
             });
         }
         if !enabled && merge_method.is_some() {
             return Err(ForgeRuntimeError {
+                forge: None,
                 kind: ForgeFailureKind::Invalid,
                 message: "mergeMethod is not allowed when disabling auto-merge".to_owned(),
             });
@@ -131,6 +140,7 @@ impl Forge {
     ) -> Result<CheckDetails, ForgeRuntimeError> {
         if query.check_run_id.is_none() && query.workflow_run_id.is_none() {
             return Err(ForgeRuntimeError {
+                forge: None,
                 kind: ForgeFailureKind::Invalid,
                 message:
                     "Check details request must address a check by checkRunId or workflowRunId"

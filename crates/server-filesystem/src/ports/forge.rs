@@ -31,6 +31,8 @@ pub enum ForgeFailureKind {
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{message}")]
 pub struct ForgeRuntimeError {
+    /// Resolved forge when the failure happened after platform detection.
+    pub forge: Option<String>,
     /// Stable failure category.
     pub kind: ForgeFailureKind,
     /// Human-readable diagnostic.
@@ -395,6 +397,11 @@ pub struct CheckDetails {
 
 /// Blocking forge runtime.
 pub trait ForgeRuntime: std::fmt::Debug + Send {
+    /// Installed platform implementations; authentication remains per-host.
+    fn providers(&self) -> &'static [&'static str] {
+        &["github"]
+    }
+
     /// Search issues and change requests.
     ///
     /// # Errors

@@ -99,6 +99,23 @@ describe("Ait host capabilities", () => {
     expect(read(features)).toMatchObject({ directorySync: false, directorySubscriptions: false });
   });
 
+  it("enables GitLab panels only when the server advertises its installed adapter", () => {
+    const methods = new Set([
+      "checkout.pr.status.request",
+      "checkout.forge.get_check_details.request",
+      "checkout.forge.set_auto_merge.request",
+    ]);
+    const envelope = serverInfo({ server_id: "ait", features: ["forge-gitlab-v1"] }, methods);
+    const value = parseServerInfoStatusPayload(object(object(envelope.message).payload));
+    expect(value?.features).toMatchObject({
+      forgeProviders: true,
+      forgeCheckDetails: true,
+      checkoutForgeSetAutoMerge: true,
+    });
+    expect(info([...methods])?.features?.forgeProviders).toBe(false);
+    expect(info([])?.features?.forgeCheckDetails).toBe(false);
+  });
+
   it("exposes working settings and directory features without unsupported transports", () => {
     const value = info(Object.values(METHODS).map((method) => method.method));
     expect(value?.features).toMatchObject({
