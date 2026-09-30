@@ -1,6 +1,7 @@
 # 概念与架构文档
 
-- [Ait 0.0.10 发布说明](reports/release-0.0.10.md)：GitLab 支持、目录与会话兼容修复、升级说明和发布验证。
+- [Ait 0.0.11 发布说明](reports/release-0.0.11.md)：目录实时更新修复、GitLab 支持、升级说明和发布验证。
+- [Ait 0.0.10 发布说明（构建未发布）](reports/release-0.0.10.md)：首次构建记录与失败原因。
 
 - [ADR-066：GitLab Forge 支持](decisions/adr-066-gitlab-forge.md)：复用 Paseo 的平台识别与 glab 设计，支持自建实例、MR、讨论及流水线；[验证报告](reports/gitlab-forge.md)。
 

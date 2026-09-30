@@ -11,6 +11,7 @@ import { DaemonClient } from "@ait/client/internal/daemon-client";
 import { createWebSocketTransportFactory } from "@ait/client/internal/daemon-client-websocket-transport";
 import type { WebSocketLike } from "@ait/client/internal/daemon-client-transport-types";
 import { createRustServerTransportFactory } from "./transport";
+import type { SessionOutboundMessage } from "@ait/protocol/messages";
 
 // Opt in with AIT_TEST_RUST_SERVER=/absolute/path/to/target/debug/server.
 // The only Provider executable is the repository's offline stdio fixture.
@@ -129,13 +130,51 @@ async function verifyReadInterfaces(client: DaemonClient, agentId: string, cwd: 
   expect(features.error).toBeNull();
   expect(features.features).toEqual([]);
   const workspaces = client.observeWorkspaces({ sync: {} });
+  const agents = client.observeAgents({ scope: "active", sync: {} });
+  const updates: SessionOutboundMessage[] = [];
+  const observer = {
+    snapshot: () => {},
+    update: (message: SessionOutboundMessage) => updates.push(message),
+  };
+  workspaces.subscribe(observer);
+  agents.subscribe(observer);
   try {
     const snapshot = await workspaces.ready;
+    const agentSnapshot = await agents.ready;
     expect(snapshot.entries).toHaveLength(2);
     expect(snapshot.sync?.mode).toBe("snapshot");
     expect(snapshot.subscriptionId).toEqual(expect.any(String));
+    const workspaceId = snapshot.entries[0]!.id;
+    await client.setWorkspaceTitle(workspaceId, "Live workspace title");
+    await client.updateAgent(agentId, { name: "Live agent title" });
+    await expect
+      .poll(() => updates, { timeout: 5000 })
+      .toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: "workspace_update",
+            payload: expect.objectContaining({
+              subscriptionId: snapshot.subscriptionId,
+              kind: "upsert",
+              workspace: expect.objectContaining({
+                id: workspaceId,
+                title: "Live workspace title",
+              }),
+            }),
+          }),
+          expect.objectContaining({
+            type: "agent_update",
+            payload: expect.objectContaining({
+              subscriptionId: agentSnapshot.subscriptionId,
+              kind: "upsert",
+              agent: expect.objectContaining({ id: agentId, title: "Live agent title" }),
+            }),
+          }),
+        ]),
+      );
   } finally {
     await workspaces.release();
+    await agents.release();
   }
 }
 

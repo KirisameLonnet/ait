@@ -5,6 +5,10 @@
 本版承接 0.0.9，正式源码对应新标签 `v0.0.10`；实际应用提交、工作流提交与构建链接
 随 Release 的 `BUILD-INFO.json` 发布。
 
+**此版本未发布安装包。** [首次构建](https://github.com/necokeine/ait/actions/runs/36658321678)
+在双平台成品启动测试中发现目录更新事件名未映射到客户端协议，Release 上传步骤未执行。
+保留 `v0.0.10` 标签；修复后的正式版本为 [0.0.11](release-0.0.11.md)。
+
 ## 更新内容
 
 - **GitLab 支持。** 根据仓库远端识别 GitLab.com、自建实例、SSH alias 和多层 group，

@@ -114,6 +114,8 @@ export function serverInfo(info: Payload, implemented: Set<string>): Payload {
 }
 
 const EVENTS: Readonly<Record<string, string>> = {
+  "agent.update": "agent_update",
+  "workspace.update": "workspace_update",
   "provider.snapshot.update": "providers_snapshot_update",
   "agent.attention.required": "agent_attention_required",
   "agent.permission.request": "agent_permission_request",
