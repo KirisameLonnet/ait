@@ -1629,6 +1629,19 @@ export const ja: TranslationResources = {
       hostDisconnected: "ホストが接続されていません",
     },
   },
+  providerUsage: {
+    title: "プラン使用量",
+    refresh: "更新",
+    refreshing: "更新中...",
+    loading: "使用量を読み込み中...",
+    empty: "使用量データがありません",
+    errorTitle: "使用量を読み込めませんでした",
+    hostUnavailable: "プロバイダーの使用量を表示するには、このホストに接続してください",
+    hostUpgradeRequired: "プロバイダーの使用量を表示するには、このホストを更新してください",
+    clientUnavailable: "ホストへの接続が準備中です",
+    retry: "再試行",
+    tooltipLoading: "プラン使用量を読み込み中…",
+  },
   pairing: {
     connectionMethods: {
       title: "接続を追加",
@@ -2435,9 +2448,27 @@ export const ja: TranslationResources = {
       },
       agents: {
         unavailable: "エージェントを管理するにはこのホストに接続してください",
+        browserTools: {
+          accessibilityLabel: "ブラウザツールを有効にする",
+        },
       },
       workspaces: {
         unavailable: "ワークスペースを管理するにはこのホストに接続してください",
+        archiveMergedPr: {
+          title: "マージ済みの PR のワークスペースをアーカイブ",
+          hint: "プルリクエストがマージされた後、クリーンな Ait ワークスペースを自動的にアーカイブします",
+          accessibilityLabel: "マージ済みの PR のワークスペースをアーカイブ",
+          updateFailed: "ワークスペースを更新できません",
+        },
+      },
+      terminalAgents: {
+        title: "ターミナルエージェント",
+      },
+      terminalAgentHooks: {
+        title: "ターミナルエージェントのフックを有効にする",
+        hint: "ターミナルエージェントから通知とステータスを取得します。エージェントの設定ファイルにフックがインストールされます。",
+        accessibilityLabel: "ターミナルエージェントのフックを有効にする",
+        updateFailed: "ターミナルエージェントのフックを更新できません",
       },
       terminalProfiles: {
         unavailable: "ターミナルプロファイルを管理するにはこのホストに接続してください",

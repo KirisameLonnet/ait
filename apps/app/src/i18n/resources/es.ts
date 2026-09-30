@@ -1658,6 +1658,19 @@ export const es: TranslationResources = {
       hostDisconnected: "Hostno está conectado",
     },
   },
+  providerUsage: {
+    title: "Uso del plan",
+    refresh: "Actualizar",
+    refreshing: "Actualizando...",
+    loading: "Cargando uso...",
+    empty: "Sin datos de uso",
+    errorTitle: "No se puede cargar el uso",
+    hostUnavailable: "Conéctate a este host para ver el uso de los proveedores",
+    hostUpgradeRequired: "Actualiza este host para ver el uso de los proveedores",
+    clientUnavailable: "La conexión con el host no está lista",
+    retry: "Reintentar",
+    tooltipLoading: "Cargando el uso del plan…",
+  },
   pairing: {
     connectionMethods: {
       title: "Agregar conexión",
@@ -2468,9 +2481,27 @@ export const es: TranslationResources = {
       },
       agents: {
         unavailable: "Connect to this host to manage agents",
+        browserTools: {
+          accessibilityLabel: "Activar herramientas del navegador",
+        },
       },
       workspaces: {
         unavailable: "Connect to this host to manage workspaces",
+        archiveMergedPr: {
+          title: "Archivar workspaces con PR fusionada",
+          hint: "Archiva automáticamente los workspaces de Ait limpios después de que se fusione su pull request",
+          accessibilityLabel: "Archivar workspaces con PR fusionada",
+          updateFailed: "No se pueden actualizar los workspaces",
+        },
+      },
+      terminalAgents: {
+        title: "Agentes de terminal",
+      },
+      terminalAgentHooks: {
+        title: "Activar hooks de agentes de terminal",
+        hint: "Recibe notificaciones y estado de los agentes de terminal. Esto instala hooks en tus archivos de configuración de agentes.",
+        accessibilityLabel: "Activar hooks de agentes de terminal",
+        updateFailed: "No se pueden actualizar los hooks de agentes de terminal",
       },
       terminalProfiles: {
         unavailable: "Connect to this host to manage terminal profiles",

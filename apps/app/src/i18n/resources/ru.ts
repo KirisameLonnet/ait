@@ -1641,6 +1641,19 @@ export const ru: TranslationResources = {
       hostDisconnected: "Хост не подключён",
     },
   },
+  providerUsage: {
+    title: "Использование по тарифу",
+    refresh: "Обновить",
+    refreshing: "Обновление...",
+    loading: "Загрузка использования...",
+    empty: "Нет данных об использовании",
+    errorTitle: "Не удалось загрузить использование",
+    hostUnavailable: "Подключитесь к этому хосту, чтобы увидеть использование провайдеров",
+    hostUpgradeRequired: "Обновите этот хост, чтобы увидеть использование провайдеров",
+    clientUnavailable: "Подключение к хосту не готово",
+    retry: "Повторить",
+    tooltipLoading: "Загрузка использования по тарифу…",
+  },
   pairing: {
     connectionMethods: {
       title: "Добавить подключение",
@@ -2457,9 +2470,27 @@ export const ru: TranslationResources = {
       },
       agents: {
         unavailable: "Подключитесь к этому хосту, чтобы управлять агентами",
+        browserTools: {
+          accessibilityLabel: "Включить инструменты браузера",
+        },
       },
       workspaces: {
         unavailable: "Подключитесь к этому хосту, чтобы управлять рабочими пространствами",
+        archiveMergedPr: {
+          title: "Архивировать рабочие пространства с merged PR",
+          hint: "Автоматически архивирует чистые рабочие пространства Ait после слияния их pull request",
+          accessibilityLabel: "Архивировать рабочие пространства с merged PR",
+          updateFailed: "Не удалось обновить рабочие пространства",
+        },
+      },
+      terminalAgents: {
+        title: "Агенты терминала",
+      },
+      terminalAgentHooks: {
+        title: "Включить хуки агентов терминала",
+        hint: "Получайте уведомления и статус от агентов терминала. Это устанавливает хуки в файлы конфигурации агентов.",
+        accessibilityLabel: "Включить хуки агентов терминала",
+        updateFailed: "Не удалось обновить хуки агентов терминала",
       },
       terminalProfiles: {
         unavailable: "Подключитесь к этому хосту, чтобы управлять профилями терминала",

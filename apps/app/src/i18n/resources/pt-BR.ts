@@ -1643,6 +1643,19 @@ export const ptBR: TranslationResources = {
       hostDisconnected: "Host não está conectado",
     },
   },
+  providerUsage: {
+    title: "Uso do plano",
+    refresh: "Atualizar",
+    refreshing: "Atualizando...",
+    loading: "Carregando uso...",
+    empty: "Sem dados de uso",
+    errorTitle: "Não foi possível carregar o uso",
+    hostUnavailable: "Conecte-se a este host para ver o uso dos provedores",
+    hostUpgradeRequired: "Atualize este host para ver o uso dos provedores",
+    clientUnavailable: "A conexão com o host não está pronta",
+    retry: "Tentar novamente",
+    tooltipLoading: "Carregando o uso do plano…",
+  },
   pairing: {
     connectionMethods: {
       title: "Adicionar conexão",
@@ -2450,9 +2463,27 @@ export const ptBR: TranslationResources = {
       },
       agents: {
         unavailable: "Conecte-se a este host para gerenciar agentes",
+        browserTools: {
+          accessibilityLabel: "Ativar ferramentas do navegador",
+        },
       },
       workspaces: {
         unavailable: "Conecte-se a este host para gerenciar workspaces",
+        archiveMergedPr: {
+          title: "Arquivar workspaces com PR mesclado",
+          hint: "Arquiva automaticamente os workspaces limpos do Ait após o merge do pull request",
+          accessibilityLabel: "Arquivar workspaces com PR mesclado",
+          updateFailed: "Não foi possível atualizar os workspaces",
+        },
+      },
+      terminalAgents: {
+        title: "Agentes de terminal",
+      },
+      terminalAgentHooks: {
+        title: "Ativar hooks de agentes de terminal",
+        hint: "Receba notificações e status dos agentes de terminal. Isso instala hooks nos arquivos de configuração de agentes.",
+        accessibilityLabel: "Ativar hooks de agentes de terminal",
+        updateFailed: "Não foi possível atualizar os hooks de agentes de terminal",
       },
       terminalProfiles: {
         unavailable: "Conecte-se a este host para gerenciar perfis de terminal",

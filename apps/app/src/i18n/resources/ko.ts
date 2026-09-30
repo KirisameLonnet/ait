@@ -1622,6 +1622,19 @@ export const ko: TranslationResources = {
       hostDisconnected: "호스트가 연결되어 있지 않습니다",
     },
   },
+  providerUsage: {
+    title: "요금제 사용량",
+    refresh: "새로고침",
+    refreshing: "새로고치는 중...",
+    loading: "사용량을 불러오는 중...",
+    empty: "사용량 데이터 없음",
+    errorTitle: "사용량을 불러올 수 없음",
+    hostUnavailable: "제공업체 사용량을 보려면 이 호스트에 연결하세요",
+    hostUpgradeRequired: "제공업체 사용량을 보려면 이 호스트를 업데이트하세요",
+    clientUnavailable: "호스트 연결이 준비되지 않았습니다",
+    retry: "다시 시도",
+    tooltipLoading: "요금제 사용량을 불러오는 중…",
+  },
   pairing: {
     connectionMethods: {
       title: "연결 추가",
@@ -2423,9 +2436,27 @@ export const ko: TranslationResources = {
       },
       agents: {
         unavailable: "에이전트를 관리하려면 이 호스트에 연결하세요",
+        browserTools: {
+          accessibilityLabel: "브라우저 도구 사용",
+        },
       },
       workspaces: {
         unavailable: "워크스페이스를 관리하려면 이 호스트에 연결하세요",
+        archiveMergedPr: {
+          title: "병합된 PR 워크스페이스 보관",
+          hint: "풀 리퀘스트가 병합된 후 깨끗한 Ait 워크스페이스를 자동으로 보관합니다",
+          accessibilityLabel: "병합된 PR 워크스페이스 보관",
+          updateFailed: "워크스페이스를 업데이트할 수 없음",
+        },
+      },
+      terminalAgents: {
+        title: "터미널 에이전트",
+      },
+      terminalAgentHooks: {
+        title: "터미널 에이전트 훅 사용",
+        hint: "터미널 에이전트에서 알림과 상태를 받습니다. 에이전트 설정 파일에 훅이 설치됩니다.",
+        accessibilityLabel: "터미널 에이전트 훅 사용",
+        updateFailed: "터미널 에이전트 훅을 업데이트할 수 없음",
       },
       terminalProfiles: {
         unavailable: "터미널 프로필을 관리하려면 이 호스트에 연결하세요",

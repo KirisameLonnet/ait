@@ -1903,6 +1903,19 @@ export const en = {
       hostDisconnected: "Host is not connected",
     },
   },
+  providerUsage: {
+    title: "Plan usage",
+    refresh: "Refresh",
+    refreshing: "Refreshing...",
+    loading: "Loading usage...",
+    empty: "No usage data",
+    errorTitle: "Unable to load usage",
+    hostUnavailable: "Connect to this host to see provider usage",
+    hostUpgradeRequired: "Update the host to see provider usage",
+    clientUnavailable: "Host connection is not ready",
+    retry: "Try again",
+    tooltipLoading: "Loading plan usage…",
+  },
   pairing: {
     connectionMethods: {
       title: "Add connection",
@@ -2801,9 +2814,27 @@ export const en = {
       },
       agents: {
         unavailable: "Connect to this host to manage agents",
+        browserTools: {
+          accessibilityLabel: "Enable browser tools",
+        },
       },
       workspaces: {
         unavailable: "Connect to this host to manage workspaces",
+        archiveMergedPr: {
+          title: "Archive merged PR workspaces",
+          hint: "Automatically archive clean Ait workspaces after their pull request is merged",
+          accessibilityLabel: "Archive merged PR workspaces",
+          updateFailed: "Unable to update workspaces",
+        },
+      },
+      terminalAgents: {
+        title: "Terminal agents",
+      },
+      terminalAgentHooks: {
+        title: "Enable terminal agent hooks",
+        hint: "Get notifications and status from terminal agents. This installs hooks in your agent config files.",
+        accessibilityLabel: "Enable terminal agent hooks",
+        updateFailed: "Unable to update terminal agent hooks",
       },
       terminalProfiles: {
         unavailable: "Connect to this host to manage terminal profiles",
