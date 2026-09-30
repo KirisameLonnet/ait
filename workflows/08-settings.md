@@ -1,5 +1,8 @@
 # WF-08：修改设置并处理并发更新
 
+> 历史文档：旧 daemon、worker、CLI 及其测试入口已按 [ADR-059](../docs/decisions/adr-059-remove-legacy-rust-runtime.md) 移除。
+> 下文保留原操作记录，命令不适用于当前代码；当前服务见 [server 说明](../docs/operations/independent-server.md)。
+
 用户目标：保存偏好，在其他客户端先修改时避免覆盖，并可恢复默认值。
 前置条件：使用演练 daemon，设置影响整个本地工作空间，不局限于某个 Project。
 
@@ -32,7 +35,7 @@ ait config get
 它不是“仅重置 theme”；该例仅适合专用演练数据库。
 schema 中的 `restartRequired` 表示相应配置是否需要重启生效，保存值成功不等于所有运行时组件已即时应用。
 
-自动化：[`wf08_save_reset_and_recover_settings`](../bins/cli/tests/workflows.rs)，
+自动化：[`wf08_save_reset_and_recover_settings`](https://github.com/necokeine/ait/blob/49478a7f600fde997339a8d36d368c72d3546c14/bins/cli/tests/workflows.rs)，
 覆盖完整保存、旧 revision、缺 key、非法 theme，以及保存和重置后分别重开数据库。
 
 ## 设置新 Run 的权限

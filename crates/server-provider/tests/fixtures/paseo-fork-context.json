@@ -1,0 +1,516 @@
+{
+  "source": {
+    "revision": "30178c4f58b67f8472901356e1484022bd835de0",
+    "sourceFiles": {
+      "packages/server/src/server/agent/timeline-projection.ts": "baacc633d42e148f58e7065a12577865b88673a1682d24fcec1f580da4db2c5f",
+      "packages/server/src/server/agent/timeline-projection.test.ts": "344e6179cf549d28295045c3e8a841ae41f1caac4dbde45e2c53180163a1b273",
+      "packages/protocol/src/timeline-identity.ts": "1b62c114d63a90d22b00b725e7a58110dc0fcb60a74bfb2df649da7ef8716631",
+      "packages/protocol/src/tool-name-normalization.ts": "de3807bc84f887a6dfa8755e1e83bb5080b3eed2a9a6f0358c3c89fca37c20b2",
+      "packages/protocol/src/path-utils.ts": "962170cb76e80c59d4dd6948f3c2b019a712c3fa726b1ad843e47e32ff8df072",
+      "packages/protocol/src/tool-call-display.ts": "ce630970005ddde1527842ef33a002709c29a8a4ae2acbf01e4e629a08234a0e",
+      "packages/server/src/server/agent/activity-curator.ts": "94c142d1757e75435b5b9cd8104b63f6f415600aa0db944bc6e221f9e2272be0",
+      "packages/server/src/server/agent/activity-curator.test.ts": "66480b5e5b8be84529c754873b4af9ba25a6fe3342732b3e3dd3855aafaf9013"
+    },
+    "upstreamTestsExecuted": 36
+  },
+  "cases": [
+    {
+      "name": "builds fork context from user messages, assistant messages, and tool summaries",
+      "input": {
+        "agentTitle": "Source Agent",
+        "cwd": "/repo",
+        "boundaryMessageId": "assistant-1",
+        "rows": [
+          {
+            "seq": 1,
+            "timestamp": "2026-06-28T00:00:01.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Ship the thing",
+              "messageId": "user-1"
+            }
+          },
+          {
+            "seq": 2,
+            "timestamp": "2026-06-28T00:00:02.000Z",
+            "item": {
+              "type": "reasoning",
+              "text": "private chain of thought"
+            }
+          },
+          {
+            "seq": 3,
+            "timestamp": "2026-06-28T00:00:03.000Z",
+            "item": {
+              "type": "tool_call",
+              "callId": "read-1",
+              "name": "read_file",
+              "status": "completed",
+              "detail": {
+                "type": "read",
+                "filePath": "src/index.ts",
+                "content": "console.log('hi')"
+              },
+              "error": null
+            }
+          },
+          {
+            "seq": 4,
+            "timestamp": "2026-06-28T00:00:04.000Z",
+            "item": {
+              "type": "tool_call",
+              "callId": "external-1",
+              "name": "paseo__create_agent",
+              "status": "completed",
+              "detail": {
+                "type": "unknown",
+                "input": {
+                  "initialPrompt": "do not include raw external tool input"
+                },
+                "output": null
+              },
+              "error": null
+            }
+          },
+          {
+            "seq": 5,
+            "timestamp": "2026-06-28T00:00:05.000Z",
+            "item": {
+              "type": "assistant_message",
+              "text": "Done.",
+              "messageId": "assistant-1"
+            }
+          },
+          {
+            "seq": 6,
+            "timestamp": "2026-06-28T00:00:06.000Z",
+            "item": {
+              "type": "assistant_message",
+              "text": "Later answer.",
+              "messageId": "assistant-2"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "attachment": {
+          "type": "text",
+          "mimeType": "text/plain",
+          "contextKind": "chat_history",
+          "title": "Chat history",
+          "text": "<chat-history-summary>\nChat history from a previous Paseo agent.\nSource agent: Source Agent\nSource directory: /repo\n\n[User] Ship the thing\n[Read] src/index.ts\n[paseo__create_agent]\n[Assistant] Done.\n</chat-history-summary>"
+        },
+        "itemCount": 5,
+        "boundaryCursor": null,
+        "boundaryMessageId": "assistant-1"
+      }
+    },
+    {
+      "name": "does not cap fork context to the generic recent activity limit",
+      "input": {
+        "boundaryMessageId": "assistant-1",
+        "rows": [
+          {
+            "seq": 1,
+            "timestamp": "2026-06-28T00:00:01.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 1",
+              "messageId": "user-1"
+            }
+          },
+          {
+            "seq": 2,
+            "timestamp": "2026-06-28T00:00:02.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 2",
+              "messageId": "user-2"
+            }
+          },
+          {
+            "seq": 3,
+            "timestamp": "2026-06-28T00:00:03.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 3",
+              "messageId": "user-3"
+            }
+          },
+          {
+            "seq": 4,
+            "timestamp": "2026-06-28T00:00:04.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 4",
+              "messageId": "user-4"
+            }
+          },
+          {
+            "seq": 5,
+            "timestamp": "2026-06-28T00:00:05.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 5",
+              "messageId": "user-5"
+            }
+          },
+          {
+            "seq": 6,
+            "timestamp": "2026-06-28T00:00:06.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 6",
+              "messageId": "user-6"
+            }
+          },
+          {
+            "seq": 7,
+            "timestamp": "2026-06-28T00:00:07.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 7",
+              "messageId": "user-7"
+            }
+          },
+          {
+            "seq": 8,
+            "timestamp": "2026-06-28T00:00:08.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 8",
+              "messageId": "user-8"
+            }
+          },
+          {
+            "seq": 9,
+            "timestamp": "2026-06-28T00:00:09.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 9",
+              "messageId": "user-9"
+            }
+          },
+          {
+            "seq": 10,
+            "timestamp": "2026-06-28T00:00:10.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 10",
+              "messageId": "user-10"
+            }
+          },
+          {
+            "seq": 11,
+            "timestamp": "2026-06-28T00:00:11.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 11",
+              "messageId": "user-11"
+            }
+          },
+          {
+            "seq": 12,
+            "timestamp": "2026-06-28T00:00:12.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 12",
+              "messageId": "user-12"
+            }
+          },
+          {
+            "seq": 13,
+            "timestamp": "2026-06-28T00:00:13.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 13",
+              "messageId": "user-13"
+            }
+          },
+          {
+            "seq": 14,
+            "timestamp": "2026-06-28T00:00:14.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 14",
+              "messageId": "user-14"
+            }
+          },
+          {
+            "seq": 15,
+            "timestamp": "2026-06-28T00:00:15.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 15",
+              "messageId": "user-15"
+            }
+          },
+          {
+            "seq": 16,
+            "timestamp": "2026-06-28T00:00:16.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 16",
+              "messageId": "user-16"
+            }
+          },
+          {
+            "seq": 17,
+            "timestamp": "2026-06-28T00:00:17.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 17",
+              "messageId": "user-17"
+            }
+          },
+          {
+            "seq": 18,
+            "timestamp": "2026-06-28T00:00:18.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 18",
+              "messageId": "user-18"
+            }
+          },
+          {
+            "seq": 19,
+            "timestamp": "2026-06-28T00:00:19.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 19",
+              "messageId": "user-19"
+            }
+          },
+          {
+            "seq": 20,
+            "timestamp": "2026-06-28T00:00:20.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 20",
+              "messageId": "user-20"
+            }
+          },
+          {
+            "seq": 21,
+            "timestamp": "2026-06-28T00:00:21.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 21",
+              "messageId": "user-21"
+            }
+          },
+          {
+            "seq": 22,
+            "timestamp": "2026-06-28T00:00:22.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 22",
+              "messageId": "user-22"
+            }
+          },
+          {
+            "seq": 23,
+            "timestamp": "2026-06-28T00:00:23.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 23",
+              "messageId": "user-23"
+            }
+          },
+          {
+            "seq": 24,
+            "timestamp": "2026-06-28T00:00:24.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 24",
+              "messageId": "user-24"
+            }
+          },
+          {
+            "seq": 25,
+            "timestamp": "2026-06-28T00:00:25.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Message 25",
+              "messageId": "user-25"
+            }
+          },
+          {
+            "seq": 26,
+            "timestamp": "2026-06-28T00:00:26.000Z",
+            "item": {
+              "type": "assistant_message",
+              "text": "Done.",
+              "messageId": "assistant-1"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "attachment": {
+          "type": "text",
+          "mimeType": "text/plain",
+          "contextKind": "chat_history",
+          "title": "Chat history",
+          "text": "<chat-history-summary>\nChat history from a previous Paseo agent.\n\n[User] Message 1\n[User] Message 2\n[User] Message 3\n[User] Message 4\n[User] Message 5\n[User] Message 6\n[User] Message 7\n[User] Message 8\n[User] Message 9\n[User] Message 10\n[User] Message 11\n[User] Message 12\n[User] Message 13\n[User] Message 14\n[User] Message 15\n[User] Message 16\n[User] Message 17\n[User] Message 18\n[User] Message 19\n[User] Message 20\n[User] Message 21\n[User] Message 22\n[User] Message 23\n[User] Message 24\n[User] Message 25\n[Assistant] Done.\n</chat-history-summary>"
+        },
+        "itemCount": 26,
+        "boundaryCursor": null,
+        "boundaryMessageId": "assistant-1"
+      }
+    },
+    {
+      "name": "rejects a checkpoint whose projected tool state changed later",
+      "input": {
+        "boundaryMessageId": "assistant-1",
+        "rows": [
+          {
+            "seq": 1,
+            "timestamp": "2026-06-28T00:00:01.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Run it",
+              "messageId": "user-1"
+            }
+          },
+          {
+            "seq": 2,
+            "timestamp": "2026-06-28T00:00:02.000Z",
+            "item": {
+              "type": "tool_call",
+              "callId": "terminal-1",
+              "name": "terminal",
+              "status": "running",
+              "detail": {
+                "type": "plain_text",
+                "label": "before boundary"
+              },
+              "error": null
+            }
+          },
+          {
+            "seq": 3,
+            "timestamp": "2026-06-28T00:00:03.000Z",
+            "item": {
+              "type": "assistant_message",
+              "text": "Partial result.",
+              "messageId": "assistant-1"
+            }
+          },
+          {
+            "seq": 4,
+            "timestamp": "2026-06-28T00:00:04.000Z",
+            "item": {
+              "type": "tool_call",
+              "callId": "terminal-1",
+              "name": "terminal",
+              "status": "completed",
+              "detail": {
+                "type": "plain_text",
+                "label": "after boundary"
+              },
+              "error": null
+            }
+          }
+        ]
+      },
+      "error": "This checkpoint changed after it was created. Fork from a later completed response instead."
+    },
+    {
+      "name": "selects a synthetic assistant error by its timeline cursor",
+      "input": {
+        "cursorBoundary": {
+          "timelineEpoch": "timeline-1",
+          "cursor": {
+            "epoch": "timeline-1",
+            "seq": 2
+          }
+        },
+        "rows": [
+          {
+            "seq": 1,
+            "timestamp": "2026-06-28T00:00:01.000Z",
+            "item": {
+              "type": "user_message",
+              "text": "Try the task",
+              "messageId": "user-1"
+            }
+          },
+          {
+            "seq": 2,
+            "timestamp": "2026-06-28T00:00:02.000Z",
+            "item": {
+              "type": "assistant_message",
+              "text": "[System Error] provider failed"
+            }
+          },
+          {
+            "seq": 3,
+            "timestamp": "2026-06-28T00:00:03.000Z",
+            "item": {
+              "type": "assistant_message",
+              "text": "This belongs to a later turn.",
+              "messageId": "assistant-2"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "attachment": {
+          "type": "text",
+          "mimeType": "text/plain",
+          "contextKind": "chat_history",
+          "title": "Chat history",
+          "text": "<chat-history-summary>\nChat history from a previous Paseo agent.\n\n[User] Try the task\n[Assistant] [System Error] provider failed\n</chat-history-summary>"
+        },
+        "itemCount": 2,
+        "boundaryCursor": {
+          "epoch": "timeline-1",
+          "seq": 2
+        },
+        "boundaryMessageId": null
+      }
+    },
+    {
+      "name": "rejects a cursor from a previous timeline epoch",
+      "input": {
+        "cursorBoundary": {
+          "timelineEpoch": "timeline-2",
+          "cursor": {
+            "epoch": "timeline-1",
+            "seq": 2
+          }
+        },
+        "rows": [
+          {
+            "seq": 2,
+            "timestamp": "2026-06-28T00:00:02.000Z",
+            "item": {
+              "type": "assistant_message",
+              "text": "Stale result."
+            }
+          }
+        ]
+      },
+      "error": "Selected timeline position is no longer available."
+    },
+    {
+      "name": "rejects missing assistant boundaries instead of silently using the wrong context",
+      "input": {
+        "boundaryMessageId": "missing",
+        "rows": [
+          {
+            "seq": 1,
+            "timestamp": "2026-06-28T00:00:01.000Z",
+            "item": {
+              "type": "assistant_message",
+              "text": "Done.",
+              "messageId": "assistant-1"
+            }
+          }
+        ]
+      },
+      "error": "Selected assistant message is no longer available."
+    }
+  ]
+}

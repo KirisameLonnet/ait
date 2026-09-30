@@ -1,0 +1,168 @@
+{
+  "revision": "8d64713c852bfad24eb9abab8583837473933a87 + commandActions changes; measured source SHA-256 recorded below",
+  "date": "2026-09-27",
+  "platform": "macOS aarch64",
+  "scope": {
+    "workspace": true,
+    "features": "default",
+    "explicit_file_exclusions": [],
+    "test_source_exclusions": "cargo-llvm-cov defaults",
+    "doctests": "Not instrumented by default cargo-llvm-cov; run by ordinary cargo test.",
+    "unavailable_platforms": [
+      "Linux",
+      "Windows"
+    ]
+  },
+  "commands": [
+    "RUST_TEST_THREADS=1 CARGO_INCREMENTAL=0 cargo test --workspace --offline --no-fail-fast -j2",
+    "RUST_TEST_THREADS=1 CARGO_INCREMENTAL=0 cargo llvm-cov --workspace --html --offline --no-fail-fast -j2",
+    "CARGO_INCREMENTAL=0 cargo llvm-cov report --json --summary-only --output-path .tmp/command-actions-pr/workspace-coverage.json",
+    "CARGO_INCREMENTAL=0 cargo llvm-cov report --show-missing-lines"
+  ],
+  "test_execution": {
+    "ordinary_workspace": {
+      "passed": 1729,
+      "failed": 0,
+      "ignored": 8
+    },
+    "instrumented_workspace": {
+      "passed": 1728,
+      "failed": 0,
+      "ignored": 8
+    }
+  },
+  "ignored_tests": [
+    "test codex_native_tools_create_and_verify_python_hello_world ... ignored, requires logged-in Codex and Python 3; performs two real model turns",
+    "test deepseek_live_default_catalog ... ignored, requires DEEPSEEK_API_KEY and DEEPSEEK_MODEL; makes one paid API request",
+    "test wf11_real_deepseek_python_hello_world ... ignored, uses API credits, credentials, and Python; run ./test_with_deepseek.sh",
+    "test wf10_create_project_with_real_codex_and_commit ... ignored, requires real Codex credentials/model access and a built ait-daemon; see WF-10",
+    "test permission_change::replay_permission_change_with_external_worker ... ignored, requires AIT_TEST_WORKER_EXECUTABLE pointing to a separately built worker",
+    "test local::claude::tests::process::installed_claude_control_protocol_discovers_models_without_inference ... ignored, requires a locally installed Claude Code CLI; sends no model request",
+    "test local::claude::tests::process::parity::installed_claude_completes_a_native_turn_and_reopens_history ... ignored, requires installed Claude authentication and makes one small model request",
+    "test local::codex::tests::installed::installed_codex_completes_a_native_turn_and_reopens_history ... ignored, requires installed Codex authentication and makes one small model request"
+  ],
+  "workspace_lines": {
+    "count": 67865,
+    "covered": 57902,
+    "percent": 85.31938407131805
+  },
+  "relevant_crate_lines": {
+    "server-provider": {
+      "count": 15788,
+      "covered": 14645,
+      "percent": 92.76032429693439
+    }
+  },
+  "baseline": {
+    "artifact": "docs/reports/server-session-titles-coverage.json",
+    "note": "Saved macOS/default-feature workspace measurement, not a fresh isolated before/after run. All 381 recorded source SHA-256 hashes match base 8d64713c852bfad24eb9abab8583837473933a87.",
+    "workspace_lines": {
+      "count": 67756,
+      "covered": 57796,
+      "percent": 85.3001948166952
+    },
+    "workspace_percentage_point_change": 0.019189254622858698,
+    "server_provider_lines": {
+      "count": 15679,
+      "covered": 14537,
+      "percent": 92.71637221761591
+    },
+    "server_provider_percentage_point_change": 0.04395207931847267
+  },
+  "changed_source_sha256": {
+    "crates/server-provider/src/local/codex/discovery.rs": "ac9bac2df082acdcdd2717bb054e9c50ec89851e88c3d7e5cdf2f84679d525bd",
+    "crates/server-provider/src/local/codex/discovery/tests.rs": "97bec0d024fe736e35131bfe5abff78d3dbd00811ed553d36be71d10f20c8e54",
+    "crates/server-provider/src/local/codex/discovery/tests/command_actions.rs": "6f6483dc2f0cbf8c81a88a70a933cb8d7623ec3b9ff0fda94fdd4d364f05aa70",
+    "crates/server-provider/src/local/codex/streaming.rs": "758dc7bb8cf829b45576420e0037175175b582a99312233cfd27c4a3fd11be87",
+    "crates/server-provider/src/local/codex/streaming/tests.rs": "0c7cabbde5d8e2c12e464e4b9a6f39d6f201e019da67650b7ccaf79c7829b3ae",
+    "crates/server-provider/src/local/codex/streaming/tests/command_actions.rs": "67b0b725c697d091b600c9629e248f90b06abf34b2e286aac68206a28ebf2fe3",
+    "crates/server-provider/src/local/codex/subagents.rs": "15fe160b631138019b4d539c1009fbbf3f50baf4a4309ffc51db8b2f0edb8260",
+    "crates/server-provider/src/local/codex/subagents/tests.rs": "74cf75df7a3426efed26c85f83bc0eedaf4e0ec22cc1f2deadfa9b10d84b4f89",
+    "crates/server-provider/src/local/codex/subagents/tests/command_actions.rs": "cbc405a161ba87f00fdf6e6303bbba4ec513adb9ced350a904ca1661d7ce18cf",
+    "crates/server-provider/src/local/codex/tests/progress.rs": "0b836f923227f3d4f433156236def60ad13b56f7d864c3975cd3272681a96987",
+    "crates/server-provider/src/local/codex/tests/progress/command_actions.rs": "48a98f80cd999e3c34c0c442ab56dde42fca0fac541a89f3814cf697a5878bfb",
+    "crates/server-provider/src/local/tool_detail.rs": "92c4959fe2326f4d22629f515f4139edd7e07028bddb29cc3a967011268225d0",
+    "crates/server-provider/src/local/tool_detail/command_actions.rs": "9a2201687c5299e5fc5c72b01b59cb2250c11e3c77c5b9f9167ffe787e88ff53",
+    "crates/server-provider/tests/fixtures/codex_app_server.py": "ac2f4b3202ebb4c8fd5a72ea28f357b35964c2e805321666d02bfd18d1f9021a"
+  },
+  "changed_files": [
+    {
+      "path": "crates/server-provider/src/local/codex/discovery.rs",
+      "lines": {
+        "count": 247,
+        "covered": 230,
+        "percent": 93.11740890688259
+      },
+      "functions": {
+        "count": 24,
+        "covered": 19,
+        "percent": 79.16666666666666
+      }
+    },
+    {
+      "path": "crates/server-provider/src/local/codex/streaming.rs",
+      "lines": {
+        "count": 211,
+        "covered": 206,
+        "percent": 97.6303317535545
+      },
+      "functions": {
+        "count": 15,
+        "covered": 15,
+        "percent": 100.0
+      }
+    },
+    {
+      "path": "crates/server-provider/src/local/codex/subagents.rs",
+      "lines": {
+        "count": 246,
+        "covered": 222,
+        "percent": 90.2439024390244
+      },
+      "functions": {
+        "count": 14,
+        "covered": 14,
+        "percent": 100.0
+      }
+    },
+    {
+      "path": "crates/server-provider/src/local/tool_detail.rs",
+      "lines": {
+        "count": 148,
+        "covered": 139,
+        "percent": 93.9189189189189
+      },
+      "functions": {
+        "count": 13,
+        "covered": 13,
+        "percent": 100.0
+      }
+    },
+    {
+      "path": "crates/server-provider/src/local/tool_detail/command_actions.rs",
+      "lines": {
+        "count": 42,
+        "covered": 42,
+        "percent": 100.0
+      },
+      "functions": {
+        "count": 4,
+        "covered": 4,
+        "percent": 100.0
+      }
+    }
+  ],
+  "uncovered_follow_up": {
+    "new_mapper": "All 42 instrumented lines in local/tool_detail/command_actions.rs are covered.",
+    "defensive_guard": "The direct inProgress-command early return in discovery.rs:130 is not covered; native history already excludes active turns. A direct projection test could exercise this defensive guard.",
+    "existing_paths": "Unsupported started-tool types in streaming.rs and several child lifecycle/error branches in subagents.rs remain uncovered.",
+    "platforms_and_live_providers": "Authenticated live-provider tests remain ignored; Linux and Windows were not run locally. Linux is covered by the repository CI configuration."
+  },
+  "validation": {
+    "format": "cargo fmt --all --check: passed",
+    "build": "CARGO_INCREMENTAL=0 cargo build --workspace --offline -j2: passed",
+    "clippy": "CARGO_INCREMENTAL=0 cargo clippy --workspace --all-targets --offline -j2 -- -D warnings: passed",
+    "diff": "git diff --check: passed",
+    "environment": "The initial restricted ordinary test run was interrupted after localhost binds returned PermissionDenied. Both completed runs used permission to open test-local ports and child processes; no source changes were needed."
+  }
+}

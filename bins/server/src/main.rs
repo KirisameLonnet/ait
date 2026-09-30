@@ -11,6 +11,16 @@ use clap::Parser;
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    if std::env::args_os()
+        .nth(1)
+        .is_some_and(|arg| arg == "--speech-worker")
+    {
+        return if server_voice::offline::run_worker().is_ok() {
+            ExitCode::SUCCESS
+        } else {
+            ExitCode::FAILURE
+        };
+    }
     let cli = config::Cli::parse();
     match run(cli).await {
         Ok(()) => ExitCode::SUCCESS,

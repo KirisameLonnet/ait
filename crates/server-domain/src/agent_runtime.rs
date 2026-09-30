@@ -105,6 +105,16 @@ pub struct StoredAgentRuntimeInfo {
     pub extra: Option<BTreeMap<String, Value>>,
 }
 
+/// Provenance of a system-supplied title, used to protect manual edits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TitleOrigin {
+    /// Provisional text may be replaced by a successful metadata generation.
+    Prompt,
+    /// A generated title must not be regenerated on every subsequent message.
+    Generated,
+}
+
 /// Durable Agent runtime snapshot translated from Paseo `StoredAgentRecord`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -131,6 +141,9 @@ pub struct PersistedAgentRuntimeRecord {
     /// User-visible title.
     #[serde(default)]
     pub title: Option<String>,
+    /// Automatic title provenance; absent for explicit, native or legacy titles.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title_origin: Option<TitleOrigin>,
     /// Arbitrary string labels, including Paseo delegation metadata.
     #[serde(default)]
     pub labels: BTreeMap<String, String>,

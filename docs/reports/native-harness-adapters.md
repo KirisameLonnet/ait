@@ -1,5 +1,9 @@
 # OpenCode 原生插件适配报告
 
+> 历史报告：此处记录的 daemon/worker/Desktop 已随完整 main 同步退役。
+> 当前 OpenCode 实现与验证见 [server 迁移报告](opencode-server-migration.md)。
+> 以下测试与覆盖率仅对应原分支，不代表当前 workspace；Claude Code 当前已接入生产 server。
+
 日期：2026-09-30。范围：现有 AIT daemon/worker/Desktop；验证版本为 `583fd18` 加本报告对应的未提交修改。
 
 ## 实现与参考

@@ -1,12 +1,15 @@
 use std::path::Path;
 
 use serde_json::json;
-use server_domain::registry::{
+use server_metadata::model::registry::{
     PersistedProjectKind, PersistedProjectRecord, PersistedWorkspaceKind, PersistedWorkspaceRecord,
 };
 
 use super::transport::{Socket, connect, request};
 use super::{ready, start, terminate};
+
+#[path = "directory/conversation.rs"]
+mod conversation;
 
 #[tokio::test]
 async fn binary_serves_canonical_project_workspace_directory_methods() {
@@ -31,10 +34,10 @@ async fn binary_serves_canonical_project_workspace_directory_methods() {
     let log = root.path().join("server.log");
     let mut process = start(&state, &log);
     let address = ready(&mut process, &log).await;
-    let capabilities = server_protocol::directory::CAPABILITIES
+    let capabilities = server_metadata::protocol::directory::CAPABILITIES
         .iter()
-        .chain(server_protocol::project_config::CAPABILITIES)
-        .chain(server_protocol::project_icon::CAPABILITIES)
+        .chain(server_metadata::protocol::project_config::CAPABILITIES)
+        .chain(server_metadata::protocol::project_icon::CAPABILITIES)
         .copied()
         .collect::<Vec<_>>();
     let mut client = connect(&address, &capabilities).await;
@@ -59,10 +62,17 @@ async fn assert_seeded_directory(client: &mut Socket) {
     let workspaces = request(
         client,
         "workspace.list.request",
-        json!({"filter":{"query":"ALPHA"},"page":{"limit":20}}),
+        json!({"filter":{"query":"MAIN"},"page":{"limit":20}}),
     )
     .await;
     assert_eq!(workspaces["result"]["entries"][0]["id"], "wks_a");
+    let by_project_name = request(
+        client,
+        "workspace.list.request",
+        json!({"filter":{"query":"ALPHA"}}),
+    )
+    .await;
+    assert_eq!(by_project_name["result"]["entries"], json!([]));
 }
 
 async fn add_project(client: &mut Socket, existing: &Path) -> String {
@@ -238,8 +248,8 @@ async fn assert_directory_creation_and_errors(client: &mut Socket, parent: &Path
             "workspace.create.request",
             json!({"source":{"kind":"worktree","cwd":existing}})
         )
-        .await["code"],
-        "unsupported_capability"
+        .await["result"]["errorCode"],
+        "not_git_repository"
     );
 }
 
@@ -266,10 +276,8 @@ async fn assert_metadata_updates(client: &mut Socket) {
     .await;
     assert_eq!(titled["result"]["title"], "Review");
 
-    assert_eq!(
-        request(client, "workspace.list.request", json!({"subscribe":{}})).await["code"],
-        "unsupported_capability"
-    );
+    let subscribed = request(client, "workspace.list.request", json!({"subscribe":{}})).await;
+    assert!(subscribed["result"]["subscriptionId"].is_string());
 }
 
 async fn assert_legacy_names_are_rejected(client: &mut Socket, existing: &Path) {
@@ -389,6 +397,7 @@ fn workspace() -> PersistedWorkspaceRecord {
         auto_archived_change_request_url: None,
         pinned_at: None,
         labels: None,
+        auto_name: None,
         untrusted_source: None,
     }
 }

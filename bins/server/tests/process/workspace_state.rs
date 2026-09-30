@@ -4,7 +4,7 @@ use serde_json::json;
 use server_domain::agent_runtime::{
     AgentAttentionReason, AgentRuntimeStatus, PersistedAgentRuntimeRecord,
 };
-use server_domain::registry::{
+use server_metadata::model::registry::{
     PersistedProjectKind, PersistedProjectRecord, PersistedWorkspaceKind, PersistedWorkspaceRecord,
 };
 
@@ -25,7 +25,12 @@ async fn binary_serves_workspace_attention_and_recovery_methods() {
     let log = root.path().join("server.log");
     let mut process = start(&state, &log);
     let address = ready(&mut process, &log).await;
-    let mut client = connect(&address, server_protocol::workspace_state::CAPABILITIES).await;
+    let capabilities = [
+        server_metadata::protocol::workspace_state::CAPABILITIES,
+        server_filesystem::protocol::workspace_recovery::CAPABILITIES,
+    ]
+    .concat();
+    let mut client = connect(&address, &capabilities).await;
 
     let cleared = request(
         &mut client,
@@ -169,6 +174,7 @@ fn workspace(
         auto_archived_change_request_url: None,
         pinned_at: None,
         labels: None,
+        auto_name: None,
         untrusted_source: None,
     }
 }
@@ -189,6 +195,7 @@ fn agent(
         last_activity_at: None,
         last_user_message_at: None,
         title: Some(id.to_owned()),
+        title_origin: None,
         labels: if id == "root" {
             BTreeMap::new()
         } else {

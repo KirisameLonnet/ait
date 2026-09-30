@@ -1,5 +1,8 @@
 # WF-02：发送输入并查看 Agent 最终结果
 
+> 历史文档：旧 daemon、worker、CLI 及其测试入口已按 [ADR-059](../docs/decisions/adr-059-remove-legacy-rust-runtime.md) 移除。
+> 下文保留原操作记录，命令不适用于当前代码；当前服务见 [server 说明](../docs/operations/independent-server.md)。
+
 用户目标：在 Session 中提交一次任务，确认输入保存、Agent 结果可追溯并可以继续交互。
 前置条件：完成 WF-01。Codex 可在有未提交修改的固定 Session 目录中执行。
 
@@ -49,16 +52,16 @@ Codex 原生操作保留为 ProviderItem；API Provider 的工具循环仍使用
 
 ## 失败与恢复
 
-| 条件 | 当前结果 | 用户下一步 |
-| --- | --- | --- |
+| 条件                         | 当前结果                                 | 用户下一步                               |
+| ---------------------------- | ---------------------------------------- | ---------------------------------------- |
 | Session 起始目录有未提交修改 | Codex 正常执行；可选自动提交显示 skipped | 文件修改保留，按自己的工作意图审阅与提交 |
-| Session 有活动 Run | `SESSION_BUSY` | 等待完成或显式取消后再发送 |
-| 为模型保存不支持的推理等级 | `INVALID_AGENT_CONFIGURATION` | 按 Provider 模型目录选择等级 |
+| Session 有活动 Run           | `SESSION_BUSY`                           | 等待完成或显式取消后再发送               |
+| 为模型保存不支持的推理等级   | `INVALID_AGENT_CONFIGURATION`            | 按 Provider 模型目录选择等级             |
 
 准入拒绝不得留下输入 Message、Run 或移动后的 Session，不会等待占用释放后自动重发输入。
 配置与推理强度见 [ADR-009](../docs/decisions/adr-009-session-exclusion-and-agent-providers.md)。
 
-自动化：[`wf02_send_message_and_inspect_agent_reply`](../bins/cli/tests/workflows.rs)，
+自动化：[`wf02_send_message_and_inspect_agent_reply`](https://github.com/necokeine/ait/blob/49478a7f600fde997339a8d36d368c72d3546c14/bins/cli/tests/workflows.rs)，
 覆盖脏目录、能力不匹配、中文/引号/换行输入及 user → assistant 父子链。
 
 自动 Git 提交默认关闭，设置和独立重试见 [WF-08](08-settings.md#codex-自动-git-提交)。Git 状态在 Run.git_commit；失败不把成功的模型结果改成失败，也不重跑 Codex。

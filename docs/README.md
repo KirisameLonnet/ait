@@ -1,9 +1,171 @@
 # 概念与架构文档
 
-- [ADR-029：OpenCode 原生 Session 插件与后续 Harness 扩展边界](decisions/adr-029-native-harness-provider-plugins.md)
-  （Accepted）：参照 AIT Codex 与 Paseo OpenCode 接入，贯通 daemon/worker/Desktop 的原生
-  Session port、持久化输入、权威历史投影、审批与进程所有权。
-  [实现报告](reports/native-harness-adapters.md)记录版本、能力限制、回归测试与覆盖率。
+- [ADR-067：OpenCode 迁入独立 server Provider](decisions/adr-067-opencode-server-provider.md)：
+  完整同步 main、复用 Codex/Claude 的会话 port、专属 HTTP 进程、输入核对和单次审批；
+  [迁移与验证报告](reports/opencode-server-migration.md)。
+
+- [Ait 0.0.11 发布说明](reports/release-0.0.11.md)：目录实时更新修复、GitLab 支持、升级说明和发布验证。
+- [Ait 0.0.10 发布说明（构建未发布）](reports/release-0.0.10.md)：首次构建记录与失败原因。
+
+- [ADR-066：GitLab Forge 支持](decisions/adr-066-gitlab-forge.md)：复用 Paseo 的平台识别与 glab 设计，支持自建实例、MR、讨论及流水线；[验证报告](reports/gitlab-forge.md)。
+
+- [ADR-065：Paseo 目录、时间线与会话 API 兼容行为](decisions/adr-065-paseo-directory-and-timeline-projections.md)：
+  ICU keyset 游标、目录同步订阅、Workspace/终端活动、时间线投影、恢复、会话事件、归档清理、PR 检出及初始 Agent 创建；
+  [逐接口对照与验证](reports/paseo-server-api-audit-2026-09-29.md)、
+  [PR 提交前完整验证](reports/paseo-server-pr-validation-2026-09-29.md)。
+
+- [Ait 0.0.9 发布说明](reports/release-0.0.9.md)：离线语音、终端和文件读取修复，升级说明与发布验证。
+
+- [ADR-064：默认离线语音与模型准备](decisions/adr-064-offline-speech.md)：Sherpa ONNX、后台模型准备、隔离推理与现有 Provider 配置兼容；[验证报告](reports/desktop-speech-terminal.md)。
+
+- [Ait 0.0.8 发布准备](reports/release-0.0.8.md)：版本同步、相对 0.0.7 重建包的更新、兼容说明与发布步骤。
+
+- [ADR-063：Ait 本地 UI 包与原生测试连接](decisions/adr-063-ait-local-ui-packages.md)：私有 `@ait/*` workspace、本地源码依赖、移除退役包及 Maestro Ait 认证连接；[验证报告](reports/ait-local-ui-packages.md)。
+
+- [Paseo 0.10.0-beta.1 API 对照与搜索移植](reports/paseo-api-update-2026-09-28.md)：205 个入站名称保持不变，移植聊天搜索命中计数、Markdown 搜索和整段聊天导航，记录认证及 relay API 的取舍与验证。
+
+- [Ait 0.0.7 同版本重建发布（2026-09-28）](reports/release-0.0.7-rebuild-2026-09-28.md)：最新 main 的更新内容、安装说明、构建来源与发布校验记录。
+
+- [ADR-062：Ait 运行路径与项目配置](decisions/adr-062-ait-runtime-paths.md)：工作区归属采用 server 元数据，`ait.json` 及旧文件读取兼容，清理旧 CLI 与测试启动器，更新项目版权署名；[验证报告](reports/ait-e2e-migration.md)与[提交准备覆盖率](reports/ait-e2e-coverage.md)。
+
+- [ADR-061：App Ait E2E 与移除 relay / 插件](decisions/adr-061-app-ait-e2e-remove-relay-plugin.md)：隔离 Rust server、认证和生产 transport、旧状态迁移；[运行说明](../apps/app/e2e/README.md)。
+
+- [Codex 大图片事件修复](reports/codex-large-image-frames.md)：对照 Paseo 原版，移除原生输出的 2 MiB 限制；包含故障复现、限额对照和定向验证。
+
+- [ADR-060：统一 Workspace 创建入口支持 Worktree](decisions/adr-060-workspace-create-worktree.md)：Paseo 来源参数、共享 Git 服务、预留身份、幂等回执与 setup；[验证报告](reports/workspace-create-worktree.md)。
+
+- [ADR-059：移除旧 Rust 运行时](decisions/adr-059-remove-legacy-rust-runtime.md)：删除 daemon、worker、CLI 和 16 个专用 crate；Cargo workspace 统一为 `bins/server` 与 11 个 `server-*` crate；[验证报告](reports/remove-legacy-rust-runtime.md)。
+
+- [ADR-058：Server metadata generation](decisions/adr-058-server-metadata-generation.md)：会话/工作区命名、分支、提交信息与 PR 文案的后台生成、Provider 回退和手工改名保护；[实施报告](reports/server-metadata-generation.md)。
+
+- [ADR-057：移除旧版桌面实现](decisions/adr-057-remove-legacy-desktop.md)：删除旧桌面源码、测试与构建配置，桌面入口统一为 `apps/paseo` 和 `apps/app`；其旧 Rust 入口保留条款已由 ADR-059 取代。
+
+- [main CI 进程与文件订阅修复](reports/main-ci-process-subscriptions.md)：同步轮询许可竞争回归、Claude 固定测试替身，以及 rebase 后的完整验证。
+
+- [Server 会话空标题修复](reports/server-session-titles.md)：新会话首条消息命名、原生导入/刷新标题回退、旧记录补齐；后续 AI 生成由 ADR-058 补齐。
+
+- [ADR-056：Ait 与 Paseo 共享资源隔离](decisions/adr-056-paseo-coexistence.md)：技能所有权、自动 stash、启动环境变量、Rust SSH 和移动端应用 ID；[验证报告](reports/paseo-coexistence.md)。
+
+- [ADR-055：Ait 与 Paseo 桌面隔离](decisions/adr-055-desktop-profile-isolation.md)：独立用户目录、浏览器会话、`ait://` 链接和更新缓存；旧共享目录保留，见[验证报告](reports/desktop-profile-isolation.md)。
+
+- [ADR-054：桌面服务监听配置与网络地址](decisions/adr-054-desktop-server-listen.md)：Host 概览保存监听 IP/端口、启动读取配置、通配连接地址与请求来源校验；[验证报告](reports/desktop-server-listen.md)。
+
+- [ADR-053：Ait 0.0.7 桌面发布](decisions/adr-053-paseo-desktop-release.md)：正式发布切换到 `apps/paseo`，仅 Linux x86_64/macOS arm64，内置二进制只有 `server`；[操作指南](operations/releasing.md)、[验证报告](reports/release-0.0.7.md)。
+
+- [Ait 设置页修复](reports/ait-settings-repair.md)：移除插件配置，修复项目目录与 Provider 快照适配、Agent profiles 能力识别和设置加载错误；包含真实 Rust 服务的桌面回归。
+
+- [工作区改动整合](reports/local-workspace-consolidation.md)：PR #109 合并后，server 回归修复、
+  本地 SDK、主题同步与品牌资产的提交范围及独立验证结果。
+
+- [ADR-052：原生 Provider 能力补齐](decisions/adr-052-native-provider-capabilities.md)：
+  Codex/Claude 的配置、授权、用量和原生能力协商边界；[实施清单](plans/provider-parity.md)、[能力矩阵与验证报告](reports/provider-parity.md)。
+
+- [ADR-051：AIT 品牌识别与日间视觉系统](decisions/adr-051-ait-brand-identity.md)（Accepted）：
+  飞鸟主标、跨端与多种云端 Agent 服务的品牌定位、字标、配色、留白、跨端应用和资产规则；
+  含完整候选图、日间精修稿与提示词归档；已完成统一矢量源、各端图标与客户端接入，
+  界面名称与版本统一为 Ait 0.0.6；见 [生产资产](../assets/brand/README.md) 和 [落地验证报告](reports/ait-brand-rollout.md)。
+
+- [ADR-050：Claude Code Provider](decisions/adr-050-claude-code-provider.md)：独立 Rust server 的
+  本机 Claude Code 协议、模型发现、流式输出、审批及会话恢复；
+  [当前能力报告](reports/provider-parity.md)、[初版历史报告](reports/claude-code-provider.md)。
+
+- [Server Paseo 测试扩展](reports/server-paseo-tests.md)：逐测试上游映射、回归修复、验证结果和 workspace 覆盖率。
+
+- [Paseo 本地 SDK library](reports/paseo-local-sdk.md)：显式本地依赖、独立构建入口、包解析验证和测试范围。
+
+- [Apple 构建说明](operations/apple-builds.md)：桌面 DMG、iOS 模拟器、iPhone 归档与签名 IPA；[实际构建报告](reports/apple-builds.md)。
+
+- [ADR-049：独立 App 的 Rust server 浏览器连接](decisions/adr-049-app-rust-browser-transport.md)：一次性 WebSocket 票据、显式页面来源和 `dev:app` 启动入口；[实施报告](reports/app-rust-server.md)。
+
+- [ADR-048：Paseo workspace 与 Rust 桌面服务启动](decisions/adr-048-paseo-desktop-rust-launcher.md)：前端构建依赖、主进程凭据与子进程所有权；[启动与验证报告](reports/paseo-desktop-startup.md)。
+
+- [ADR-047：移除 Plugin 并独立实现 Schedule / Browser](decisions/adr-047-server-schedule-browser.md)（Accepted）：两个新能力 crate，生产 175 项均安装；[实施报告](reports/server-schedule-browser.md)区分接口接通、上游差异与 Test coverage。
+
+- [ADR-046：Codex 流式输出与运行中追加输入](decisions/adr-046-codex-streaming-and-steering.md)
+  （Accepted）：持久增量游标、完整原生项去重投影、显式 `turn/steer` 与接收失败语义；
+  [实施报告](reports/server-codex-streaming.md)记录剩余差异和 Test coverage。
+
+- [ADR-045：移除 Hub、Chat 与 Loop 接口](decisions/adr-045-remove-hub-chat-loop.md)（Accepted）：按用户范围删除 19 个接口及前端映射；[报告](reports/server-removed-groups.md)记录当前 183 项范围与验证。
+
+- [ADR-044：Paseo 前端适配 Rust transport](decisions/adr-044-paseo-client-rust-transport.md)
+  （Accepted）：桌面 Bearer bridge、方法映射（现按 ADR-047 缩减为 171 项）、分连接能力协商与订阅所有权；
+  [实施报告](reports/paseo-client-rust-adapter.md)记录真实 SDK 联调和 Rust 剩余缺口。
+
+- [ADR-043：Skills 选择与文件安装](decisions/adr-043-server-skills.md)（Accepted）：五个 Skills 接口、三目标同步、删除确认与事务恢复；[实施报告](reports/server-skills.md)记录配置、上游差异和测试。
+
+- [Paseo 客户端源码导入](reports/paseo-client-import.md)：上游 desktop 导入 `apps/paseo`，
+  app 导入 `apps/app`；保留来源版本、许可证和完整性校验，记录后续构建整合范围。
+  [连接实测](reports/paseo-server-connection.md)：桌面启动依赖未齐，原版协议不能直接连接 Rust server；记录真实握手与基础 RPC 对照结果。
+
+- [Push Token 管理实施报告](reports/server-push-tokens.md)：持久租约、连接级登记与心跳续租、上游测试对应及投递限制。
+
+- [独立 server 完整 WebSocket 接口差异](reports/server-interface-gaps.md)：固定 Paseo 完整入站基线、占位清单、已接通接口限制与本轮验证。
+
+- [ADR-042：连接级语音、听写与双后端](decisions/adr-042-server-voice.md)
+  （Accepted）：独立 server-voice 实现八个语音/听写方法、连接取消和播放确认；
+  支持 OpenAI 兼容服务及本地 whisper.cpp/Piper。
+  [操作说明](operations/server-voice.md)记录配置与协议，
+  [实施报告](reports/server-voice.md)记录回归、覆盖率和后端差异。
+
+- [ADR-041：Agent 原生控制与 Provider 诊断、用量](decisions/adr-041-agent-controls-provider-inspection.md)
+  （Accepted）：补齐七个 Agent 和两个 Provider 方法，原生审批、模式/feature、回退恢复和子 Agent 展示。
+  [实施报告](reports/server-agent-controls.md)记录行为边界、回归与覆盖率。
+
+- [ADR-040：原生 Session 发现、导入、刷新与上下文导出](decisions/adr-040-native-session-import-refresh-context.md)
+  （Accepted）：新增四个接口；provider 复用 metadata 目录服务，Timeline 原子分代并保留旧历史。
+  [实施报告](reports/server-native-sessions.md)记录原生协议、回归与覆盖率。
+
+- [ADR-039：Agent Timeline、Provider 发现与创建过程订阅](decisions/adr-039-agent-timeline-provider-creation.md)
+  （Accepted）：新增十二个接口，原生历史的持久化展示投影、Provider 模型发现与缓存、
+  metadata 创建回执及连接级观察者。[实施报告](reports/server-agent-timeline-provider-creation.md)记录验证与覆盖率。
+
+- [ADR-038：server-protocol 仅依赖公共 server-model](decisions/adr-038-server-protocol-dependencies.md)
+  （Accepted）：删除协议对四个能力包的依赖，迁移错误转换与目录一致性测试，收紧依赖守卫；
+  包含当前九个 server crate 的完整依赖图。[实施报告](reports/server-protocol-dependencies.md)记录验证与覆盖率。
+
+- [ADR-037：公共 Context 与具体 crate 分发](decisions/adr-037-server-model-context.md)
+  （Accepted）：server-model 提供公共请求、队列与 Tokio 运行资源；各能力 crate 直接接收
+  Context 和具体服务/连接状态，删除 Host 回调接口，API 负责组装与跨能力收尾。
+  后台 diff 轮询使用独立有界预算，公平等待并在取消后停止投递。
+  [实施报告](reports/server-model-context.md)记录回归与覆盖率。
+
+- [ADR-036：请求先进入所属 crate 再分发到能力组](decisions/adr-036-server-crate-dispatch.md)
+  （Accepted）：API 顶层仅按四个能力 crate 分流；crate 选择业务处理器，Host 端口保留 API
+  调度和连接所有权，并统一普通响应与响应后的动作。
+  [实施报告](reports/server-crate-dispatch.md)记录回归与覆盖率。
+
+- [ADR-035：能力分组与安装规则归所属 server crate](decisions/adr-035-server-capability-groups.md)
+  （Accepted）：metadata/filesystem/provider/terminal 自行声明方法分组并计算已安装能力，
+  server-api 合并并连接处理器；名称、安装条件与消息方向保持兼容。
+  [实施报告](reports/server-capability-groups.md)记录验证与覆盖率。
+
+- [ADR-033：独立 server-terminal 与完整 Terminal 方法分组](decisions/adr-033-server-terminal.md)
+  （Accepted）：10 个 Terminal 方法、真实 PTY、binary input/output/resize/snapshot/restore、连接级
+  订阅和 resize 所有权；批量关闭、归档清理与 shutdown 接入。限制与覆盖率见[实施报告](reports/server-terminal.md)。
+
+- [ADR-034：Agent 后续 turn 配置与 Session 事件/心跳](decisions/adr-034-agent-config-session-events.md)
+  （Accepted）：模型/推理等级与批量配置原子保存；连接事件订阅、心跳、焦点抑制和断线释放归 metadata。
+  [实施报告](reports/server-agent-session.md)记录五个新接口及验证范围。
+
+- [ADR-032：独立 server 接通 Codex 原生文本执行](decisions/adr-032-server-native-provider-execution.md)
+  （Accepted）：Provider worker 接通创建、恢复、发送、取消和等待结果；read-only Codex 首片，
+  保留 native 历史边界，已实现 capability 增至 107。
+  [实施报告](reports/server-native-provider-execution.md)记录并发取消、重启恢复、进程回收和覆盖率。
+
+- [ADR-031：拆出 server-provider 并统一 Workspace 自动化与 state 入口](decisions/adr-031-server-provider.md)
+  （Accepted）：14 个 Agent 方法归 provider，7 个 Workspace 方法归 metadata；
+  attention 通过窄端口委托 Agent 更新，删除四个空横向 crate，domain 保持纯依赖。
+  [实施报告](reports/server-provider-extraction.md)记录验证与覆盖率，
+  [可行性分析](reports/server-provider-feasibility.md)保留拆分前的调研。
+
+- [ADR-030：纵向拆出 server-filesystem](decisions/adr-030-server-filesystem.md)
+  （Accepted）：集中 Git、Forge/PR、文件/目录、Worktree、恢复和 GitHub clone；skill 保留占位。
+  [实施报告](reports/server-filesystem-extraction.md)记录边界、回归与本轮测试覆盖率。
+
+- [ADR-029：统一 Paseo Project 并纵向拆出 server-metadata](decisions/adr-029-server-metadata.md)
+  （Accepted）：废除独立 server 早期 Project 租约体系，将 Project/Workspace 业务协议、记录、
+  用例、文件存储及 server metadata 归入独立 crate。
+  [实施报告](reports/server-metadata-extraction.md)记录回归、依赖约束和测试覆盖率。
 
 - [ADR-028：GitHub 仓库发现与独立 Project 克隆注册](decisions/adr-028-github-project-provisioning.md)
   （Accepted）：新 server 接通仓库搜索与克隆注册两个 Paseo WebSocket 方法；
@@ -48,13 +210,13 @@
   新 Agent 配置、历史 revision、显式默认选择、凭据引用与 catalog v1 → v2 备份升级。
   [验证报告](reports/independent-server-m1-agents.md)记录 CAS、回执、重启、秘密隔离与覆盖率。
 
-- [ADR-023：独立 server 的项目打开与所有权](decisions/adr-023-server-project-opening.md)（Accepted）：
-  M1 首个纵向切片新增五个独立内部 crate，贯通 Project Git 准入、根 Message、SQLite、
-  catalog 回执与本机所有权，以及 `project.open/list/get/close`。
+- [ADR-023：独立 server 的项目打开与所有权](decisions/adr-023-server-project-opening.md)（Superseded by ADR-029）：
+  历史 M1 切片定义 Project Git 准入、根 Message、SQLite、catalog 回执、本机所有权
+  及 `project.open/list/get/close`；该切片现已移除。
   [验证报告](reports/independent-server-m1-projects.md)记录恢复、隔离、WS 与覆盖率验证。
 
 - [ADR-022：独立 server 与全新内部 crate](decisions/adr-022-independent-server.md)（Accepted）：
-  独立 `server` binary 与旧 daemon 并存，内部依赖全部新建；定义进程隔离、数据命名空间、
+  独立 `server` binary 与全新内部依赖；并存旧 daemon 的条款已由 ADR-059 取代。定义进程隔离、数据命名空间、
   WebSocket、输入接纳与恢复边界。[实施计划](plans/independent-server.md)按服务骨架、离线闭环、
   单 Provider 接入和故障矩阵分期；M0 的服务骨架已扩展到 M1 项目打开切片，内部依赖仍全部独立。
   [使用说明](operations/independent-server.md)记录启动配置、鉴权、协议和关闭行为。
@@ -131,7 +293,7 @@
 
 - `decisions/NEC-294/adr-001-project-editing-and-sidebar.md`：Project 名称与默认 Agent 原子编辑、独立展开状态及按 Project 读取的 Session 导航摘要；修订 NEC-233 的侧栏展示限制。
 
-- `decisions/NEC-290/adr-001-api-tool-approval-grants.md`：API Provider 的交互升级、固定 Run 基线与一次性 grant、持久化/worker fencing、Session 和 Cron 审批入口；使用与离线 GUI 演示见 `operations/api-tool-approvals.md`。
+- `decisions/NEC-290/adr-001-api-tool-approval-grants.md`：API Provider 的交互升级、固定 Run 基线与一次性 grant、持久化/worker fencing、Session 和 Cron 审批入口；历史界面流程与后端离线验收见 `operations/api-tool-approvals.md`。
 
 - `decisions/NEC-269/adr-001-composer-permission-default.md`：Prompt 移除无功能加号、权限选择器置首，新建/重置设置默认 Workspace Write，保留已存权限与 Run 快照。
 
@@ -237,11 +399,14 @@
 
 ## 运维手册
 
+以下 worker、旧 API 与 CLI 文档仅供历史追溯，其源码和验收入口已由 ADR-059 移除。
+当前服务使用 `operations/independent-server.md`；历史 ADR 和报告不代表现存 crate 或功能。
+
 - `operations/worker-processes.md`：生产 daemon/worker 拓扑、ACK 与 fencing、恢复、进程树回收、权限/资源上限及凭证边界。
 
 - `operations/releasing.md`：Ait desktop 版本准备、双平台 GitHub Release、产物校验与失败恢复。
 - `operations/reliability-security-observability.md`：数据保留、附件 mark-and-sweep、数据库备份/恢复、可靠性测试矩阵与性能基线。
-- [CLI 用户流程](../workflows/README.md)：逐个用户目标的可执行步骤、可观察结果、失败恢复、当前差距与 CLI 集成测试映射。
+- [旧 CLI 用户流程（历史）](../workflows/README.md)：记录已移除 CLI 的操作、失败恢复与历史测试映射。
 
 配套设计仍保留各自原始评审状态；实现前若与 ADR-001 v4 冲突，以 v4 及明确列出的 Accepted 修订为准。同号 ADR 来自不同设计 issue，因此目录包含 issue 编号以避免歧义。
 

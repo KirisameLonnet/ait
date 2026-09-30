@@ -1,6 +1,6 @@
 # ADR-029：OpenCode 原生 Session 插件与后续 Harness 扩展边界
 
-- 状态：Accepted，2026-09-30；Claude Code 产品接入另行验证。
+- 状态：Superseded，2026-09-30；旧运行时由 ADR-059 退役，OpenCode 当前决策见 ADR-067，Claude Code 当前接入见 ADR-050/052。
 - 范围：现有 AIT daemon/worker/Desktop。
 - 上位约束：ADR-001 v4、ADR-013、ADR-017、ADR-021、NEC-169。
 

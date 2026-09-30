@@ -1,5 +1,11 @@
 # 受监督的 Run worker（NEC-248）
 
+> 历史文档：旧 Rust 运行时与验收入口已按 [ADR-059](../decisions/adr-059-remove-legacy-rust-runtime.md) 移除。
+> 下文仅记录旧实现，当前服务操作见 [server 说明](independent-server.md)。
+
+本页描述旧 daemon/worker 架构；0.0.7 桌面发布改用独立 `server`，不携带 worker，见
+[发布操作指南](releasing.md)。
+
 生产 daemon 使用私有协议 3.0 启动 `ait-worker --stdio --protocol-major 3`。
 API Provider 经 `RunDispatcher` 注入；所有 Codex 请求通过同一个 `WorkerSupervisor` 的
 原生 Thread writer、history、model catalog 和 title ports 进入 worker。HTTP/SSE、设置、
@@ -19,8 +25,7 @@ target/debug/ait-daemon --database ./ait.sqlite3 --listen 127.0.0.1:7314
 ```
 
 两个可执行文件必须来自同一版本并放在同一目录。开发时可用 daemon 的
-`--worker-binary /trusted/path/ait-worker` 指定位置。Desktop release workflow 同时编译、
-stage 和打包二者；缺少 worker 时 staging 直接失败。不要手工将 worker 连接到终端；
+`--worker-binary /trusted/path/ait-worker` 指定位置。不要手工将 worker 连接到终端；
 stdout 的任何普通文本都会被判为协议污染。
 
 macOS 的 Codex adapter 直接通过 `/bin/zsh -lic 'exec "$@"' -- codex app-server
@@ -54,7 +59,7 @@ shell 启动文件需保持 stdout 安静，以免污染 JSONL。开发版也使
 - Codex 恢复只读取和对账原 Thread。queued 且未发送的输入明确终结；发送结果未知的输入
   不会重发。`codex.auto_commit` 默认关闭，在准入时冻结；启用后仅对成功 Run 独立收尾。
   精确 commit plan 在更新 Git ref 前持久化，崩溃或 ACK 丢失后复用原 commit ID。
-  Git 失败保留模型的 completed 状态，CLI `ait run retry-commit --run-id …` 和桌面按钮
+  Git 失败保留模型的 completed 状态，CLI `ait run retry-commit --run-id …`
   只重试 Git。起始脏目录或变化的 Git 基线跳过自动提交，无变化也跳过；Message 不携带提交结果。
 
 连续文本 delta 在 worker 中按同一 item 合并（4 KiB 或下一事件观察到 40 ms 间隔时 flush，
@@ -63,21 +68,21 @@ shell 启动文件需保持 stdout 安静，以免污染 JSONL。开发版也使
 
 ## 限制与权限
 
-| 边界 | 当前上限/行为 |
-| --- | --- |
-| frame | 1 MiB；协商可以缩小，先检查长度再分配 |
-| 收发队列 / 在途 RPC | 每方向 16；API mutation 串行；Codex 最多 16 个 port 调用 |
-| 单连接写入 | 1 秒 flush deadline；2 秒排队加 flush deadline |
-| 握手 / heartbeat | 3 秒握手；500 ms 心跳，3 秒失联 |
-| Codex 原生 Run wall-clock | 无固定任务时限；仍响应取消、shutdown 和失联检测 |
-| API / Codex 辅助操作 wall-clock | 300 秒；辅助操作包括历史、模型目录与标题 |
-| drain | 取消后 2 秒；daemon shutdown 最多等待 5 秒 |
-| worker 数量 | 单 supervisor 最多 16；同 Run 同时只有一个 |
-| 工具并发 / 输出 | 最多 4；64 KiB；API 工具参数最多 16 KiB |
-| Codex 输出 | 每轮累计文本 / 单个 item JSON 各 8 MiB；独立于 API 工具的 64 KiB 输出限制 |
-| API steps / tokens | 固定 RunBudget：128 steps、1,000,000 tokens；跨恢复累计 |
-| Codex items / tokens | 同一 native turn 最多 128 个不同 item；上报 usage 超过 1,000,000 即取消 |
-| receipt / context pages | 每 Run 最多 8192 个 API mutation receipt；每条读取一项，累计最多 8192 项 |
+| 边界                            | 当前上限/行为                                                             |
+| ------------------------------- | ------------------------------------------------------------------------- |
+| frame                           | 1 MiB；协商可以缩小，先检查长度再分配                                     |
+| 收发队列 / 在途 RPC             | 每方向 16；API mutation 串行；Codex 最多 16 个 port 调用                  |
+| 单连接写入                      | 1 秒 flush deadline；2 秒排队加 flush deadline                            |
+| 握手 / heartbeat                | 3 秒握手；500 ms 心跳，3 秒失联                                           |
+| Codex 原生 Run wall-clock       | 无固定任务时限；仍响应取消、shutdown 和失联检测                           |
+| API / Codex 辅助操作 wall-clock | 300 秒；辅助操作包括历史、模型目录与标题                                  |
+| drain                           | 取消后 2 秒；daemon shutdown 最多等待 5 秒                                |
+| worker 数量                     | 单 supervisor 最多 16；同 Run 同时只有一个                                |
+| 工具并发 / 输出                 | 最多 4；64 KiB；API 工具参数最多 16 KiB                                   |
+| Codex 输出                      | 每轮累计文本 / 单个 item JSON 各 8 MiB；独立于 API 工具的 64 KiB 输出限制 |
+| API steps / tokens              | 固定 RunBudget：128 steps、1,000,000 tokens；跨恢复累计                   |
+| Codex items / tokens            | 同一 native turn 最多 128 个不同 item；上报 usage 超过 1,000,000 即取消   |
+| receipt / context pages         | 每 Run 最多 8192 个 API mutation receipt；每条读取一项，累计最多 8192 项  |
 
 按 [ADR-020](../decisions/adr-020-codex-output-limits.md)，超限错误保留具体指标、实际值和上限，
 包括 item 数量、单项 JSON 字节数、累计文本字节数与单次模型调用 token。worker 的
@@ -88,7 +93,7 @@ shell 启动文件需保持 stdout 安静，以免污染 JSONL。开发版也使
 按 [ADR-021](../decisions/adr-021-codex-unlimited-runtime.md)，原生 writer 不再应用
 `wall_clock_ms`，长时间构建与模型工作不会仅因超过 5 分钟而中断。其他输出与用量预算、
 手动停止、应用退出、心跳检测以及局部协议超时继续生效；这不提供关闭应用后的后台运行。
-已有中断 Run 不会自动重放。桌面将普通原生中断显示为 `Run interrupted`，仅
+已有中断 Run 不会自动重放。旧版桌面曾将普通原生中断显示为 `Run interrupted`，仅
 `RUN_RECOVERY_FAILED` 使用工作区恢复标题。
 
 权限在准入时冻结，启动时重查管理员 `--max-sandbox`。`ait-sandbox` 使用 NEC-247 的
@@ -141,9 +146,6 @@ adapter 又分别在 Message 和 ToolExecution intent 写入前复核。API 因�
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cd apps/desktop
-npm run typecheck
-npm test
 ```
 
 - `bins/worker/tests/process_providers.rs`：真实 worker + 拆分 SQLite + 离线 OpenAI/DeepSeek/Gemini/MiniMax HTTP；

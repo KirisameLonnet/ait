@@ -1,38 +1,49 @@
 use std::net::SocketAddr;
-use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::Context;
 mod catalog;
+mod schedule;
+mod voice;
 
 use chrono::{SecondsFormat, Utc};
-use server_api::{Api, LifecycleIntent, Services};
-use server_application::Projects;
-use server_application::agent_runtime::AgentRuntimeDirectory;
-use server_application::agents::Agents;
-use server_application::checkout::Checkout;
-use server_application::daemon::{Daemon, DaemonRuntime};
-use server_application::directory::{Directory, DirectoryDependencies};
-use server_application::files::Files;
-use server_application::forge::Forge;
-use server_application::workspace_automation::WorkspaceAutomation;
-use server_application::workspace_labels::WorkspaceLabels;
-use server_application::workspace_state::WorkspaceState;
-use server_application::worktrees::Worktrees;
-use server_ports::agent_runtime::AgentRuntimeRegistry;
-use server_ports::registry::{ProjectRegistry, WorkspaceRegistry};
-use server_ports::{ProjectError, ProjectStorage, ProjectStore};
-use server_storage::daemon_config::FileDaemonConfigStore;
-use server_storage::registry::{
-    FileBackedAgentRuntimeRegistry, FileBackedProjectRegistry, FileBackedWorkspaceRegistry,
+use server_api::{Api, LifecycleIntent, LocalAddress, Services};
+use server_filesystem::local::{
+    checkout::LocalCheckout, forge::LocalForge, github_projects::LocalGithubProjects,
+    provisioning::LocalDirectorySource, worktrees::LocalManagedWorktrees,
 };
-use server_storage::workspace_labels::FileWorkspaceLabelStore;
-use server_storage::{SqliteCatalog, SqliteProjects};
-use server_workspace::{
-    LocalCheckout, LocalDirectorySource, LocalForge, LocalGithubProjects, LocalManagedWorktrees,
-    LocalProjectConfigStore, LocalProjectIconStore, LocalWorkspace, LocalWorkspaceAutomation,
+use server_filesystem::service::checkout::Checkout;
+use server_filesystem::service::files::Files;
+use server_filesystem::service::forge::Forge;
+use server_filesystem::service::worktrees::{WorkspaceWorktrees, Worktrees};
+use server_filesystem::service::{
+    github_projects::GithubProjects, workspace_recovery::WorkspaceRecovery,
 };
+use server_metadata::local::workspace_automation::LocalWorkspaceAutomation;
+use server_metadata::ports::generation::MetadataGenerator;
+use server_metadata::ports::registry::{ProjectRegistry, WorkspaceRegistry};
+use server_metadata::service::daemon::{Daemon, DaemonRuntime};
+use server_metadata::service::directory::{Directory, DirectoryDependencies};
+use server_metadata::service::workspace_automation::WorkspaceAutomation;
+use server_metadata::service::workspace_labels::WorkspaceLabels;
+use server_metadata::service::workspace_names::WorkspaceNames;
+use server_metadata::service::workspace_state::WorkspaceState;
+use server_metadata::storage::daemon_config::FileDaemonConfigStore;
+use server_metadata::storage::project_config::LocalProjectConfigStore;
+use server_metadata::storage::project_icon::LocalProjectIconStore;
+use server_metadata::storage::registry::{FileBackedProjectRegistry, FileBackedWorkspaceRegistry};
+use server_metadata::storage::workspace_labels::FileWorkspaceLabelStore;
+use server_provider::local::{claude::ClaudeClient, codex::CodexClient};
+use server_provider::ports::agent_runtime::AgentRuntimeRegistry;
+use server_provider::service::agent_execution::{AgentExecution, ExecutionDependencies};
+use server_provider::service::agent_manager::AgentManager;
+use server_provider::service::agent_runtime::AgentRuntimeDirectory;
+use server_provider::service::agents::Agents;
+use server_provider::service::workspace_attention::AgentWorkspaceAttention;
+use server_provider::storage::SqliteCatalog;
+use server_provider::storage::agent_runtime::FileBackedAgentRuntimeRegistry;
+
 use tokio::net::TcpListener;
 
 use crate::config::Config;
@@ -45,26 +56,13 @@ pub(super) struct Server {
     instance: Arc<InstanceLease>,
 }
 
-#[derive(Debug)]
-struct OwnedStorage {
-    // A timed-out or abandoned response must not release the catalog's process lease
-    // while its supervised blocking job can still write. Projects owns this factory
-    // until after its open stores and catalog are dropped.
-    _instance: Arc<InstanceLease>,
-}
-
-impl ProjectStorage for OwnedStorage {
-    fn open(&self, root: &Path) -> Result<Box<dyn ProjectStore>, ProjectError> {
-        SqliteProjects.open(root)
-    }
-}
-
 impl Server {
     pub async fn bind(config: Config) -> anyhow::Result<Self> {
         let listener = TcpListener::bind(config.listen)
             .await
             .context("bind server listener")?;
         let token = config.token.clone();
+        let web_origins = config.web_origins.clone();
         let address = listener
             .local_addr()
             .context("read server listener address")?;
@@ -81,7 +79,8 @@ impl Server {
             instance.instance_id.to_string(),
             token,
             services,
-        )?;
+        )?
+        .with_browser_origins(web_origins)?;
         Ok(Self {
             listener,
             api,
@@ -106,15 +105,19 @@ impl Server {
         } = self;
         let result: anyhow::Result<()> = async {
             let shutdown_api = api.clone();
-            let server = axum::serve(listener, api.router())
-                .with_graceful_shutdown(async move {
-                    tokio::select! {
-                        () = shutdown => {},
-                        () = shutdown_api.wait_draining() => {},
-                    }
-                    shutdown_api.begin_shutdown();
-                })
-                .into_future();
+            let server = axum::serve(
+                listener,
+                api.router()
+                    .into_make_service_with_connect_info::<LocalAddress>(),
+            )
+            .with_graceful_shutdown(async move {
+                tokio::select! {
+                    () = shutdown => {},
+                    () = shutdown_api.wait_draining() => {},
+                }
+                shutdown_api.begin_shutdown();
+            })
+            .into_future();
             tokio::pin!(server);
             // Readiness changes in the signal future before HTTP acceptance stops.
             // Also clean up WS tasks if the HTTP server terminates with an error.
@@ -167,37 +170,203 @@ fn compose_services(
         catalog: SqliteCatalog::open(&config.data_dir)?,
         _instance: instance.clone(),
     }));
-    let projects = Projects::new(
-        Box::new(SqliteCatalog::open(&config.data_dir)?),
-        Box::new(OwnedStorage {
-            _instance: instance.clone(),
-        }),
-        Box::new(LocalWorkspace::for_user()?),
-    );
     let server_id = instance.server_id.to_string();
-    let worktrees = Worktrees::new(
-        Box::new(project_registry.clone()),
-        Box::new(workspace_registry.clone()),
-        Box::new(LocalManagedWorktrees::new(
-            config.data_dir.join("worktrees"),
-        )),
-        server_id.clone(),
+    let MetadataServices {
+        config: config_store,
+        generator: metadata_generator,
+        names: workspace_names,
+    } = compose_metadata(&config.data_dir, &workspace_registry);
+    let worktrees = Arc::new(Mutex::new(
+        compose_worktrees(config, &project_registry, &workspace_registry, &server_id)
+            .with_workspace_names(workspace_names.clone()),
+    ));
+    let WorkspaceServices {
+        automation: workspace_automation,
+        state: workspace_state,
+        recovery: workspace_recovery,
+    } = compose_workspace_services(
+        config,
+        &workspace_registry,
+        &project_registry,
+        &agent_runtime_registry,
     );
+    let daemon = compose_daemon(config_store, address, &server_id)?;
+    let workspace_automation = Arc::new(Mutex::new(workspace_automation));
+    let timeline = open_timeline(&config.data_dir)?;
+    let terminals = server_terminal::service::Terminals::new(
+        Box::new(workspace_registry.clone()),
+        Box::new(project_registry.clone()),
+        Box::new(server_terminal::local::LocalRuntime),
+    );
+    let directory = compose_directory(config, &project_registry, &workspace_registry, server_id)?
+        .with_worktrees(Arc::new(WorkspaceWorktrees::new(worktrees.clone())))
+        .with_workspace_names(workspace_names.clone())
+        .with_activity_source(Arc::new(
+            AgentWorkspaceAttention::new(Box::new(agent_runtime_registry.clone()))
+                .with_timeline(timeline.clone()),
+        ))
+        .with_activity_source(Arc::new(terminals.activity_source()));
+    let agent_execution = compose_provider(
+        (agent_runtime_registry, timeline),
+        (&workspace_registry, &project_registry),
+        instance,
+        &config.data_dir,
+        (
+            directory.clone(),
+            metadata_generator.clone(),
+            workspace_names.clone(),
+            workspace_automation.clone(),
+        ),
+    )?;
+    let schedules = schedule::compose(
+        &config.data_dir,
+        agent_execution.clone(),
+        directory.clone(),
+        worktrees.clone(),
+    )?;
+    let github_projects =
+        GithubProjects::new(directory.clone(), Box::new(LocalGithubProjects::new()));
+    Ok(Services {
+        metadata_generator: Some(metadata_generator),
+        workspace_names: Some(workspace_names),
+        schedules: Some(schedules),
+        browser: Some(server_browser::broker::Broker::default()),
+        skills: Some(compose_skills(&config.data_dir)?),
+        push_tokens: Some(compose_push(&config.data_dir)?),
+        speech: Some(voice::compose(agent_execution.clone(), &config.data_dir)?),
+        terminals: Some(terminals),
+        agent_execution: Some(agent_execution),
+        agents: Some(agents),
+        checkout: Some(Checkout::new(Box::new(LocalCheckout::new(
+            config.data_dir.join("worktrees"),
+        )))),
+        agent_runtime: None,
+        daemon: Some(daemon),
+        directory: Some(directory),
+        github_projects: Some(github_projects),
+        workspace_recovery: Some(workspace_recovery),
+        forge: Some(Forge::new(Box::new(LocalForge::new()))),
+        files: Some(compose_files(config)),
+        workspace_labels: Some(workspace_labels),
+        workspace_automation: Some(workspace_automation),
+        workspace_state: Some(workspace_state),
+        worktrees: Some(worktrees),
+    })
+}
+
+struct WorkspaceServices {
+    automation: WorkspaceAutomation,
+    state: WorkspaceState,
+    recovery: WorkspaceRecovery,
+}
+
+fn compose_workspace_services(
+    config: &Config,
+    workspace_registry: &FileBackedWorkspaceRegistry,
+    project_registry: &FileBackedProjectRegistry,
+    agent_runtime_registry: &FileBackedAgentRuntimeRegistry,
+) -> WorkspaceServices {
     let workspace_automation = WorkspaceAutomation::new(
         Box::new(workspace_registry.clone()),
         Box::new(LocalWorkspaceAutomation::default()),
     );
     let workspace_state = WorkspaceState::new(
-        Box::new(agent_runtime_registry.clone()),
+        Box::new(AgentWorkspaceAttention::new(Box::new(
+            agent_runtime_registry.clone(),
+        ))),
+        Box::new(workspace_registry.clone()),
+    );
+    let workspace_recovery = WorkspaceRecovery::new(
         Box::new(workspace_registry.clone()),
         Box::new(project_registry.clone()),
         Box::new(LocalManagedWorktrees::new(
             config.data_dir.join("worktrees"),
         )),
     );
+    WorkspaceServices {
+        automation: workspace_automation,
+        state: workspace_state,
+        recovery: workspace_recovery,
+    }
+}
+
+struct MetadataServices {
+    config: FileDaemonConfigStore,
+    generator: Arc<dyn MetadataGenerator>,
+    names: WorkspaceNames,
+}
+
+fn compose_metadata(
+    data_dir: &std::path::Path,
+    registry: &FileBackedWorkspaceRegistry,
+) -> MetadataServices {
+    let config_store = FileDaemonConfigStore::with_defaults(data_dir.join("config.json"));
+    let (codex, claude) = native_clients(data_dir);
+    let metadata_generator: Arc<dyn MetadataGenerator> = Arc::new(
+        server_provider::service::metadata_generation::Generation::new(
+            Arc::new(config_store.clone()),
+            vec![Arc::new(codex), Arc::new(claude)],
+        ),
+    );
+    let workspace_names = WorkspaceNames::new(
+        Arc::new(registry.clone()),
+        metadata_generator.clone(),
+        Arc::new(LocalCheckout::new(data_dir.join("worktrees"))),
+    );
+    MetadataServices {
+        config: config_store,
+        generator: metadata_generator,
+        names: workspace_names,
+    }
+}
+
+fn compose_directory(
+    config: &Config,
+    project_registry: &FileBackedProjectRegistry,
+    workspace_registry: &FileBackedWorkspaceRegistry,
+    server_id: String,
+) -> anyhow::Result<Directory> {
+    let creations = server_metadata::service::creation::Creations::open(
+        config.data_dir.join("creations/receipts.json"),
+    )
+    .map_err(|_| anyhow::anyhow!("initialize creation receipts"))?;
+    Ok(Directory::new(DirectoryDependencies {
+        projects: Box::new(project_registry.clone()),
+        workspaces: Box::new(workspace_registry.clone()),
+        source: Box::new(LocalDirectorySource),
+        config_store: Box::new(LocalProjectConfigStore),
+        icon_store: Box::new(LocalProjectIconStore::new(
+            config.data_dir.join("projects/icons"),
+        )),
+        server_id,
+    })
+    .with_creations(creations))
+}
+
+fn compose_worktrees(
+    config: &Config,
+    projects: &FileBackedProjectRegistry,
+    workspaces: &FileBackedWorkspaceRegistry,
+    server_id: &str,
+) -> Worktrees {
+    Worktrees::new(
+        Box::new(projects.clone()),
+        Box::new(workspaces.clone()),
+        Box::new(LocalManagedWorktrees::new(
+            config.data_dir.join("worktrees"),
+        )),
+        server_id.to_owned(),
+    )
+}
+
+fn compose_daemon(
+    config_store: FileDaemonConfigStore,
+    address: SocketAddr,
+    server_id: &str,
+) -> anyhow::Result<Daemon> {
     let daemon = Daemon::new(
         DaemonRuntime {
-            server_id: server_id.clone(),
+            server_id: server_id.to_owned(),
             version: Some(env!("CARGO_PKG_VERSION").to_owned()),
             pid: std::process::id(),
             executable: std::env::current_exe()
@@ -207,46 +376,123 @@ fn compose_services(
             started_at: Some(Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)),
             listen: address.to_string(),
         },
-        Box::new(FileDaemonConfigStore::with_defaults(
-            config.data_dir.join("config.json"),
-        )),
+        Box::new(config_store),
     );
     daemon.get_config().context("initialize daemon config")?;
-    Ok(Services {
-        projects: Some(projects),
-        agents: Some(agents),
-        checkout: Some(Checkout::new(Box::new(LocalCheckout::new(
-            config.data_dir.join("worktrees"),
-        )))),
-        agent_runtime: Some(AgentRuntimeDirectory::new(
-            Box::new(agent_runtime_registry),
+    Ok(daemon)
+}
+
+fn open_timeline(
+    data_dir: &std::path::Path,
+) -> anyhow::Result<server_provider::storage::timeline::Timeline> {
+    server_provider::storage::timeline::Timeline::open(&data_dir.join("agents/timeline.sqlite3"))
+        .map_err(|_| anyhow::anyhow!("initialize Agent timeline"))
+}
+
+fn compose_provider(
+    agent_storage: (
+        FileBackedAgentRuntimeRegistry,
+        server_provider::storage::timeline::Timeline,
+    ),
+    registries: (&FileBackedWorkspaceRegistry, &FileBackedProjectRegistry),
+    instance: &Arc<InstanceLease>,
+    data_dir: &std::path::Path,
+    metadata: (
+        Directory,
+        Arc<dyn MetadataGenerator>,
+        WorkspaceNames,
+        Arc<Mutex<WorkspaceAutomation>>,
+    ),
+) -> anyhow::Result<AgentExecution> {
+    let (directory, generator, names, workspace_automation) = metadata;
+    let (agent_runtime_registry, timeline) = agent_storage;
+    let (workspace_registry, project_registry) = registries;
+    let mut manager = AgentManager::new(Box::new(agent_runtime_registry.clone()))
+        .with_timeline(timeline)
+        .with_creations(directory.creations())
+        .with_metadata_generation(generator)
+        .with_workspace_names(names);
+    let (codex, claude) = native_clients(data_dir);
+    manager.register_client(Box::new(codex))?;
+    manager.register_client(Box::new(claude))?;
+    manager.register_client(Box::new(
+        server_provider::local::opencode::OpenCodeClient::new(
+            std::env::var_os("AIT_SERVER_OPENCODE_BIN")
+                .map_or_else(|| "opencode".into(), Into::into),
+        ),
+    ))?;
+    AgentExecution::spawn(ExecutionDependencies {
+        manager,
+        directory: AgentRuntimeDirectory::new(
+            Box::new(agent_runtime_registry.clone()),
             Box::new(workspace_registry.clone()),
             Box::new(project_registry.clone()),
-        )),
-        daemon: Some(daemon),
-        directory: Some(Directory::new(DirectoryDependencies {
-            projects: Box::new(project_registry),
-            workspaces: Box::new(workspace_registry),
-            source: Box::new(LocalDirectorySource),
-            config_store: Box::new(LocalProjectConfigStore),
-            icon_store: Box::new(LocalProjectIconStore::new(
-                config.data_dir.join("projects/icons"),
-            )),
-            github: Box::new(LocalGithubProjects::new()),
-            server_id,
-        })),
-        forge: Some(Forge::new(Box::new(LocalForge::new()))),
-        files: Some(Files::new(Box::new(server_workspace::LocalFiles::new(
-            std::env::var_os("HOME")
-                .map_or_else(|| config.data_dir.clone(), std::path::PathBuf::from),
-            &config.data_dir,
-        )))),
-        workspace_labels: Some(workspace_labels),
+        )
+        .with_directory_sync(directory.directory_sync()),
+        registry: Box::new(agent_runtime_registry),
+        workspaces: Box::new(workspace_registry.clone()),
+        lifetime: instance.clone(),
+        import_directory: Some(directory),
         workspace_automation: Some(workspace_automation),
-        workspace_state: Some(workspace_state),
-        worktrees: Some(worktrees),
+        projects: Box::new(project_registry.clone()),
     })
+    .context("start Provider worker")
+}
+
+fn native_clients(data_dir: &std::path::Path) -> (CodexClient, ClaudeClient) {
+    (
+        CodexClient::new(
+            std::env::var_os("AIT_SERVER_CODEX_BIN").map_or_else(|| "codex".into(), Into::into),
+        )
+        .with_image_directory(data_dir.join("agents/provider-images")),
+        ClaudeClient::new(
+            std::env::var_os("AIT_SERVER_CLAUDE_BIN").map_or_else(|| "claude".into(), Into::into),
+        )
+        .with_image_directory(data_dir.join("agents/provider-images")),
+    )
 }
 
 #[cfg(test)]
 mod tests;
+
+fn compose_push(
+    data_dir: &std::path::Path,
+) -> anyhow::Result<server_metadata::service::push::PushTokens> {
+    server_metadata::service::push::PushTokens::open(
+        Box::new(server_metadata::storage::push::FileTokenStore::new(
+            data_dir.join("push-tokens.json"),
+        )),
+        chrono::Utc::now().timestamp_millis(),
+    )
+    .map_err(|_| anyhow::anyhow!("initialize push token leases"))
+}
+
+fn compose_skills(
+    data: &std::path::Path,
+) -> anyhow::Result<server_filesystem::service::skills::Skills> {
+    let data = data
+        .canonicalize()
+        .context("resolve skills data directory")?;
+    let home = std::env::var_os("AIT_SERVER_SKILLS_HOME")
+        .or_else(|| std::env::var_os("HOME"))
+        .map_or_else(|| data.join("agent-home"), std::path::PathBuf::from);
+    let source = std::env::var_os("AIT_SERVER_SKILLS_BUNDLE")
+        .map_or_else(|| data.join("skills-bundle"), std::path::PathBuf::from);
+    let targets = [".agents/skills", ".claude/skills", ".codex/skills"].map(|path| home.join(path));
+    let store = server_filesystem::local::skills::LocalSkills::new(
+        &source,
+        &targets,
+        &data.join("skills-state"),
+    )
+    .map_err(|error| anyhow::anyhow!("invalid skills configuration: {error:?}"))?;
+    Ok(server_filesystem::service::skills::Skills::new(Box::new(
+        store,
+    )))
+}
+
+fn compose_files(config: &Config) -> Files {
+    Files::new(Box::new(server_filesystem::local::files::LocalFiles::new(
+        std::env::var_os("HOME").map_or_else(|| config.data_dir.clone(), std::path::PathBuf::from),
+        &config.data_dir,
+    )))
+}

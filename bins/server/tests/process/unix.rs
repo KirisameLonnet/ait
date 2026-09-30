@@ -31,13 +31,31 @@ fn start_with_path(directory: &Path, log: &Path, path: Option<&std::ffi::OsStr>)
             "info",
         ])
         .env("AIT_SERVER_TOKEN", TOKEN)
+        .env("AIT_SPEECH_PROVIDER", "disabled")
+        .env_remove("AIT_SPEECH_STT_PROVIDER")
+        .env_remove("AIT_SPEECH_TTS_PROVIDER")
         .env("AIT_SERVER_CREDENTIAL_TEST", CREDENTIAL_SENTINEL)
         .env("HOME", directory.parent().unwrap())
         .env_remove("AIT_SERVER_LISTEN")
+        .env_remove("AIT_SERVER_SKILLS_HOME")
+        .env_remove("AIT_SERVER_SKILLS_BUNDLE")
+        .env(
+            "AIT_SERVER_CLAUDE_BIN",
+            directory.parent().unwrap().join("claude"),
+        )
+        .env(
+            "AIT_SERVER_OPENCODE_BIN",
+            directory.parent().unwrap().join("opencode"),
+        )
+        .env(
+            "CLAUDE_CONFIG_DIR",
+            directory.parent().unwrap().join("claude-config"),
+        )
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(std::fs::File::create(log).unwrap());
     if let Some(path) = path {
+        command.current_dir(directory.parent().unwrap());
         command.env("PATH", path);
     }
     Process(command.spawn().unwrap())
@@ -52,11 +70,35 @@ mod agents;
 #[path = "agent_runtime.rs"]
 mod agent_runtime;
 
-#[path = "projects.rs"]
-mod projects;
+#[path = "agent_execution.rs"]
+mod agent_execution;
+
+#[path = "claude.rs"]
+mod claude;
+
+#[path = "opencode.rs"]
+mod opencode;
+
+#[path = "native.rs"]
+mod native;
+
+#[path = "session.rs"]
+mod session;
+
+#[path = "metadata_generation.rs"]
+mod metadata_generation;
+
+#[path = "metadata.rs"]
+mod metadata;
 
 #[path = "directory.rs"]
 mod directory;
+
+#[path = "skills.rs"]
+mod skills;
+
+#[path = "push.rs"]
+mod push;
 
 #[path = "daemon.rs"]
 mod daemon;
@@ -81,6 +123,9 @@ mod files;
 
 #[path = "catalog.rs"]
 mod catalog;
+
+#[path = "voice.rs"]
+mod voice;
 
 #[path = "worktrees.rs"]
 mod worktrees;
@@ -176,3 +221,21 @@ async fn signal_shutdown_releases_process_lock_and_preserves_identity() {
     assert_ne!(info["instance_id"], next["instance_id"]);
     terminate(&mut restarted).await;
 }
+
+#[path = "terminal.rs"]
+mod terminal;
+
+#[path = "agent_history.rs"]
+mod agent_history;
+
+#[path = "native_sessions.rs"]
+mod native_sessions;
+
+#[path = "agent_controls.rs"]
+mod agent_controls;
+
+#[path = "codex_streaming.rs"]
+mod codex_streaming;
+
+#[path = "schedule.rs"]
+mod schedule;

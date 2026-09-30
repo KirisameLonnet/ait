@@ -2,6 +2,7 @@ use std::path::Path;
 use std::process::Command;
 
 use serde_json::json;
+use server_filesystem::protocol::checkout::CAPABILITIES;
 
 use super::transport::{Socket, connect, receive, request};
 use super::{ready, start, terminate};
@@ -15,7 +16,7 @@ async fn binary_serves_checkout_reads_and_connection_owned_diff_updates() {
     let log = root.path().join("server.log");
     let mut process = start(&state, &log);
     let address = ready(&mut process, &log).await;
-    let mut client = connect(&address, server_protocol::checkout::CAPABILITIES).await;
+    let mut client = connect(&address, CAPABILITIES).await;
 
     let status = request(
         &mut client,
@@ -102,44 +103,16 @@ async fn binary_serves_checkout_reads_and_connection_owned_diff_updates() {
         json!({"subscriptionId":"diff-live"}),
     )
     .await;
-    let unsubscribed = response_after_diff_events(&mut client, unsubscribed).await;
     assert_eq!(unsubscribed["result"]["subscriptionId"], "diff-live");
-    let refreshed = refresh_after_diff_drain(&mut client, &repository).await;
-    assert_eq!(refreshed["result"]["success"], true, "{refreshed}");
+    let refreshed = request(
+        &mut client,
+        "checkout.refresh.request",
+        json!({"cwd":repository}),
+    )
+    .await;
+    assert_eq!(refreshed["result"]["success"], true);
 
     terminate(&mut process).await;
-}
-
-async fn response_after_diff_events(
-    client: &mut Socket,
-    mut frame: serde_json::Value,
-) -> serde_json::Value {
-    // Updates already queued before unsubscribe can precede a later RPC response.
-    while frame["type"] == "event" && frame["method"] == "checkout.diff.update" {
-        frame = receive(client).await;
-    }
-    frame
-}
-
-async fn refresh_after_diff_drain(client: &mut Socket, repository: &Path) -> serde_json::Value {
-    tokio::time::timeout(std::time::Duration::from_secs(10), async {
-        loop {
-            let frame = request(
-                client,
-                "checkout.refresh.request",
-                json!({"cwd":repository}),
-            )
-            .await;
-            let frame = response_after_diff_events(client, frame).await;
-            if frame["type"] != "error" || frame["code"] != "resource_exhausted" {
-                return frame;
-            }
-            // Unsubscribe cancels the poller; its admitted blocking read must still drain.
-            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-        }
-    })
-    .await
-    .expect("checkout poller must release its job permit after unsubscribe")
 }
 
 #[tokio::test]
@@ -163,7 +136,7 @@ async fn binary_serves_checkout_branch_and_mutation_methods() {
     let log = root.path().join("server.log");
     let mut process = start(&state, &log);
     let address = ready(&mut process, &log).await;
-    let mut client = connect(&address, server_protocol::checkout::CAPABILITIES).await;
+    let mut client = connect(&address, CAPABILITIES).await;
 
     assert_branch_methods(&mut client, &repository).await;
     assert_mutation_methods(&mut client, &repository).await;

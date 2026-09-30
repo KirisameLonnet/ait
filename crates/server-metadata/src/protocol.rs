@@ -1,0 +1,22 @@
+//! Metadata protocol owned by the independent server.
+
+pub mod daemon;
+pub mod directory;
+pub mod project;
+pub mod project_config;
+pub mod project_icon;
+pub mod server;
+pub mod session;
+pub mod workspace;
+pub mod workspace_automation;
+pub mod workspace_labels;
+pub mod workspace_state;
+pub mod worktree_source;
+
+pub mod creation;
+
+/// Retired desktop editor request compatibility.
+pub mod editor;
+
+/// Leased push token management.
+pub mod push;

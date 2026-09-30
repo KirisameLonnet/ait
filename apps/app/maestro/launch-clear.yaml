@@ -1,0 +1,5 @@
+appId: dev.ait.mobile
+---
+- launchApp:
+    clearState: true
+- runFlow: flows/dev-client.yaml

@@ -1,7 +1,13 @@
 use super::*;
 
+mod browser_auth;
+mod paseo;
+mod session;
+mod voice;
+
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
+use server_protocol::CAPABILITIES;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::task::JoinHandle;
 use tokio_tungstenite::tungstenite::{Message, client::IntoClientRequest};
@@ -18,6 +24,14 @@ struct Fixture {
 
 impl Fixture {
     async fn start() -> Self {
+        Self::with_services(crate::Services::default()).await
+    }
+
+    async fn with_services(services: crate::Services) -> Self {
+        Self::with_origins(services, Vec::new()).await
+    }
+
+    async fn with_origins(services: crate::Services, origins: Vec<String>) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
         let api = Api::new(
@@ -25,9 +39,10 @@ impl Fixture {
             "stable".to_owned(),
             "instance".to_owned(),
             TOKEN.into(),
-            crate::Services::default(),
+            services,
         )
         .unwrap();
+        let api = api.with_browser_origins(origins).unwrap();
         let shutdown = api.clone();
         let router = api.router();
         let task = tokio::spawn(async move {
@@ -95,7 +110,7 @@ async fn request(socket: &mut Socket, method: &str, params: Value) -> Value {
 
 #[test]
 fn rejects_bad_config_and_redacts_debug() {
-    for address in ["0.0.0.0:7316", "127.0.0.1:0"] {
+    for address in ["0.0.0.0:0", "127.0.0.1:0"] {
         assert!(
             Api::new(
                 address.parse().unwrap(),
@@ -137,7 +152,14 @@ fn rejects_bad_config_and_redacts_debug() {
     let mut headers = axum::http::HeaderMap::new();
     headers.insert("host", "[::1]".parse().unwrap());
     headers.insert("origin", "http://localhost".parse().unwrap());
-    assert!(auth::validate_source(&headers, &default_port.shared.authorities).is_ok());
+    assert!(
+        auth::validate_source(
+            &headers,
+            &default_port.shared.authorities,
+            &default_port.shared.browser_auth
+        )
+        .is_ok()
+    );
 }
 
 #[tokio::test]
@@ -202,8 +224,19 @@ async fn http_authentication_origins_and_readiness() {
         .unwrap();
     assert_eq!(info.server_id, "stable");
     assert_eq!(info.lifecycle, Lifecycle::Ready);
-    assert_eq!(info.implemented_capabilities, CAPABILITIES);
-    assert_eq!(info.capabilities.len(), 190);
+    let expected: Vec<_> = CAPABILITIES
+        .iter()
+        .copied()
+        .chain([
+            "editor.available.list.request",
+            "editor.open.request",
+            "session.heartbeat",
+            "session.events.set_subscription.request",
+            "creation.subscribe.request",
+        ])
+        .collect();
+    assert_eq!(info.implemented_capabilities, expected);
+    assert_eq!(info.capabilities.len(), 170);
     assert!(
         info.capabilities
             .contains(&"schedule.list.request".to_owned())
@@ -419,3 +452,5 @@ async fn hello_has_a_deadline_and_idle_connections_drain() {
     let _idle = fixture.socket().await;
     fixture.stop().await;
 }
+
+mod browser;

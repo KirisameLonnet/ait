@@ -1,5 +1,8 @@
 # 可靠性、安全、可观测性与备份恢复手册
 
+> 历史文档：旧 Rust 运行时与验收入口已按 [ADR-059](../decisions/adr-059-remove-legacy-rust-runtime.md) 移除。
+> 下文仅记录旧实现，当前服务操作见 [server 说明](independent-server.md)。
+
 ## 可观测性
 
 daemon 对每个实体操作 API 调用输出一行 JSON。日志与 `/v1/metric/list` 的每个采样点使用
@@ -42,14 +45,14 @@ Project 指针、未知 Agent 或版本不兼容都会整体拒绝。
 
 默认保留策略：
 
-| 数据 | 默认策略 | 清理条件 |
-| --- | --- | --- |
-| Project、Session、Message | 永久保留 | 只接受显式用户删除/归档 |
-| Run、attempt、tool execution、durable event | 90 天 | Run 已终态，且不破坏审计/重放窗口 |
-| 本地 JSON 日志 | 14 天 | 按日期轮转后删除 |
-| 本地指标快照 | 7 天 | 非权威数据，可直接过期 |
-| 附件 | 被引用时永久保留 | 仅清理无引用内容 |
-| SQLite 备份 | 7 个日备份、4 个周备份、12 个月备份 | 新备份校验通过后轮转 |
+| 数据                                        | 默认策略                            | 清理条件                          |
+| ------------------------------------------- | ----------------------------------- | --------------------------------- |
+| Project、Session、Message                   | 永久保留                            | 只接受显式用户删除/归档           |
+| Run、attempt、tool execution、durable event | 90 天                               | Run 已终态，且不破坏审计/重放窗口 |
+| 本地 JSON 日志                              | 14 天                               | 按日期轮转后删除                  |
+| 本地指标快照                                | 7 天                                | 非权威数据，可直接过期            |
+| 附件                                        | 被引用时永久保留                    | 仅清理无引用内容                  |
+| SQLite 备份                                 | 7 个日备份、4 个周备份、12 个月备份 | 新备份校验通过后轮转              |
 
 附件采用 mark-and-sweep：先从所有未删除 Message 的 `FileRef` 和仍在保留期的 Run/
 ToolExecution/Checkpoint 标记 attachment digest，再将未标记对象移动到隔离区。隔离 7 天
@@ -95,14 +98,14 @@ sqlite3 /path/to/project/.ait/project.sqlite3 ".backup 'backups/project-2026-09-
 
 ## 可靠性测试矩阵
 
-| 场景 | 集成测试 |
-| --- | --- |
+| 场景              | 集成测试                                                           |
+| ----------------- | ------------------------------------------------------------------ |
 | 断电/进程中断恢复 | `crash_recovery_persists_a_known_tool_outcome_without_reexecution` |
-| 重复调度 | `claimed_saga_recovers_existing_run_without_duplicate` |
-| Provider 限流 | `openai_compatible_adapter_classifies_rate_limits` |
-| 工具超时 | `a_hung_tool_is_cancelled_at_the_persisted_runtime_deadline` |
-| 并发分支 | `concurrent_cas_keeps_the_losing_message_as_a_sibling_branch` |
-| SQLite 备份恢复 | `online_backup_restores_a_consistent_revision_and_outbox` |
+| 重复调度          | `claimed_saga_recovers_existing_run_without_duplicate`             |
+| Provider 限流     | `openai_compatible_adapter_classifies_rate_limits`                 |
+| 工具超时          | `a_hung_tool_is_cancelled_at_the_persisted_runtime_deadline`       |
+| 并发分支          | `concurrent_cas_keeps_the_losing_message_as_a_sibling_branch`      |
+| SQLite 备份恢复   | `online_backup_restores_a_consistent_revision_and_outbox`          |
 
 运行完整门禁：
 
@@ -129,8 +132,8 @@ cargo bench -p ait-scheduler --bench scheduler_scan
 
 2026-09-04 初始基线（Apple M4、aarch64 macOS、rustc 1.96.0、release profile）：
 
-| Case | 中位数 |
-| --- | ---: |
-| `message_path/10k_depth` | 1.560 ms |
+| Case                           |    中位数 |
+| ------------------------------ | --------: |
+| `message_path/10k_depth`       |  1.560 ms |
 | `context_assembly/2k_messages` | 120.29 µs |
-| `scheduler_scan/1k_due_plans` | 1.407 ms |
+| `scheduler_scan/1k_due_plans`  |  1.407 ms |

@@ -2,9 +2,13 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde_json::json;
+use server_filesystem::protocol::worktrees::CAPABILITIES;
 
 use super::transport::{Socket, connect, receive, request};
 use super::{ready, start, terminate};
+
+#[path = "worktrees/creation.rs"]
+mod creation;
 
 #[tokio::test]
 async fn binary_creates_lists_and_archives_canonical_worktrees() {
@@ -12,13 +16,13 @@ async fn binary_creates_lists_and_archives_canonical_worktrees() {
     let repository = root.path().join("repository");
     create_repository(&repository);
     let nested = repository.join("packages/app");
-    std::fs::write(nested.join("paseo.json"), "{\"scripts\":{}}\n").unwrap();
+    std::fs::write(nested.join("ait.json"), "{\"scripts\":{}}\n").unwrap();
 
     let state = root.path().join("server");
     let log = root.path().join("server.log");
     let mut process = start(&state, &log);
     let address = ready(&mut process, &log).await;
-    let mut client = connect(&address, server_protocol::worktrees::CAPABILITIES).await;
+    let mut client = connect(&address, CAPABILITIES).await;
 
     assert_empty_list_and_required_location(&mut client, &repository).await;
 
@@ -57,7 +61,7 @@ async fn binary_creates_lists_and_archives_canonical_worktrees() {
             .unwrap(),
     );
     assert_eq!(
-        std::fs::read_to_string(workspace_directory.join("paseo.json")).unwrap(),
+        std::fs::read_to_string(workspace_directory.join("ait.json")).unwrap(),
         "{\"scripts\":{}}\n"
     );
     assert_eq!(branch(&workspace_directory), "feature-review");
@@ -162,7 +166,7 @@ async fn assert_worktree_scope_rejects_external_path(client: &mut Socket, reposi
     assert_eq!(rejected["result"]["error"]["code"], "NOT_ALLOWED");
 }
 
-fn create_repository(repository: &Path) {
+pub(super) fn create_repository(repository: &Path) {
     std::fs::create_dir_all(repository.join("packages/app")).unwrap();
     run(repository, &["init", "--quiet", "--initial-branch=main"]);
     std::fs::write(repository.join("README.md"), "baseline\n").unwrap();
@@ -183,7 +187,7 @@ fn create_repository(repository: &Path) {
     );
 }
 
-fn run(repository: &Path, arguments: &[&str]) {
+pub(super) fn run(repository: &Path, arguments: &[&str]) {
     let output = Command::new("git")
         .args(arguments)
         .current_dir(repository)
@@ -196,7 +200,7 @@ fn run(repository: &Path, arguments: &[&str]) {
     );
 }
 
-fn branch(directory: &Path) -> String {
+pub(super) fn branch(directory: &Path) -> String {
     let output = Command::new("git")
         .args(["branch", "--show-current"])
         .current_dir(directory)

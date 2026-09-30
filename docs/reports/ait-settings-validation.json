@@ -1,0 +1,52 @@
+{
+  "date": "2026-09-27",
+  "baseline": "80e97c0 plus uncommitted settings repair",
+  "platform": "macOS arm64 / Electron 44.2.0",
+  "frontendUnit": {
+    "files": 13,
+    "passed": 148
+  },
+  "protocolUnit": {
+    "files": 2,
+    "passed": 45
+  },
+  "desktop": {
+    "status": "passed",
+    "destinations": 20,
+    "checks": [
+      "no plugins",
+      "bundled changelog on HTTP 404",
+      "project polling and details",
+      "direct pairing guidance",
+      "agent profile editor",
+      "skills selection",
+      "system prompt saved",
+      "workspace toggle saved",
+      "terminal profile saved",
+      "provider settings opened"
+    ],
+    "rendererErrors": []
+  },
+  "checks": {
+    "appTypecheck": "passed",
+    "desktopTypecheck": "passed",
+    "desktopAssetsBuild": "passed",
+    "format": "passed",
+    "lint": "passed",
+    "releaseVersion": "0.0.6"
+  },
+  "rustTests": "not run: no Rust source changes in bins/ or crates/",
+  "changelogFollowup": {
+    "relatedUnitTestsPassed": 41,
+    "newLoadingTests": 7,
+    "unitTestLocale": "en_US.UTF-8 for existing English date assertions",
+    "liveDesktop": "Chinese UI: offline content, close and reopen passed",
+    "desktopBundle": "export passed; embedded 0.0.6 release notes verified"
+  },
+  "coverage": "not measured for TypeScript; Rust not applicable",
+  "limits": [
+    "No mobile, Windows or Linux run",
+    "No relay pairing implementation",
+    "Native providers only; ACP installation and daemon provider overrides are not implemented"
+  ]
+}

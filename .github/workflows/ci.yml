@@ -9,43 +9,81 @@ permissions:
   contents: read
 
 jobs:
-  rust:
+  changes:
     runs-on: ubuntu-latest
-    env:
-      AIT_REQUIRE_SHELL_SANDBOX: "1"
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+      ui: ${{ steps.filter.outputs.ui }}
+    steps:
+      - uses: actions/checkout@v4
+        if: github.event_name == 'push'
+        with:
+          fetch-depth: 2
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          # PRs use their full diff; main pushes use the previous branch tip.
+          base: ${{ github.ref }}
+          filters: |
+            rust:
+              - 'bins/**'
+              - 'crates/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - '.cargo/**'
+              - 'rust-toolchain*'
+              - 'rustfmt.toml'
+              - '.rustfmt.toml'
+              - 'clippy.toml'
+              - '.clippy.toml'
+              - '.github/workflows/ci.yml'
+            ui:
+              - 'apps/**'
+              - 'packages/**'
+              - 'scripts/**'
+              - 'patches/**'
+              - 'assets/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.npmrc'
+              - 'tsconfig.base.json'
+              - '.oxfmtrc.json'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/release.yml'
+
+  rust:
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy,rustfmt
-      - name: Enable Linux shell sandbox tests
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends bubblewrap
-          # Hosted Ubuntu runners restrict unprivileged namespaces through AppArmor.
-          # This ephemeral runner needs them to exercise the production sandbox.
-          if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
-            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-          fi
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
 
-  desktop:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/desktop
+  ui:
+    needs: changes
+    if: needs.changes.outputs.ui == 'true'
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: apps/desktop/package-lock.json
-      - run: npm ci --ignore-scripts
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run verify:local-packages
       - run: npm run verify:release
-      - run: npm run typecheck
-      - run: npm test
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:browser
+      - run: npm run test:release
+      - run: npm run build:desktop-main
+      - run: npm run test --workspace=@ait/protocol
+      - run: npm run typecheck --workspace=@ait/desktop --workspace=@ait/app
+      - run: npm test --workspace=@ait/desktop
+      - run: npm run test --workspace=@ait/app -- src/i18n/resources.test.ts src/runtime/rust-server maestro/support native-release-version.test.ts

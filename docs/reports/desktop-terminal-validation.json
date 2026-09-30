@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "connect",
+      "status": "passed",
+      "keys": []
+    },
+    {
+      "name": "add project",
+      "status": "passed",
+      "keys": [
+        "requestId",
+        "project",
+        "error"
+      ]
+    },
+    {
+      "name": "open workspace",
+      "status": "passed",
+      "keys": [
+        "requestId",
+        "workspace",
+        "error"
+      ]
+    },
+    {
+      "name": "nonempty workspaces",
+      "status": "passed",
+      "keys": [
+        "requestId",
+        "entries",
+        "emptyProjects",
+        "pageInfo"
+      ]
+    },
+    {
+      "name": "list files",
+      "status": "passed",
+      "keys": [
+        "path",
+        "entries"
+      ]
+    },
+    {
+      "name": "list terminals",
+      "status": "passed",
+      "keys": [
+        "cwd",
+        "terminals",
+        "requestId"
+      ]
+    },
+    {
+      "name": "terminal lifecycle",
+      "status": "passed",
+      "keys": []
+    }
+  ],
+  "invalidMessages": [],
+  "upstreamRevision": "imported workspace SDK",
+  "schema": "Original Zod WSOutboundMessageSchema (AOT build output not imported)",
+  "scope": "Real SDK, renderer IPC transport, main-process transport manager and isolated Rust server; no Electron UI",
+  "base_revision": "47d4b7ee1daf764030bddfe41450fff98037aedd",
+  "revision": "base_revision plus changed_frontend_sha256",
+  "date": "2026-09-28",
+  "platform": "macOS aarch64",
+  "unit_tests": {
+    "files_passed": 8,
+    "tests_passed": 76
+  },
+  "changed_frontend_sha256": {
+    "apps/app/src/components/terminal-pane.tsx": "ec160a5362346151654ef371e3f676c9b552ef0f0de7cc3fbd805a22eb5f2557",
+    "apps/app/src/runtime/rust-server/messages.ts": "bd9f4175497e9fda02f37a51c79372e2b26a38cbf74fa74a68ff4266446bb2eb",
+    "apps/app/src/runtime/rust-server/transport.test.ts": "cb8877f94b175b0f1388b112f8eb15fa35a8e4476494f709e18b4afe95c08334",
+    "apps/app/src/runtime/rust-server/transport.ts": "bf928fd421a5dbdff6a1ebe85dadf73c64d380b68b143e3dc5e9787a740f31e2",
+    "apps/paseo/src/main.ts": "8033973295fe51c117b1962959804440d749f87c00afcbdafc975bc338c30806",
+    "scripts/validate-paseo-rust-client.cjs": "f47372f42bbc21d1c57c78aceed6becf39bbd97a3b51a097e884b3510af49a10"
+  }
+}

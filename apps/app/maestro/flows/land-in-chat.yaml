@@ -1,0 +1,17 @@
+# NOTE: Maestro requires a config section for every flow file, even when used
+# via `runFlow`. Keep this aligned with the dev build application id.
+appId: dev.ait.mobile
+---
+- launchApp:
+    clearState: true
+- runFlow: launch.yaml
+
+- runFlow: connect-direct-if-welcome.yaml
+
+- extendedWaitUntil:
+    visible:
+      id: "message-input-root"
+    timeout: 60000
+
+- assertVisible:
+    id: "message-input-attach-button"

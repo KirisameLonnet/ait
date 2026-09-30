@@ -1,5 +1,8 @@
 # WF-11：使用 DeepSeek 默认 Agent 生成并验证单文件 Python Hello World
 
+> 历史文档：旧 daemon、worker、CLI 及其测试入口已按 [ADR-059](../docs/decisions/adr-059-remove-legacy-rust-runtime.md) 移除。
+> 下文保留原操作记录，命令不适用于当前代码；当前服务见 [server 说明](../docs/operations/independent-server.md)。
+
 用户目标：在临时目录接入 `example-project`，从 `.env` 读取 DeepSeek API key，创建并选择
 DeepSeek 默认 Agent，让它生成 `hello.py`，随后独立运行程序并校验代码逻辑。
 
@@ -16,7 +19,7 @@ DeepSeek 默认 Agent，让它生成 `hello.py`，随后独立运行程序并校
 - macOS/Linux、Rust stable、Git、Python 3，以及 daemon 可使用的操作系统凭据库。
 - 本流程不要求 Codex 登录；Session 会提前命名，跳过内置 Codex 标题生成。
 - 可访问 DeepSeek API，账号有可用额度。测试会真实调用模型，因此默认 `ignored`，普通 CI 不消耗额度。
-- `.env` 中有一条非空 `DEEPSEEK_API_KEY=...`。可复制根目录的 [`.env.example`](../.env.example)
+- `.env` 中有一条非空 `DEEPSEEK_API_KEY=...`。可复制根目录的 [`.env.example`](https://github.com/necokeine/ait/blob/49478a7f600fde997339a8d36d368c72d3546c14/.env.example)
   到 `.env` 后在本机编辑；现有 `.env` 可直接用路径参数指定，不需要复制。
 - key 必须是由字母、数字、`-`、`_` 组成的字面值；允许外围单/双引号、可选 `export`、
   CRLF 和独立注释行。不支持变量展开、命令替换、多行值或行尾注释；重复 key 会报错。
@@ -33,7 +36,7 @@ AIT_DEEPSEEK_MODEL=deepseek-v4-pro ./test_with_deepseek.sh '/path/to/.env'
 ```
 
 脚本先构建 `ait-cli` 与 `ait-daemon`，再精确运行
-[`wf11_real_deepseek_python_hello_world`](../bins/cli/tests/deepseek_workflow.rs)。
+[`wf11_real_deepseek_python_hello_world`](https://github.com/necokeine/ait/blob/49478a7f600fde997339a8d36d368c72d3546c14/bins/cli/tests/deepseek_workflow.rs)。
 直接用 Cargo 运行时，可将 `AIT_DEEPSEEK_ENV_FILE` 设置为 `.env` 的绝对路径；
 缺省路径始终是仓库根目录的 `.env`。`AIT_WORKFLOW_DAEMON_BIN` 可覆盖 daemon 路径，
 否则查找当前 Cargo 构建的 CLI 同级目录中的 daemon。
@@ -140,7 +143,7 @@ ait session rename --session-id hello-world --name 'DeepSeek Hello World'
 - 项目除 `.git` 外恰好只有普通文件 `hello.py`，且存在成功的 write/read ToolExecution；由独立逻辑校验器核对内容。
 - 历史仍只有初始空提交，HEAD 等于 Project 的 `base_commit`；
   user Message 的 `git_commit` 也等于该基线。
-- [逻辑校验器](../bins/cli/tests/fixtures/verify_hello.py) 先用 AST 检查约定结构，
+- [逻辑校验器](https://github.com/necokeine/ait/blob/49478a7f600fde997339a8d36d368c72d3546c14/bins/cli/tests/fixtures/verify_hello.py) 先用 AST 检查约定结构，
   排除导入、额外调用、错误输出和错误 main guard，再验证导入无输出、连续两次 `main()`
   各输出一行且返回 `None`。允许注释、docstring 和 `-> None` 注解。
 - 最后独立执行 `python3 -I -B hello.py`，要求退出码 0、stdout 严格为
@@ -155,14 +158,14 @@ base_commit、文件列表、源码来源、stdout 与逻辑验证结果，不�
 用于人工复核。启动限时 10 秒，普通 CLI/Git/Python 命令限时 20 秒，生成限时 600 秒。
 退出时回收本次 daemon 及其进程组，失败或超时同样执行清理；不会停止其他 daemon。
 
-| 现象 | 处理 |
-| --- | --- |
-| `.env` 不存在、key 为空或格式错误 | 修复本机文件后重新执行；测试失败，不静默跳过或回退到其他模型 |
-| Python/daemon 不存在 | 安装缺失程序；daemon 使用脚本构建；检查 PATH 或 binary 覆盖值 |
-| 系统凭据库不可用或锁定 | 解锁并配置本机凭据服务，再重新执行；不回退成明文保存 |
+| 现象                                | 处理                                                              |
+| ----------------------------------- | ----------------------------------------------------------------- |
+| `.env` 不存在、key 为空或格式错误   | 修复本机文件后重新执行；测试失败，不静默跳过或回退到其他模型      |
+| Python/daemon 不存在                | 安装缺失程序；daemon 使用脚本构建；检查 PATH 或 binary 覆盖值     |
+| 系统凭据库不可用或锁定              | 解锁并配置本机凭据服务，再重新执行；不回退成明文保存              |
 | DeepSeek 认证、额度、模型或协议失败 | 检查 `run.json` 和本机服务配置；只有 Run completed 才继续程序验收 |
-| 生成额外文件、逻辑不符或输出不符 | 验收失败，保留原始产物；不要手工改成 Hello World 后标记模型成功 |
-| 需要重试 | 重新运行脚本，使用新的临时目录；不要复用失败的 Run 或数据库 |
+| 生成额外文件、逻辑不符或输出不符    | 验收失败，保留原始产物；不要手工改成 Hello World 后标记模型成功   |
+| 需要重试                            | 重新运行脚本，使用新的临时目录；不要复用失败的 Run 或数据库       |
 
 本流程覆盖真实 DeepSeek 经宿主工具循环创建/读取文件及独立验收，不覆盖任意 shell、
 模型发现、网络重试、执行中恢复或凭据回收。没有真实 `verification.json` 时，应记录“未完成真实验收”。

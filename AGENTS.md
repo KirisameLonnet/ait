@@ -1,15 +1,12 @@
 # Repository guidance
 
-Before changing domain boundaries, read `docs/README.md` and the authoritative ADR-001 v4.
+Before changing domain boundaries, read `docs/README.md`.
 
 - Rust is the fixed implementation language; keep the root Cargo workspace buildable.
 - Before any Rust change, read and follow [the Rust style guide](docs/policy/rust.md). All Rust changes, including tests and refactors, MUST comply with it.
-- Put test modules in separate child files and include test coverage in project reports, as specified in the Rust style guide.
-- `domain` must remain free of Tokio, SQLx, HTTP, IPC, UI, and provider dependencies.
 - Dependencies point inward: adapters implement ports; application coordinates domain behavior.
-- Message history is immutable. Session is a movable pointer into the Message tree, not the tree itself.
-- ToolUse is an assistant sub-message; ToolResult is a user Message.
-- A Run is complete only after retry, compaction recovery, and newly queued work are all drained.
 - Never commit credentials, provider tokens, local SQLite databases, or runtime artifacts.
-- Run format, lint, and workspace tests before handing off changes.
+- Run format and lint checks appropriate to the changed files before handing off changes.
+- During local iteration, run only tests for the changed code and directly related behavior. Run full test suites only when preparing a commit; workspace-wide coverage also counts as a full test run.
+- If the current task changes no Rust code in `bins/` or `crates/`, skip Rust tests.
 - Record durable boundary changes as an ADR and update `docs/README.md`.
