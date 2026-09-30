@@ -1,5 +1,11 @@
 # Ait changelog
 
+## 0.0.11 - 2026-09-30
+
+- Fix live workspace and agent directory updates by translating Rust event names into the client protocol.
+- Preserve directory subscription identifiers and synchronization metadata in update events.
+- Complete the 0.0.10 release changes, including GitLab support and session/workspace compatibility improvements, after correcting the packaged-app startup failure.
+
 ## 0.0.10 - 2026-09-30
 
 - Add GitLab.com and self-hosted GitLab support for merge requests, discussions, pipelines, and worktree checkout through glab.

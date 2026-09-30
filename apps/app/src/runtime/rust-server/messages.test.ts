@@ -2,10 +2,32 @@ import { describe, expect, it } from "vitest";
 import {
   AgentTimelineSearchResponseMessageSchema,
   parseServerInfoStatusPayload,
+  WSOutboundMessageSchema,
 } from "@ait/protocol/messages";
 import { METHODS } from "./methods";
 import { eventMessage, responseMessage, serverInfo } from "./messages";
 import { object } from "./types";
+
+it.each([
+  ["agent.update", "agent_update", { agentId: "agent" }],
+  ["workspace.update", "workspace_update", { id: "workspace", removedProjectId: "project" }],
+] as const)(
+  "adapts %s directory events without losing subscription or sync metadata",
+  (method, type, identity) => {
+    const payload = {
+      kind: "remove",
+      ...identity,
+      subscriptionId: "directory-lease",
+      generation: "generation",
+      seq: 3,
+    };
+    const envelope = eventMessage(method, payload);
+    expect(WSOutboundMessageSchema.parse(envelope)).toEqual({
+      type: "session",
+      message: { type, payload },
+    });
+  },
+);
 
 function info(methods: string[]) {
   const message = serverInfo({ server_id: "ait" }, new Set(methods));
