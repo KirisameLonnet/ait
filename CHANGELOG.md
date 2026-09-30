@@ -1,5 +1,13 @@
 # Ait changelog
 
+## 0.0.10 - 2026-09-30
+
+- Add GitLab.com and self-hosted GitLab support for merge requests, discussions, pipelines, and worktree checkout through glab.
+- Improve project, workspace, and agent directory synchronization, pagination, and activity status.
+- Align timeline display, conversation search, session restore, and approval waiting behavior with the client.
+- Improve workspace creation with an initial agent, retry handling, pull-request checkout, and archive cleanup.
+- Add terminal activity tracking and session events while preserving existing Ait authentication.
+
 ## 0.0.9 - 2026-09-28
 
 - Add offline dictation and speech synthesis with automatic background model preparation; the first setup requires an internet connection.
