@@ -2053,7 +2053,6 @@ export const es: TranslationResources = {
       preferredHint: "Elige el modelo que usa Ait",
       model: "Modelo",
       fallbackHint: "Si no está disponible, Ait usa otro modelo disponible",
-      docs: "Documentación",
       saveError: "No se pudo actualizar la generación de metadatos",
     },
     general: {

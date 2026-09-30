@@ -2038,7 +2038,6 @@ export const ru: TranslationResources = {
       preferredHint: "Выберите модель, которую использует Ait",
       model: "Модель",
       fallbackHint: "Если она недоступна, Ait использует другую доступную модель",
-      docs: "Документация",
       saveError: "Не удалось обновить настройки генерации метаданных",
     },
     general: {

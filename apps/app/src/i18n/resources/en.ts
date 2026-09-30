@@ -2392,7 +2392,6 @@ export const en = {
       preferredHint: "Choose the model Ait uses",
       model: "Model",
       fallbackHint: "If it is unavailable, Ait falls back to another available model",
-      docs: "Docs",
       saveError: "Unable to update metadata generation",
     },
     general: {

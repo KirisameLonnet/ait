@@ -2058,7 +2058,6 @@ export const fr: TranslationResources = {
       preferredHint: "Choisissez le modèle utilisé par Ait",
       model: "Modèle",
       fallbackHint: "S’il est indisponible, Ait utilise un autre modèle disponible",
-      docs: "Documentation",
       saveError: "Impossible de mettre à jour la génération de métadonnées",
     },
     general: {

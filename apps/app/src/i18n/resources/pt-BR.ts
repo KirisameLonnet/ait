@@ -2038,7 +2038,6 @@ export const ptBR: TranslationResources = {
       preferredHint: "Escolha o modelo que o Ait usa",
       model: "Modelo",
       fallbackHint: "Se ele não estiver disponível, o Ait usa outro modelo disponível",
-      docs: "Documentação",
       saveError: "Não foi possível atualizar a geração de metadados",
     },
     general: {

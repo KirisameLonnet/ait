@@ -2015,7 +2015,6 @@ export const ko: TranslationResources = {
       preferredHint: "Ait에서 사용할 모델을 선택하세요",
       model: "모델",
       fallbackHint: "사용할 수 없으면 Ait가 다른 사용 가능한 모델을 사용합니다",
-      docs: "문서",
       saveError: "메타데이터 생성을 업데이트할 수 없습니다",
     },
     general: {
