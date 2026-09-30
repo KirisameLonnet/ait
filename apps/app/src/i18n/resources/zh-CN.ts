@@ -2284,7 +2284,6 @@ export const zhCN: TranslationResources = {
       preferredHint: "选择 Ait 使用的模型",
       model: "模型",
       fallbackHint: "如果不可用，Ait 会改用其他可用模型",
-      docs: "文档",
       saveError: "无法更新元数据生成设置",
     },
     general: {

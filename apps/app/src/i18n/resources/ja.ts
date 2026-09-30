@@ -2025,7 +2025,6 @@ export const ja: TranslationResources = {
       preferredHint: "Ait が使用するモデルを選択します",
       model: "モデル",
       fallbackHint: "利用できない場合、Ait は別の利用可能なモデルを使用します",
-      docs: "ドキュメント",
       saveError: "メタデータ生成を更新できません",
     },
     general: {

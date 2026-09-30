@@ -2004,7 +2004,6 @@ export const ar: TranslationResources = {
       preferredHint: "اختر النموذج الذي يستخدمه Ait",
       model: "النموذج",
       fallbackHint: "إذا لم يكن متاحًا، يستخدم Ait نموذجًا آخر متاحًا",
-      docs: "الوثائق",
       saveError: "تعذر تحديث إنشاء البيانات الوصفية",
     },
     general: {
