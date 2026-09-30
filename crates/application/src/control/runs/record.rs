@@ -11,6 +11,7 @@ pub(in crate::control) struct RunRecord {
     pub auto_commit: Option<super::git_commit::AutoCommit>,
     pub compatibility_repair: bool,
     pub codex_input: Option<super::native::CodexPendingInput>,
+    pub harness_input: Option<super::native::HarnessPendingInput>,
     /// Canonical host runtime state for API Providers; absent for native harness Runs.
     pub lifecycle: RunLifecycle,
 
@@ -294,6 +295,8 @@ struct PersistedRun {
     view: RunView,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     codex_input: Option<super::native::CodexPendingInput>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    harness_input: Option<super::native::HarnessPendingInput>,
 }
 
 impl Serialize for RunRecord {
@@ -304,6 +307,7 @@ impl Serialize for RunRecord {
             auto_commit: self.auto_commit.clone(),
             view: self.record(),
             codex_input: self.codex_input.clone(),
+            harness_input: self.harness_input.clone(),
         }
         .serialize(serializer)
     }
@@ -313,6 +317,7 @@ impl<'de> Deserialize<'de> for RunRecord {
         let PersistedRun {
             view,
             codex_input,
+            harness_input,
             auto_commit,
         } = PersistedRun::deserialize(deserializer)?;
         let status: LifecycleStatus =
@@ -348,6 +353,7 @@ impl<'de> Deserialize<'de> for RunRecord {
             lifecycle,
             compatibility_repair: false,
             codex_input,
+            harness_input,
             id: view.id,
             project_id: view.project_id,
             base_message_id: view.base_message_id,

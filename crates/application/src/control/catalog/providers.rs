@@ -143,9 +143,9 @@ impl LocalControlService {
                 "the development Mock provider has a fixed local model",
             ));
         }
-        if provider.kind == AgentMode::Codex {
+        if matches!(provider.kind, AgentMode::Codex | AgentMode::OpenCode) {
             if secret.is_some() {
-                return Err(invalid("Codex uses host authentication"));
+                return Err(invalid("native coding agents use host authentication"));
             }
             provider.models = self
                 .host_catalog()?

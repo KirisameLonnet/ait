@@ -213,7 +213,8 @@ impl LocalControlService {
                     ait_domain::CodexWorkspaceMode::NativeCwd { cwd } => Some(cwd.clone()),
                     ait_domain::CodexWorkspaceMode::ManagedWorktree { .. } => None,
                 },
-                ait_domain::SessionSource::Managed => None,
+                ait_domain::SessionSource::Managed
+                | ait_domain::SessionSource::NativeSession(_) => None,
             });
         let workdir = native_workdir.map_or_else(
             || {

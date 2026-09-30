@@ -180,7 +180,8 @@ fn hydrate_session_workdirs(value: &mut Value) -> Result<(), ApiError> {
                 continue;
             };
             let expected = match &session.source {
-                ait_domain::SessionSource::Managed => {
+                ait_domain::SessionSource::Managed
+                | ait_domain::SessionSource::NativeSession(_) => {
                     session_worktree_path(&project.workdir, &session.id)?
                 }
                 ait_domain::SessionSource::CodexThread(source) => match &source.workspace_mode {

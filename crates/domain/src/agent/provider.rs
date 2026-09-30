@@ -8,6 +8,9 @@ use serde::{Deserialize, Serialize};
 pub enum ProviderKind {
     /// Codex app-server provider.
     Codex,
+    /// `OpenCode` native persistent-session plugin.
+    #[serde(rename = "opencode")]
+    OpenCode,
     #[serde(rename = "openai")]
     /// OpenAI-compatible provider.
     OpenAI,

@@ -361,7 +361,10 @@ impl StoreServer {
         let id = RunId::new(&lease.scope_id);
         let rejected = |_| ProtocolError::InvalidTransition;
         let mutation = match request {
-            StoreRequest::CodexChunk { .. }
+            StoreRequest::NativeChunk { .. }
+            | StoreRequest::NativeNext
+            | StoreRequest::NativeClosed
+            | StoreRequest::CodexChunk { .. }
             | StoreRequest::CodexNext
             | StoreRequest::CodexClosed
             | StoreRequest::WorkspaceProgress { .. }

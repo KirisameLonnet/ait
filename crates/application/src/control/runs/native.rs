@@ -22,6 +22,7 @@ use crate::control::{
 };
 
 mod admission;
+mod harness;
 mod publication;
 pub(in crate::control) use publication::attribute_inputs;
 
@@ -48,9 +49,15 @@ pub(in crate::control) struct CodexPendingInput {
 /// Committed Run paired with the still-owned native writer.
 pub(in crate::control) struct NativeAdmission {
     pub run: RunRecord,
-    pub connection: Box<dyn CodexThreadConnection>,
+    pub connection: NativeConnection,
     pub execution_lease: Option<crate::control::admission::WorkspaceWriteLease>,
 }
+
+pub(in crate::control) enum NativeConnection {
+    Codex(Box<dyn CodexThreadConnection>),
+    Plugin(Box<dyn ait_ports::NativeSessionConnection>),
+}
+pub(in crate::control) use harness::PendingInput as HarnessPendingInput;
 
 fn conflict() -> ApiError {
     error(
@@ -102,8 +109,17 @@ impl LocalControlService {
         workspace_lease: Option<&crate::control::admission::WorkspaceWriteLease>,
         derive_source_locked: bool,
     ) -> Result<Option<NativeAdmission>, ApiError> {
-        let Some(plan) = self.native_plan(command, derive_source_locked).await? else {
-            return Ok(None);
+        let Some(plan) = self
+            .native_plan(
+                command,
+                derive_source_locked,
+                ait_contracts::AgentMode::Codex,
+            )
+            .await?
+        else {
+            return self
+                .admit_harness_command(command, control, workspace_lease, derive_source_locked)
+                .await;
         };
         let session = &plan.session;
         let text = &plan.text;
@@ -113,6 +129,7 @@ impl LocalControlService {
         let source = match &session.source {
             SessionSource::CodexThread(source) => Some(source.as_ref()),
             SessionSource::Managed => None,
+            SessionSource::NativeSession(_) => return Err(conflict()),
         };
         if source.is_none() {
             crate::control::project::worktrees::prepare_command_session_worktrees(
@@ -228,6 +245,7 @@ impl LocalControlService {
             )
             .await;
         let mut run = RunRecord {
+            harness_input: None,
             auto_commit,
             compatibility_repair: false,
             codex_input: Some(CodexPendingInput {
@@ -272,7 +290,7 @@ impl LocalControlService {
         }
         Ok(Some(NativeAdmission {
             run,
-            connection,
+            connection: NativeConnection::Codex(connection),
             execution_lease,
         }))
     }
@@ -290,12 +308,15 @@ impl LocalControlService {
         for attempt in 0..4 {
             if attempt > 0 {
                 let refreshed = self
-                    .native_plan(command, derive_source_locked)
+                    .native_plan(
+                        command,
+                        derive_source_locked,
+                        ait_contracts::AgentMode::Codex,
+                    )
                     .await?
                     .ok_or_else(conflict)?;
-                if refreshed.session != plan.session
-                    || refreshed.agent != plan.agent
-                    || refreshed.new_session != plan.new_session
+                if (&refreshed.session, &refreshed.agent, refreshed.new_session)
+                    != (&plan.session, &plan.agent, plan.new_session)
                 {
                     return Err(conflict());
                 }
@@ -323,6 +344,7 @@ impl LocalControlService {
                     SessionSource::Managed => {
                         session != &plan.session || !snapshot.turns.is_empty()
                     }
+                    SessionSource::NativeSession(_) => true,
                 }
             {
                 return Err(error(
@@ -387,8 +409,16 @@ impl LocalControlService {
         &self,
         run_id: String,
         control: Arc<RunControl>,
-        mut connection: Box<dyn CodexThreadConnection>,
+        connection: NativeConnection,
     ) -> Result<RunRecord, ApiError> {
+        let mut connection = match connection {
+            NativeConnection::Codex(connection) => connection,
+            NativeConnection::Plugin(connection) => {
+                return self
+                    .supervise_harness_run(&run_id, control, connection)
+                    .await;
+            }
+        };
         let run = match self.mark_native_send(&run_id).await {
             Ok(run) => run,
             Err(failure) => {
@@ -482,6 +512,9 @@ impl LocalControlService {
         &self,
         run: &RunRecord,
     ) -> Result<RunRecord, ApiError> {
+        if run.harness_input.is_some() {
+            return self.recover_harness_run(run).await;
+        }
         crate::control::permissions::validate_run_permission_ceiling(
             run.permission_profile,
             self.permission_limits,

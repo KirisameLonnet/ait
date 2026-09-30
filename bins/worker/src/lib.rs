@@ -1,6 +1,7 @@
 //! Composition boundary for executing one supervised AIT Run.
 
 mod codex;
+mod native;
 mod privacy;
 pub mod stdio;
 

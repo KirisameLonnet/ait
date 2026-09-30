@@ -8,6 +8,7 @@ fn server() -> (Server, mpsc::Receiver<Reply>, mpsc::Sender<Action>) {
     let (replies, results) = mpsc::channel(2);
     (
         Server {
+            native: false,
             project_execution: None,
             lease: Lease {
                 project_owner: None,

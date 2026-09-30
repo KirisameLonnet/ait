@@ -8,6 +8,19 @@ Ait 是一个本地优先的多 Agent 管理器，目标是统一在线协作平
 
 ## 开始开发
 
+使用 Nix 时，`flake.nix` 提供 Rust（含 clippy、rustfmt、llvm-cov）、Node 24、pnpm 和本机
+构建工具；`flake.lock` 固定依赖版本。Linux shell 还提供 `bubblewrap`，供沙箱测试使用。
+
+```bash
+nix develop
+```
+
+若已安装 direnv 并在 shell 中启用其 hook，进入仓库后运行一次 `direnv allow`；此后
+`.envrc` 会自动加载相同的 flake shell。例如 zsh 可在 shell 配置中加入
+`eval "$(direnv hook zsh)"`。无需 direnv 时直接使用 `nix develop`。
+
+进入开发环境后运行项目检查：
+
 ```bash
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
@@ -93,3 +106,15 @@ GitHub Release 会为 Linux x86_64 与 Apple Silicon 构建名为 **Ait** 的桌
 - `apps/desktop`：Electron 桌面工作台；main process 只通过 daemon 的本地 API 读写，renderer 只消费受限投影。
 
 更完整的依赖方向见 `docs/decisions/NEC-154/adr-002-rust-workspace-runtime-architecture.md`。
+
+## OpenCode
+
+安装 OpenCode 并通过 `opencode auth login` 登录。在 Desktop 的 Agent providers 中配置
+内置 OpenCode，加载并选择实际可用模型，再创建使用该 Provider 的 Agent。
+CLI 的 Provider kind 为 `opencode`，模型 ID 使用原生的 `provider/model` 格式。
+
+运行前将权限设为 **Full Access**，审批使用 **On Request**；OpenCode 本身没有可供 AIT
+验证的 OS sandbox，较低权限会在发送前拒绝。Shell 与文件修改仍经过审批。
+Session 在固定 worktree 中运行，恢复只发送新输入，发送结果不明时读取原生历史对账。
+支持 OpenCode 1.x 和 2.0.10+；原生历史导入/分叉、steer、交互表单与 Cron 尚未接入。
+实现与验证见 [OpenCode 报告](docs/reports/native-harness-adapters.md)。

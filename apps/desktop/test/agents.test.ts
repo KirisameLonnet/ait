@@ -78,3 +78,12 @@ test("Agent settings expose global roles and persist a reserved system prompt", 
   assert.match(renderer, /definition\.kind\.type === "agent_reference"/);
   assert.match(renderer, /agents\.small_agent/);
 });
+
+test("OpenCode native plugins are selectable with host-owned authentication", () => {
+  const opencode: AgentProvider = {id: "builtin-opencode", name: "OpenCode", kind: "opencode",
+    url: null, has_secret: false, models: [{id: "local/model", name: "Local model", reasoning_efforts: ["high"]}]};
+  assert.deepEqual(providerChoices([opencode]), [opencode]);
+  const summary = projectAgent({...agent, config: {provider_id: opencode.id, model: "local/model", reasoning_effort: "high"}}, [opencode]);
+  assert.equal(summary.model, "local/model");
+  assert.deepEqual(summary.supportedReasoningEfforts, ["high"]);
+});

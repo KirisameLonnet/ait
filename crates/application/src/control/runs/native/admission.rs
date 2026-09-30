@@ -47,7 +47,14 @@ pub(super) fn validate_writer(
     Ok(())
 }
 
-fn unsupported() -> ApiError {
+fn unsupported(kind: ait_contracts::AgentMode) -> ApiError {
+    if kind != ait_contracts::AgentMode::Codex {
+        return error(
+            ErrorCode::AgentCapabilityUnsupported,
+            "native history branching is unavailable; create a new task from the Project root",
+            false,
+        );
+    }
     error(
         ErrorCode::CodexForkBoundaryUnsupported,
         "Codex history branching requires native Thread fork support; create a new task from the Project root",
@@ -60,6 +67,7 @@ impl LocalControlService {
         &self,
         command: &Command,
         derive_source_locked: bool,
+        kind: AgentMode,
     ) -> Result<Option<Plan>, ApiError> {
         let project_id = match command {
             Command::SendMessage { session_id, .. } => {
@@ -99,7 +107,7 @@ impl LocalControlService {
             } => {
                 let selected = resolve_project_agent_id(&state, project_id, agent_id)?;
                 let agent = require_agent(&state, &selected)?;
-                if validate_config(&state, &agent.config)?.kind != AgentMode::Codex {
+                if validate_config(&state, &agent.config)?.kind != kind {
                     return Ok(None);
                 }
                 if let Command::DeriveSession {
@@ -144,7 +152,7 @@ impl LocalControlService {
             .clone();
         validate_input_target(&session)?;
         let agent = require_agent(&state, session.agent_id())?.clone();
-        if validate_config(&state, &agent.config)?.kind != AgentMode::Codex {
+        if validate_config(&state, &agent.config)?.kind != kind {
             return Ok(None);
         }
         validate_unbound(&state, &session)?;
@@ -201,7 +209,9 @@ fn validate_unbound(state: &ConversationContext, session: &SessionRecord) -> Res
             .find(|project| project.id == session.project_id)
             .ok_or_else(|| error(ErrorCode::InvalidProject, "Project not found", false))?;
         if session.current_message_id() != project.root_message_id {
-            return Err(unsupported());
+            return Err(unsupported(
+                validate_config(state, &require_agent(state, session.agent_id())?.config)?.kind,
+            ));
         }
     }
     Ok(())
@@ -220,7 +230,9 @@ fn create_native_session(
         .find(|project| project.id == project_id)
         .ok_or_else(|| error(ErrorCode::InvalidProject, "Project not found", false))?;
     if project.root_message_id != at_message_id {
-        return Err(unsupported());
+        return Err(unsupported(
+            validate_config(state, &require_agent(state, agent_id)?.config)?.kind,
+        ));
     }
     create_session(
         state,

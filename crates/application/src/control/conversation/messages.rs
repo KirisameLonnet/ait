@@ -65,7 +65,10 @@ pub(in crate::control) fn send_message(
     let provider = validate_config(state, &agent.config)?.clone();
     let permission_profile =
         effective_permission_profile(state.settings(), &provider, permission_limits)?;
-    if matches!(session.source, SessionSource::CodexThread(_)) {
+    if matches!(
+        session.source,
+        SessionSource::CodexThread(_) | SessionSource::NativeSession(_)
+    ) {
         return Err(error(
             ErrorCode::CodexThreadCapabilityUnsupported,
             "native Codex input requires exclusive writer admission",
@@ -114,6 +117,7 @@ pub(in crate::control) fn send_message(
         auto_commit: None,
         compatibility_repair: false,
         codex_input: None,
+        harness_input: None,
         lifecycle: RunLifecycle::queued(),
         id: run_id.clone(),
         project_id: session.project_id,

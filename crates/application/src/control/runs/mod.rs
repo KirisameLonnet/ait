@@ -53,7 +53,7 @@ pub(in crate::control) fn cancel_run(
             false,
         ));
     }
-    if run.execution().is_some() || run.codex_input.is_some() {
+    if run.execution().is_some() || run.codex_input.is_some() || run.harness_input.is_some() {
         run.set_status(LifecycleStatus::Cancelling);
         crate::control::tool_approvals::expire(&mut run, ait_domain::ToolApprovalState::Cancelled);
         state.runs_mut()[index] = run.clone();

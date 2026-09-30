@@ -43,6 +43,16 @@ pub(in crate::control) fn builtin_providers() -> Vec<ProviderRecord> {
             },
             has_secret: false,
         },
+        ProviderRecord {
+            provider: AgentProvider {
+                id: "builtin-opencode".into(),
+                name: "OpenCode".into(),
+                kind: AgentMode::OpenCode,
+                url: None,
+                models: Vec::new(),
+            },
+            has_secret: false,
+        },
         #[cfg(all(feature = "dev-mock-provider", debug_assertions))]
         ProviderRecord {
             provider: AgentProvider {
@@ -68,6 +78,11 @@ pub(in crate::control) fn invalid(message: &str) -> ApiError {
 pub(in crate::control) fn validate_provider(provider: &AgentProvider) -> Result<(), ApiError> {
     if provider.id.trim().is_empty() || provider.name.trim().is_empty() {
         return Err(invalid("provider id and name are required"));
+    }
+    if provider.kind == AgentMode::OpenCode && provider.url.is_some() {
+        return Err(invalid(
+            "OpenCode uses an owned local runtime, without an endpoint override",
+        ));
     }
     if let Some(url) = &provider.url {
         let parsed = url::Url::parse(url).map_err(|_| invalid("invalid provider URL"))?;

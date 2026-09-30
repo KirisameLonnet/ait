@@ -216,6 +216,7 @@ pub(in crate::control) fn trigger_cron(
         auto_commit: None,
         compatibility_repair: false,
         codex_input: None,
+        harness_input: None,
         lifecycle: RunLifecycle::queued(),
         id: run_id.clone(),
         project_id: cron.project_id,

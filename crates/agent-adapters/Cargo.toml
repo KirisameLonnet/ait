@@ -5,6 +5,7 @@ edition.workspace = true
 publish.workspace = true
 
 [dependencies]
+secrecy = "0.10"
 ait-domain = { path = "../domain" }
 ait-ports = { path = "../ports" }
 ait-tools = { path = "../tools" }
@@ -21,6 +22,7 @@ thiserror = "2"
 tokio = { version = "1", features = ["io-util", "macros", "process", "rt", "sync"] }
 tokio-stream = "0.1"
 tokio-util = { version = "0.7", features = ["rt"] }
+uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
 axum = "0.8"

@@ -62,7 +62,7 @@ fn daemon_accepts_future_worker_minor_and_ignores_optional_fields() {
                 "commit-ack-v1",
                 "lease-v1",
                 "tool-grants-v1",
-                "native-codex-v1", "tool-interactions-v1", "project-owner-v1",
+                "native-codex-v1", "tool-interactions-v1", "project-owner-v1", "native-session-v1",
                 "future-optional-v1"
             ],
             "required_capabilities": [
@@ -70,7 +70,7 @@ fn daemon_accepts_future_worker_minor_and_ignores_optional_fields() {
                 "commit-ack-v1",
                 "lease-v1",
                 "tool-grants-v1",
-                "native-codex-v1", "tool-interactions-v1", "project-owner-v1"
+                "native-codex-v1", "tool-interactions-v1", "project-owner-v1", "native-session-v1"
             ],
             "max_frame_bytes": 2_097_152,
             "pid": 42,
@@ -110,7 +110,7 @@ fn worker_accepts_older_daemon_minor_and_ignores_optional_fields() {
                 "commit-ack-v1",
                 "lease-v1",
                 "tool-grants-v1",
-                "native-codex-v1", "tool-interactions-v1", "project-owner-v1"
+                "native-codex-v1", "tool-interactions-v1", "project-owner-v1", "native-session-v1"
             ],
             "future_ack_hint": true
         }

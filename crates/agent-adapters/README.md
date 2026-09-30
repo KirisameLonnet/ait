@@ -26,6 +26,36 @@ never fold pre-existing user changes into the generated commit.
 Codex authentication remains owned by the local Codex installation. The
 adapter does not accept, persist, or log an API key or ChatGPT token.
 
+## OpenCode native session plugin
+
+`opencode::OpenCodeAdapter` implements the provider-neutral `NativeSessionWriter`
+port. Production requests use `daemon → WorkerSupervisor → ait-worker → opencode serve`.
+Each connection owns a fresh, authenticated loopback server and keeps it alive
+between prepare, one Start, history reads and Close. Opening never sends input.
+OpenCode 1.x uses its native HTTP API; 2.0.10+ uses `/api`, paginated messages and
+its durable execution log. SSE readiness precedes submission; a prompt response
+acknowledges admission, and idle history plus terminal execution settles the Run.
+Input ambiguity never retries the prompt.
+
+Model discovery reads connected native providers and variants. Authentication
+stays with the installed OpenCode; Ait does not import provider tokens. Native
+messages retain their own identities. The application publishes immutable Ait
+Messages and moves the Session reference atomically. Tools become assistant
+ToolUse parts followed by user ToolResult Messages.
+
+Only explicit Full Access with the application's `on_request` policy is currently
+supported. OpenCode tool permissions cannot provide an OS sandbox. Shell and
+concrete file changes use durable host approvals and one-shot native replies;
+unreviewable permissions are denied. Native histories and events are bounded,
+new items and tokens have host ceilings, and unpriced cost ceilings are rejected.
+Cancellation interrupts the native execution and the worker supervisor reaps the
+process group before releasing the execution lease.
+
+The older `native_cli::NativeCliAdapter` remains an isolated CLI protocol prototype
+for OpenCode/Claude Code. It is not used by production OpenCode and does not
+register a Claude Code Provider. See [ADR-029](../../docs/decisions/adr-029-native-harness-provider-plugins.md)
+and [the implementation report](../../docs/reports/native-harness-adapters.md).
+
 `CodexSessionTitleGenerator` starts its short metadata turn with `ephemeral: true`
 so Codex does not save it in session history. `AgentRunRequest::ephemeral` controls
 new threads only; workspace runs use `false`, and resume requests omit the field.

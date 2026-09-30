@@ -469,13 +469,19 @@ async fn provider_catalog_drives_configuration_and_credentials_never_enter_state
 
 #[cfg(not(all(feature = "dev-mock-provider", debug_assertions)))]
 #[tokio::test]
-async fn fresh_workspace_exposes_only_the_codex_builtin() {
+async fn fresh_workspace_exposes_codex_and_opencode_native_plugins() {
     let service = LocalControlService::new(
         std::sync::Arc::new(ait_workspace_local::LocalProjectWorkspace::default()),
         Arc::new(SqliteControlStore::in_memory().unwrap()),
     );
     let providers = view(&service).await.providers;
-    assert_eq!(providers.len(), 1);
+    assert_eq!(providers.len(), 2);
+    assert_eq!(providers[1].provider.id, "builtin-opencode");
+    assert_eq!(
+        providers[1].provider.kind,
+        ait_contracts::AgentMode::OpenCode
+    );
+    assert!(providers[1].provider.models.is_empty());
     assert_eq!(providers[0].provider.id, "builtin-codex");
     assert_eq!(providers[0].provider.kind, AgentMode::Codex);
     assert!(serde_json::from_value::<AgentMode>(serde_json::json!("mock")).is_err());
@@ -497,7 +503,7 @@ async fn development_mock_is_selectable_and_persists_without_external_executors(
         store.clone(),
     );
     let providers = view(&service).await.providers;
-    assert_eq!(providers.len(), 2);
+    assert_eq!(providers.len(), 3);
     let mock = providers
         .iter()
         .find(|provider| provider.provider.id == "builtin-mock")

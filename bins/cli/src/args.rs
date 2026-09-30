@@ -461,6 +461,7 @@ impl TextInput {
 #[derive(Clone, Copy, ValueEnum)]
 pub(crate) enum ProviderKind {
     Codex,
+    Opencode,
     Openai,
     Deepseek,
     Gemini,
@@ -474,6 +475,7 @@ impl From<ProviderKind> for AgentMode {
     fn from(value: ProviderKind) -> Self {
         match value {
             ProviderKind::Codex => Self::Codex,
+            ProviderKind::Opencode => Self::OpenCode,
             ProviderKind::Openai => Self::OpenAI,
             ProviderKind::Deepseek => Self::DeepSeek,
             ProviderKind::Gemini => Self::Gemini,

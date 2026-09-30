@@ -3,6 +3,39 @@ use std::path::PathBuf;
 use super::*;
 
 #[test]
+fn native_plugin_binding_round_trips_and_rejects_missing_identity() {
+    let mut session = Session::new(
+        SessionId::new("session"),
+        ProjectId::new("project"),
+        PathBuf::from("/project/.ait/session"),
+        "",
+        MessageId::from_u128(1),
+        AgentId::new("agent"),
+        TimestampMs(1),
+    );
+    session.source = SessionSource::NativeSession(Box::new(NativeSessionSource {
+        driver: "opencode".into(),
+        provider_id: "builtin-opencode".into(),
+        native_session_id: "ses_one".into(),
+        sync_state: ProviderSyncState::Synced,
+    }));
+    session.validate().unwrap();
+    let encoded = serde_json::to_value(&session).unwrap();
+    assert_eq!(serde_json::from_value::<Session>(encoded).unwrap(), session);
+    assert_eq!(
+        serde_json::to_value(crate::ProviderKind::OpenCode).unwrap(),
+        "opencode"
+    );
+    if let SessionSource::NativeSession(source) = &mut session.source {
+        source.native_session_id.clear();
+    }
+    assert_eq!(
+        session.validate().unwrap_err().code,
+        ErrorCode::InvalidSession
+    );
+}
+
+#[test]
 fn archived_session_cannot_retain_an_active_run() {
     let mut session = Session::new(
         SessionId::new("session-1"),

@@ -97,7 +97,7 @@ fn compose_agent_tools(
     store: Arc<RemoteStore>,
 ) -> Result<ComposedAgentTools, ProtocolError> {
     match bootstrap.executor.clone() {
-        Executor::Codex { .. } => Err(ProtocolError::InvalidFrame),
+        Executor::Codex { .. } | Executor::Native { .. } => Err(ProtocolError::InvalidFrame),
         Executor::Api {
             provider,
             endpoint,
@@ -215,10 +215,13 @@ pub async fn serve() -> Result<(), ProtocolError> {
     .map_err(|_| ProtocolError::HandshakeTimeout)??;
     let secret = match &bootstrap.executor {
         Executor::Api { credential, .. } => Some(credential.0.clone()),
-        Executor::Scripted { .. } | Executor::Codex { .. } => None,
+        Executor::Scripted { .. } | Executor::Codex { .. } | Executor::Native { .. } => None,
     };
     let pipe = Connection::start(reader, writer, bootstrap.lease.clone(), secret);
-    if matches!(bootstrap.executor, Executor::Codex { .. }) {
+    if matches!(
+        bootstrap.executor,
+        Executor::Codex { .. } | Executor::Native { .. }
+    ) {
         return crate::codex::execute(bootstrap, pipe).await;
     }
     execute(bootstrap, pipe).await

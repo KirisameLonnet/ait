@@ -9,6 +9,10 @@ pub mod codex;
 /// Shared adapter error types.
 pub mod error;
 pub mod llm;
+/// Native command-line harness adapters for OpenCode and Claude Code.
+pub mod native_cli;
+/// OpenCode native session history and model catalog adapter.
+pub mod opencode;
 /// Provider-neutral agent event and configuration types.
 pub mod protocol;
 pub mod provider_gateway;

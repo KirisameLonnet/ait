@@ -231,11 +231,11 @@ pub struct WorkspaceApprovalRequest {
     pub method: String,
     /// Normalized native approval kind.
     pub kind: NativeApprovalKind,
-    /// Codex thread identifier.
+    /// Native session identifier; Codex calls this a thread.
     pub thread_id: String,
-    /// Codex turn identifier.
+    /// Native execution or input correlation identifier.
     pub turn_id: String,
-    /// Codex item identifier.
+    /// Native content or approval request identifier.
     pub item_id: String,
     /// Bounded, redacted object a member can review before deciding.
     pub target: NativeApprovalTarget,

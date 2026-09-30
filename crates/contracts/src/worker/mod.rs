@@ -2,6 +2,7 @@
 
 pub mod codex;
 pub mod model;
+pub mod native;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
@@ -21,6 +22,7 @@ pub const REQUIRED_CAPABILITIES: &[&str] = &[
     "tool-grants-v1",
     "tool-interactions-v1",
     "native-codex-v1",
+    "native-session-v1",
     "project-owner-v1",
 ];
 /// Protocol value `SUPPORTED_CAPABILITIES`.
@@ -320,6 +322,13 @@ impl std::fmt::Debug for CredentialGrant {
 #[serde(tag = "kind", rename_all = "snake_case")]
 /// Variants represented by `Executor`.
 pub enum Executor {
+    /// Provider plugin operation owned by this worker.
+    Native {
+        /// Trusted executable selected by the daemon.
+        binary: String,
+        /// Prepared native session or auxiliary operation.
+        operation: Box<native::Operation>,
+    },
     /// Native Codex operation owned entirely by this worker.
     Codex {
         /// Trusted executable selected by the daemon.
@@ -383,6 +392,19 @@ pub struct ToolInteractionRequest {
 #[serde(tag = "method", rename_all = "snake_case")]
 /// Variants represented by `StoreRequest`.
 pub enum StoreRequest {
+    /// Bounded ordered chunk of a native plugin result.
+    NativeChunk {
+        /// Byte offset in the result.
+        offset: usize,
+        /// Total serialized size.
+        total: usize,
+        /// Bounded result bytes.
+        bytes: Vec<u8>,
+    },
+    /// Await durable input admission or a history/close action.
+    NativeNext,
+    /// Native runtime has been stopped and reaped.
+    NativeClosed,
     /// Ordered chunk of one serialized Codex result.
     CodexChunk {
         /// Byte offset within this result.
@@ -502,6 +524,11 @@ pub enum StoreRequest {
 #[serde(tag = "kind", rename_all = "snake_case")]
 /// Variants represented by `StoreResponse`.
 pub enum StoreResponse {
+    /// Next application action for a prepared native plugin session.
+    NativeAction {
+        /// Start once, read history, or close the owned runtime.
+        action: native::Action,
+    },
     /// Application command for a prepared writer.
     CodexAction {
         /// Exactly one next action.

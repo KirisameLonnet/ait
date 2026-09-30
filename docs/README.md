@@ -1,5 +1,10 @@
 # 概念与架构文档
 
+- [ADR-029：OpenCode 原生 Session 插件与后续 Harness 扩展边界](decisions/adr-029-native-harness-provider-plugins.md)
+  （Accepted）：参照 AIT Codex 与 Paseo OpenCode 接入，贯通 daemon/worker/Desktop 的原生
+  Session port、持久化输入、权威历史投影、审批与进程所有权。
+  [实现报告](reports/native-harness-adapters.md)记录版本、能力限制、回归测试与覆盖率。
+
 - [ADR-028：GitHub 仓库发现与独立 Project 克隆注册](decisions/adr-028-github-project-provisioning.md)
   （Accepted）：新 server 接通仓库搜索与克隆注册两个 Paseo WebSocket 方法；
   [实现报告](reports/paseo-github-project-provisioning.md)记录测试、覆盖率及与 Paseo 的差异。

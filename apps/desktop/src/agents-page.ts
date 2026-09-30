@@ -138,7 +138,7 @@ export function createAgentsPage(container: Element, actions: AgentsPageActions)
     get("#agents-provider-list").innerHTML = view.providers.map((provider) => {
       const remote = ["openai", "deepseek", "gemini", "minimax"].includes(provider.kind);
       return `<article class="provider-card"><header><strong>${escape(provider.name)}</strong><span class="catalog-badge${remote && !provider.has_secret ? " needs-setup" : ""}">${remote ? provider.has_secret ? "Secret saved" : "Needs secret" : "Built-in"}</span></header>
-        <p class="provider-endpoint">${escape(provider.url ?? (remote ? "Official API endpoint" : provider.kind === "codex" ? "Host sign-in" : "Built-in provider"))}</p>
+        <p class="provider-endpoint">${escape(provider.url ?? (remote ? "Official API endpoint" : ["codex", "opencode"].includes(provider.kind) ? "Host sign-in" : "Built-in provider"))}</p>
         <details><summary>${provider.models.length} enabled models</summary><ul>${provider.models.map((model) => `<li><strong>${escape(model.name)}</strong><code>${escape(model.id)}</code><small>${model.reasoning_efforts.length ? escape(model.reasoning_efforts.join(" · ")) : "Default reasoning"}</small></li>`).join("") || "<li>No models selected.</li>"}</ul></details>
         <button class="secondary-button" type="button" data-configure-provider="${escape(provider.id)}" aria-label="Configure ${escape(provider.name)} provider">Configure</button></article>`;
     }).join("") || '<div class="catalog-empty">Add your first provider to choose its models.</div>';

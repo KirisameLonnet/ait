@@ -339,6 +339,19 @@ pub(in crate::control) fn set_session_agent(
         .sessions()
         .iter()
         .find(|session| session.id == session_id)
+        && let ait_domain::SessionSource::NativeSession(source) = &session.source
+        && requested.config.provider_id != source.provider_id
+    {
+        return Err(error(
+            ErrorCode::AgentCapabilityUnsupported,
+            "a native Session cannot switch provider connections",
+            false,
+        ));
+    }
+    if let Some(session) = state
+        .sessions()
+        .iter()
+        .find(|session| session.id == session_id)
         && let ait_domain::SessionSource::CodexThread(source) = &session.source
         && requested.config.provider_id != source.provider_id
     {

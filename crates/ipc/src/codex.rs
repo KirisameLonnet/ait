@@ -25,6 +25,13 @@ use crate::{
 
 type Reply = Result<(Value, bool), DomainError>;
 
+struct Context {
+    project_execution: Option<Arc<dyn ait_ports::ProjectExecution>>,
+    request_id: String,
+    approvals: Arc<dyn WorkspaceApproval>,
+    cancellation: CancellationToken,
+}
+
 fn failed() -> DomainError {
     DomainError::invariant(
         ErrorCode::CodexInputOutcomeUnknown,
@@ -40,6 +47,7 @@ struct Assembly {
 }
 
 struct Server {
+    native: bool,
     project_execution: Option<Arc<dyn ait_ports::ProjectExecution>>,
     lease: Lease,
     request_id: Option<String>,
@@ -49,6 +57,40 @@ struct Server {
     progress: Arc<Mutex<Option<Arc<dyn WorkspaceProgressReporter>>>>,
     approvals: Option<Arc<dyn WorkspaceApproval>>,
     cancel: CancellationToken,
+}
+
+impl Server {
+    fn assemble(
+        &self,
+        offset: usize,
+        total: usize,
+        bytes: &[u8],
+    ) -> Result<Option<Reply>, ProtocolError> {
+        let mut assembly = self.assembly.lock().map_err(|_| ProtocolError::Io)?;
+        if assembly.closed
+            || total == 0
+            || total > MAX_RESULT_BYTES
+            || offset != assembly.bytes.len()
+            || bytes.is_empty()
+            || bytes.len() > ait_contracts::worker::codex::CHUNK_BYTES
+            || offset
+                .checked_add(bytes.len())
+                .is_none_or(|end| end > total)
+            || (offset > 0 && total != assembly.total)
+        {
+            return Err(ProtocolError::InvalidFrame);
+        }
+        assembly.total = total;
+        assembly.bytes.extend_from_slice(bytes);
+        if assembly.bytes.len() == total {
+            let reply = serde_json::from_slice::<Reply>(&assembly.bytes)
+                .map_err(|_| ProtocolError::InvalidFrame)?;
+            assembly.bytes.clear();
+            Ok(Some(reply))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 #[async_trait]
@@ -93,33 +135,13 @@ impl Handler for Server {
                 offset,
                 total,
                 bytes,
+            }
+            | StoreRequest::NativeChunk {
+                offset,
+                total,
+                bytes,
             } => {
-                let result = {
-                    let mut assembly = self.assembly.lock().map_err(|_| ProtocolError::Io)?;
-                    if assembly.closed
-                        || total == 0
-                        || total > MAX_RESULT_BYTES
-                        || offset != assembly.bytes.len()
-                        || bytes.is_empty()
-                        || bytes.len() > ait_contracts::worker::codex::CHUNK_BYTES
-                        || offset
-                            .checked_add(bytes.len())
-                            .is_none_or(|end| end > total)
-                        || (offset > 0 && total != assembly.total)
-                    {
-                        return Err(ProtocolError::InvalidFrame);
-                    }
-                    assembly.total = total;
-                    assembly.bytes.extend_from_slice(&bytes);
-                    if assembly.bytes.len() == total {
-                        let reply = serde_json::from_slice::<Reply>(&assembly.bytes)
-                            .map_err(|_| ProtocolError::InvalidFrame)?;
-                        assembly.bytes.clear();
-                        Some(reply)
-                    } else {
-                        None
-                    }
-                };
+                let result = self.assemble(offset, total, &bytes)?;
                 if let Some(reply) = result {
                     self.replies
                         .send(reply)
@@ -128,15 +150,19 @@ impl Handler for Server {
                 }
                 Ok(StoreResponse::Unit)
             }
-            StoreRequest::CodexNext => {
+            StoreRequest::CodexNext | StoreRequest::NativeNext => {
                 let mut receiver = self.actions.lock().await;
                 let action = tokio::select! {
                     action = receiver.recv() => action.unwrap_or(Action::Close),
                     () = self.cancel.cancelled() => Action::Close,
                 };
-                Ok(StoreResponse::CodexAction { action })
+                Ok(if self.native {
+                    StoreResponse::NativeAction { action }
+                } else {
+                    StoreResponse::CodexAction { action }
+                })
             }
-            StoreRequest::CodexClosed => {
+            StoreRequest::CodexClosed | StoreRequest::NativeClosed => {
                 let mut assembly = self.assembly.lock().map_err(|_| ProtocolError::Io)?;
                 if !assembly.bytes.is_empty() {
                     return Err(ProtocolError::InvalidTransition);
@@ -191,8 +217,22 @@ impl Handler for Server {
     }
 }
 
+fn connection_failure(native: bool) -> DomainError {
+    if native {
+        DomainError::invariant(
+            ErrorCode::RunRecoveryFailed,
+            "native worker disconnected; reconcile history before sending more input",
+        )
+    } else {
+        failed()
+    }
+}
+
 struct RemoteConnection {
     resumed: Option<CodexPreparedThread>,
+    native_prepared: Option<ait_ports::NativeSessionSnapshot>,
+    native: bool,
+    native_started: bool,
     actions: mpsc::Sender<Action>,
     replies: mpsc::Receiver<Reply>,
     progress: Arc<Mutex<Option<Arc<dyn WorkspaceProgressReporter>>>>,
@@ -208,10 +248,14 @@ impl Drop for RemoteConnection {
 
 impl RemoteConnection {
     async fn receive<T: DeserializeOwned>(&mut self) -> Result<(T, bool), DomainError> {
-        let (value, owned) = self.replies.recv().await.ok_or_else(failed)??;
+        let (value, owned) = self
+            .replies
+            .recv()
+            .await
+            .ok_or_else(|| connection_failure(self.native))??;
         serde_json::from_value(value)
             .map(|value| (value, owned))
-            .map_err(|_| failed())
+            .map_err(|_| connection_failure(self.native))
     }
 
     async fn history(&mut self, action: Action) -> Result<CodexThreadSnapshot, DomainError> {
@@ -258,33 +302,63 @@ impl WorkerSupervisor {
         permission: RunPermissionProfile,
         invocation: Option<&CodexThreadInvocation>,
     ) -> RemoteConnection {
+        let context = invocation.map(|request| Context {
+            project_execution: request.project_execution.clone(),
+            request_id: request.request_id.clone(),
+            approvals: request.approvals.clone(),
+            cancellation: request.cancellation.clone(),
+        });
+        self.worker_connection(
+            Executor::Codex {
+                binary: self.codex_binary.to_string_lossy().into_owned(),
+                operation: Box::new(operation),
+            },
+            cwd,
+            permission,
+            context.as_ref(),
+        )
+    }
+
+    fn worker_connection(
+        &self,
+        executor: Executor,
+        cwd: String,
+        permission: RunPermissionProfile,
+        context: Option<&Context>,
+    ) -> RemoteConnection {
+        let native = matches!(&executor, Executor::Native { .. });
         let identity = uuid::Uuid::new_v4().to_string();
         let lease = Lease {
-            project_owner: invocation.and_then(|request| {
+            project_owner: context.as_ref().and_then(|request| {
                 request
                     .project_execution
                     .as_ref()
                     .map(|project| project.owner())
             }),
-            scope_id: format!("codex:{identity}"),
+            scope_id: format!("native:{identity}"),
             worker_instance_id: identity,
             lease_epoch: 1,
         };
-        let cancel = invocation.map_or_else(CancellationToken::new, |request| {
-            request.cancellation.child_token()
-        });
+        let cancel = context
+            .as_ref()
+            .map_or_else(CancellationToken::new, |request| {
+                request.cancellation.child_token()
+            });
         let (actions, receiver) = mpsc::channel(1);
         let (sender, replies) = mpsc::channel(2);
         let progress = Arc::new(Mutex::new(None));
         let server = Server {
-            project_execution: invocation.and_then(|request| request.project_execution.clone()),
+            native: matches!(&executor, Executor::Native { .. }),
+            project_execution: context
+                .as_ref()
+                .and_then(|request| request.project_execution.clone()),
             lease: lease.clone(),
-            request_id: invocation.map(|request| request.request_id.clone()),
+            request_id: context.as_ref().map(|request| request.request_id.clone()),
             assembly: Mutex::new(Assembly::default()),
             actions: AsyncMutex::new(receiver),
             replies: sender.clone(),
             progress: progress.clone(),
-            approvals: invocation.map(|request| request.approvals.clone()),
+            approvals: context.as_ref().map(|request| request.approvals.clone()),
             cancel: cancel.clone(),
         };
         let bootstrap = Bootstrap {
@@ -293,16 +367,13 @@ impl WorkerSupervisor {
             workdir: cwd,
             maximum_sandbox: permission.sandbox.to_wire(),
             permission: permission.to_wire(),
-            executor: Executor::Codex {
-                binary: self.codex_binary.to_string_lossy().into_owned(),
-                operation: Box::new(operation),
-            },
+            executor,
         };
         let supervisor = self.clone();
         let worker_cancel = cancel.clone();
         let worker = tokio::spawn(async move {
             if let Err(failure) = supervisor.process(bootstrap, &server, worker_cancel).await {
-                let mut error = failed();
+                let mut error = connection_failure(native);
                 error.message = format!("{} ({failure})", error.message);
                 if failure == ProtocolError::ResourceLimit {
                     error.code = ErrorCode::RunLimitExceeded;
@@ -312,6 +383,9 @@ impl WorkerSupervisor {
         });
         RemoteConnection {
             resumed: None,
+            native_prepared: None,
+            native,
+            native_started: false,
             actions,
             replies,
             progress,
@@ -412,6 +486,25 @@ impl HostProviderModelCatalog for WorkerSupervisor {
         &self,
         provider: &AgentProvider,
     ) -> Result<Vec<ProviderModel>, DomainError> {
+        if provider.kind == ait_domain::ProviderKind::OpenCode {
+            let mut connection = self.worker_connection(
+                Executor::Native {
+                    binary: self.opencode_binary.to_string_lossy().into_owned(),
+                    operation: Box::new(ait_contracts::worker::native::Operation::Models {
+                        driver: "opencode".into(),
+                    }),
+                },
+                host_cwd()?,
+                RunPermissionProfile::default(),
+                None,
+            );
+            let result = connection
+                .receive::<Vec<ProviderModel>>()
+                .await
+                .map(|(models, _)| models);
+            CodexThreadConnection::close(&mut connection).await;
+            return result;
+        }
         self.codex_query(
             Operation::Models {
                 provider: provider.clone(),
@@ -420,6 +513,108 @@ impl HostProviderModelCatalog for WorkerSupervisor {
             CancellationToken::new(),
         )
         .await
+    }
+}
+
+#[async_trait]
+impl ait_ports::NativeSessionConnection for RemoteConnection {
+    fn prepared(&self) -> &ait_ports::NativeSessionSnapshot {
+        self.native_prepared
+            .as_ref()
+            .expect("plugin connection exposed only after preparation")
+    }
+    async fn start(
+        &mut self,
+        progress: Arc<dyn WorkspaceProgressReporter>,
+    ) -> Result<ait_ports::NativeSessionSnapshot, DomainError> {
+        if self.native_started {
+            return Err(DomainError::invariant(
+                ErrorCode::RunRecoveryFailed,
+                "native input must not be replayed",
+            ));
+        }
+        self.native_started = true;
+        *self.progress.lock().map_err(|_| connection_failure(true))? = Some(progress);
+        self.actions
+            .send(Action::Start)
+            .await
+            .map_err(|_| connection_failure(true))?;
+        let (history, owned) = self.receive::<ait_ports::NativeSessionSnapshot>().await?;
+        if !owned {
+            return Err(connection_failure(true));
+        }
+        Ok(history)
+    }
+    async fn read(&mut self) -> Result<ait_ports::NativeSessionSnapshot, DomainError> {
+        self.actions
+            .send(Action::Read)
+            .await
+            .map_err(|_| connection_failure(true))?;
+        let (history, owned) = self.receive::<ait_ports::NativeSessionSnapshot>().await?;
+        if !owned {
+            return Err(connection_failure(true));
+        }
+        Ok(history)
+    }
+    async fn close(&mut self) {
+        CodexThreadConnection::close(self).await;
+    }
+}
+
+#[async_trait]
+impl ait_ports::NativeSessionWriter for WorkerSupervisor {
+    async fn open(
+        &self,
+        request: ait_ports::NativeSessionInvocation,
+    ) -> Result<Box<dyn ait_ports::NativeSessionConnection>, DomainError> {
+        if request.driver != "opencode" {
+            return Err(DomainError::invariant(
+                ErrorCode::AgentCapabilityUnsupported,
+                "native plugin is not registered",
+            ));
+        }
+        let operation = ait_contracts::worker::native::Operation::Open {
+            driver: request.driver.clone(),
+            request_id: request.request_id.clone(),
+            session_id: request.session_id.clone(),
+            input_id: request.input_id.clone(),
+            prompt: request.prompt.clone(),
+            instructions: request.instructions.clone(),
+            model: request.model.clone(),
+            reasoning_effort: request.reasoning_effort.clone(),
+        };
+        let context = Context {
+            project_execution: request.project_execution,
+            request_id: request.request_id,
+            approvals: request.approvals,
+            cancellation: request.cancellation,
+        };
+        let mut connection = self.worker_connection(
+            Executor::Native {
+                binary: self.opencode_binary.to_string_lossy().into_owned(),
+                operation: Box::new(operation),
+            },
+            request.cwd.to_string_lossy().into_owned(),
+            request.permission_profile,
+            Some(&context),
+        );
+        let response = connection
+            .receive::<ait_ports::NativeSessionSnapshot>()
+            .await;
+        match response {
+            Ok((prepared, true)) => {
+                connection.native_prepared = Some(prepared);
+                Ok(Box::new(connection))
+            }
+            Ok((_, false)) => {
+                CodexThreadConnection::close(&mut connection).await;
+                Err(connection_failure(true))
+            }
+            Err(error) => {
+                CodexThreadConnection::close(&mut connection).await;
+                Err(error)
+            }
+        }
     }
 }
 

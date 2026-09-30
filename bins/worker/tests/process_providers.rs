@@ -169,7 +169,7 @@ fn response(kind: ProviderKind, calls: &[(&str, &str, Value)]) -> Value {
                 "responseId": "resp_fixture",
             })
         }
-        ProviderKind::Codex => unreachable!(),
+        ProviderKind::Codex | ProviderKind::OpenCode => unreachable!(),
     }
 }
 

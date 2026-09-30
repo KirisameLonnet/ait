@@ -58,6 +58,7 @@ pub use run::{
     RunBudget, RunId, RunPhase, RunQueueItem, RunQueueItemId, RunQueueItemKind, RunQueueItemStatus,
     RunStatus, RunStopReason, RunTerminationBlocker, RunTerminationReadiness, RunTrigger, RunUsage,
 };
+pub use session::NativeSessionSource;
 pub use session::{
     CodexThreadSource, CodexWorkspaceMode, CodexWriterState, ProviderHistoryCompleteness,
     ProviderRelationshipState, ProviderSyncState, Session, SessionId, SessionReference,

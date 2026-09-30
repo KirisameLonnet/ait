@@ -56,6 +56,7 @@ pub struct LocalControlService {
     session_title_generator: Option<Arc<dyn SessionTitleGenerator>>,
     codex_history_source: Option<Arc<dyn CodexHistorySource>>,
     codex_thread_writer: Option<Arc<dyn CodexThreadWriter>>,
+    native_session_writer: Option<Arc<dyn ait_ports::NativeSessionWriter>>,
 }
 
 impl LocalControlService {
@@ -93,6 +94,7 @@ impl LocalControlService {
             session_title_generator: None,
             codex_history_source: None,
             codex_thread_writer: None,
+            native_session_writer: None,
         }
     }
 
@@ -165,6 +167,16 @@ impl LocalControlService {
     #[must_use]
     pub fn with_codex_thread_writer(mut self, writer: Arc<dyn CodexThreadWriter>) -> Self {
         self.codex_thread_writer = Some(writer);
+        self
+    }
+
+    /// Registers native coding-agent plugins behind the supervised worker boundary.
+    #[must_use]
+    pub fn with_native_session_writer(
+        mut self,
+        writer: Arc<dyn ait_ports::NativeSessionWriter>,
+    ) -> Self {
+        self.native_session_writer = Some(writer);
         self
     }
 

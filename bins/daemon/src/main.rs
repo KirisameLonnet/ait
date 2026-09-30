@@ -103,7 +103,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .with_run_dispatcher(supervisor.clone())
     .with_host_provider_catalog(catalog)
     .with_codex_history_source(supervisor.clone())
-    .with_codex_thread_writer(supervisor.clone());
+    .with_codex_thread_writer(supervisor.clone())
+    .with_native_session_writer(supervisor.clone());
     if arguments.max_run_cost_micros.is_none() {
         service = service.with_session_title_generator(titles);
     }

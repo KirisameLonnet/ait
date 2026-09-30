@@ -22,12 +22,16 @@ impl LocalControlService {
             .ok_or_else(|| error(ErrorCode::InvalidRun, "Run not found", false))?;
         match run.provider.kind {
             AgentMode::OpenAI | AgentMode::DeepSeek | AgentMode::Gemini | AgentMode::MiniMax => {
-                self.execute_api_run(run, control.cancellation.clone())
-                    .await
+                Box::pin(self.execute_api_run(run, control.cancellation.clone())).await
             }
             AgentMode::Codex => Err(error(
                 ErrorCode::CodexThreadCapabilityUnsupported,
                 "Codex requires a prepared persistent native Thread",
+                false,
+            )),
+            AgentMode::OpenCode => Err(error(
+                ErrorCode::AgentCapabilityUnsupported,
+                "OpenCode requires prepared native plugin admission",
                 false,
             )),
             #[cfg(all(feature = "dev-mock-provider", debug_assertions))]

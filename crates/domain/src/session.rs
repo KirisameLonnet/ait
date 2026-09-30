@@ -166,6 +166,21 @@ pub enum SessionSource {
     Managed,
     /// Session materialized from a native Codex Thread.
     CodexThread(Box<CodexThreadSource>),
+    /// Persistent session owned by a registered native coding-agent plugin.
+    NativeSession(Box<NativeSessionSource>),
+}
+
+/// Transport-free binding between an Ait Session and a native coding-agent session.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct NativeSessionSource {
+    /// Stable plugin identifier.
+    pub driver: String,
+    /// Ait provider catalog identity.
+    pub provider_id: String,
+    /// Provider-assigned persistent session identity.
+    pub native_session_id: String,
+    /// Last complete reconciliation state.
+    pub sync_state: ProviderSyncState,
 }
 
 /// A movable reference into a Project's immutable Message forest.
@@ -278,6 +293,16 @@ impl Session {
                     "Codex Session source identity or workspace is invalid",
                 ));
             }
+        }
+        if let SessionSource::NativeSession(source) = &self.source
+            && (source.driver.is_empty()
+                || source.provider_id.is_empty()
+                || source.native_session_id.is_empty())
+        {
+            return Err(DomainError::invariant(
+                ErrorCode::InvalidSession,
+                "native Session binding is incomplete",
+            ));
         }
         Ok(())
     }

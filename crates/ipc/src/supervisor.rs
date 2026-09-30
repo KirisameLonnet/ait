@@ -26,6 +26,7 @@ use tokio_util::sync::CancellationToken;
 pub struct WorkerSupervisor {
     binary: PathBuf,
     pub(crate) codex_binary: PathBuf,
+    pub(crate) opencode_binary: PathBuf,
     pub(crate) limits: Limits,
     active: Arc<Mutex<HashMap<String, CancellationToken>>>,
     draining: CancellationToken,
@@ -63,6 +64,7 @@ impl WorkerSupervisor {
         Self {
             binary,
             codex_binary: PathBuf::from("codex"),
+            opencode_binary: PathBuf::from("opencode"),
             limits: Limits::default(),
             active: Arc::new(Mutex::new(HashMap::new())),
             draining: CancellationToken::new(),
@@ -73,6 +75,12 @@ impl WorkerSupervisor {
     #[must_use]
     pub fn with_codex_binary(mut self, binary: PathBuf) -> Self {
         self.codex_binary = binary;
+        self
+    }
+    /// Pins the `OpenCode` executable used by the supervised native plugin.
+    #[must_use]
+    pub fn with_opencode_binary(mut self, binary: PathBuf) -> Self {
+        self.opencode_binary = binary;
         self
     }
     /// Enable a strict optional monetary ceiling. Unpriced providers fail closed.
@@ -501,7 +509,9 @@ fn execution_deadline(bootstrap: &Bootstrap) -> Option<Instant> {
         &bootstrap.executor,
         Executor::Codex { operation, .. }
             if matches!(operation.as_ref(), ait_contracts::worker::codex::Operation::Open { .. })
-    ) {
+    ) || matches!(&bootstrap.executor,Executor::Native {operation,..}
+        if matches!(operation.as_ref(),ait_contracts::worker::native::Operation::Open {..}))
+    {
         None
     } else {
         Some(Instant::now() + Duration::from_millis(bootstrap.limits.wall_clock_ms))

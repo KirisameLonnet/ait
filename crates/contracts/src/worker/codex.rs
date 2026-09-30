@@ -56,14 +56,5 @@ pub enum Operation {
     },
 }
 
-/// Admission commands are deliberately distinct from app-server JSON-RPC.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Action {
-    /// Send the durably admitted input once.
-    Start,
-    /// Reread authoritative history without replaying input.
-    Read,
-    /// Release and reap the writer before completing the worker.
-    Close,
-}
+/// Shared native session admission action.
+pub use super::native::Action;

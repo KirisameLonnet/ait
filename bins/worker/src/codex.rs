@@ -20,7 +20,8 @@ use async_trait::async_trait;
 use serde::Serialize;
 use tokio_util::sync::CancellationToken;
 
-struct Ports {
+pub(crate) struct Ports {
+    native: bool,
     rpc: RemoteStore,
     progress: tokio::sync::Mutex<ProgressBuffer>,
 }
@@ -47,14 +48,14 @@ fn failed() -> DomainError {
 }
 
 impl Ports {
-    async fn unit(&self, request: StoreRequest) -> Result<(), DomainError> {
+    pub(crate) async fn unit(&self, request: StoreRequest) -> Result<(), DomainError> {
         match self.rpc.call(request).await.map_err(|_| failed())? {
             StoreResponse::Unit => Ok(()),
             _ => Err(failed()),
         }
     }
 
-    async fn result<T: Serialize>(
+    pub(crate) async fn result<T: Serialize>(
         &self,
         result: Result<T, DomainError>,
         owned: bool,
@@ -69,19 +70,35 @@ impl Ports {
             return Err(ProtocolError::ResourceLimit);
         }
         for (index, chunk) in bytes.chunks(CHUNK_BYTES).enumerate() {
-            self.unit(StoreRequest::CodexChunk {
-                offset: index * CHUNK_BYTES,
-                total: bytes.len(),
-                bytes: chunk.to_vec(),
-            })
-            .await
-            .map_err(|_| ProtocolError::Io)?;
+            let request = if self.native {
+                StoreRequest::NativeChunk {
+                    offset: index * CHUNK_BYTES,
+                    total: bytes.len(),
+                    bytes: chunk.to_vec(),
+                }
+            } else {
+                StoreRequest::CodexChunk {
+                    offset: index * CHUNK_BYTES,
+                    total: bytes.len(),
+                    bytes: chunk.to_vec(),
+                }
+            };
+            self.unit(request).await.map_err(|_| ProtocolError::Io)?;
         }
         Ok(())
     }
 }
 
 impl Ports {
+    pub(crate) async fn next_native_action(&self) -> Result<StoreResponse, ProtocolError> {
+        self.rpc
+            .call(StoreRequest::NativeNext)
+            .await
+            .map_err(|_| ProtocolError::Io)
+    }
+    pub(crate) async fn flush_progress(&self) {
+        self.progress.lock().await.flush(self).await;
+    }
     async fn send_progress(&self, event: WorkspaceProgressEvent) {
         if let Ok(mut value) = serde_json::to_value(bounded_progress(event).to_wire()) {
             crate::privacy::redact_display(&mut value);
@@ -221,6 +238,21 @@ async fn run(
     ports: Arc<Ports>,
     cancellation: CancellationToken,
 ) -> Result<(), ProtocolError> {
+    if matches!(&bootstrap.executor, Executor::Native { .. }) {
+        crate::native::run(bootstrap, ports.clone(), cancellation).await?;
+        return ports
+            .unit(StoreRequest::NativeClosed)
+            .await
+            .map_err(|_| ProtocolError::Io);
+    }
+    run_codex(bootstrap, ports, cancellation).await
+}
+
+async fn run_codex(
+    bootstrap: Bootstrap,
+    ports: Arc<Ports>,
+    cancellation: CancellationToken,
+) -> Result<(), ProtocolError> {
     let Executor::Codex { binary, operation } = bootstrap.executor else {
         return Err(ProtocolError::InvalidFrame);
     };
@@ -327,6 +359,7 @@ pub(crate) async fn execute(
 ) -> Result<(), ProtocolError> {
     let (rpc, mut calls) = RemoteStore::channel();
     let ports = Arc::new(Ports {
+        native: matches!(&bootstrap.executor, Executor::Native { .. }),
         rpc,
         progress: tokio::sync::Mutex::new(ProgressBuffer {
             pending: None,

@@ -6,7 +6,7 @@ export const catalogOption = (id: string, name: string, selected = ""): string =
 const field = (label: string, control: string): string => `<label class="catalog-field"><span>${label}</span>${control}</label>`;
 
 export function providerChoices(providers: AgentProvider[]): AgentProvider[] {
-  return providers.filter((provider) => ["codex", "openai", "deepseek", "gemini", "minimax", "mock"].includes(provider.kind));
+  return providers.filter((provider) => ["codex", "opencode", "openai", "deepseek", "gemini", "minimax", "mock"].includes(provider.kind));
 }
 
 export function renderProviderSettings(
@@ -32,7 +32,7 @@ export function renderProviderSettings(
     generation++;
     secret = "";
     panel.innerHTML = `<header class="catalog-heading"><div><h3>Agent providers</h3><p>Connect an API, then choose the models available to your Agents.</p></div><button id="provider-add" class="primary-button" type="button">Add provider</button></header>
-      <div class="provider-settings-list">${view.providers.map((provider) => `<button class="provider-settings-item" type="button" data-provider="${escapeCatalog(provider.id)}"><span><strong>${escapeCatalog(provider.name)}</strong><small>${escapeCatalog(provider.url ?? (provider.kind === "codex" ? "Host sign-in" : provider.kind))}</small></span><span>${provider.models.length} models <span aria-hidden="true">›</span></span></button>`).join("") || '<p>No providers yet. Add a connection to get started.</p>'}</div>`;
+      <div class="provider-settings-list">${view.providers.map((provider) => `<button class="provider-settings-item" type="button" data-provider="${escapeCatalog(provider.id)}"><span><strong>${escapeCatalog(provider.name)}</strong><small>${escapeCatalog(provider.url ?? (["codex", "opencode"].includes(provider.kind) ? "Host sign-in" : provider.kind))}</small></span><span>${provider.models.length} models <span aria-hidden="true">›</span></span></button>`).join("") || '<p>No providers yet. Add a connection to get started.</p>'}</div>`;
     get("#provider-add").addEventListener("click", () => edit());
     scrollToTop();
     panel.querySelectorAll<HTMLElement>("[data-provider]").forEach((button) => {
@@ -68,7 +68,7 @@ export function renderProviderSettings(
           ${remote ? field("API URL", `<input id="provider-url" type="url" value="${escapeCatalog(provider.url ?? "")}" placeholder="Leave blank for the official endpoint" autocomplete="url"/>`)
             + field("Secret", `<input id="provider-secret" type="password" autocomplete="new-password"${existing?.has_secret ? "" : " required"} placeholder="${existing?.has_secret ? "Saved · leave blank to keep" : "Enter API key"}"/>`)
             + '<p class="catalog-help">The next step connects to this API and loads its model list. The connection is saved after you choose models.</p>'
-            : `<p>${provider.kind === "codex" ? "Codex uses your existing sign-in on this machine." : "This built-in provider uses its configured model catalog."}</p>`}
+            : `<p>${["codex", "opencode"].includes(provider.kind) ? `${escapeCatalog(provider.name)} uses your existing sign-in on this machine.` : "This built-in provider uses its configured model catalog."}</p>${provider.kind === "opencode" ? '<p class="catalog-help">Install and sign in to OpenCode, then load its models. Running a task currently requires Full Access; shell commands and file edits still request approval.</p>' : ""}`}
           <p id="provider-error" class="catalog-error is-hidden" role="alert"></p>
           <div class="catalog-actions"><button class="secondary-button" id="provider-cancel" type="button">Cancel</button><button class="primary-button" id="provider-next" type="submit">Next: choose models</button></div>
         </form>`;
@@ -96,7 +96,7 @@ export function renderProviderSettings(
       get("#provider-next").textContent = "Loading models…";
       get("#provider-error").classList.add("is-hidden");
       try {
-        const discovered = remote || provider.kind === "codex"
+        const discovered = remote || ["codex", "opencode"].includes(provider.kind)
           ? await window.ait.discoverProviderModels(request())
           : provider.models;
         if (!live()) return;
@@ -104,7 +104,7 @@ export function renderProviderSettings(
         selection(discovered.length);
       } catch (failure) {
         if (!live()) return;
-        error(`${failure instanceof Error ? failure.message : "Could not load models."} Check the API URL and secret, then try again.`);
+        error(`${failure instanceof Error ? failure.message : "Could not load models."} ${remote ? "Check the API URL and secret" : "Check the installed agent and its sign-in"}, then try again.`);
         controls.forEach((control, index) => { control.disabled = disabled[index] ?? false; });
         get("#provider-next").textContent = "Retry: load models";
       }

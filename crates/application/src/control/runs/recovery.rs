@@ -220,10 +220,9 @@ impl LocalControlService {
                 Err(failure) => return Err(failure),
             };
             let recovery_state = service.read_run_records(&run_id).await?.original;
-            let native = recovery_state
-                .runs
-                .into_iter()
-                .find(|run| run.id == run_id && run.codex_input.is_some());
+            let native = recovery_state.runs.into_iter().find(|run| {
+                run.id == run_id && (run.codex_input.is_some() || run.harness_input.is_some())
+            });
             if let Some(run) = native {
                 if run
                     .codex_input

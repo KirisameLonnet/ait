@@ -3,6 +3,7 @@
 mod codex;
 mod control;
 mod dispatch;
+mod native_session;
 mod provider;
 mod run;
 mod scheduler;
@@ -17,6 +18,10 @@ pub use control::{
     ProgressCheckpoint, ProjectVersion,
 };
 pub use dispatch::{ApiRunDispatch, RunDispatcher, RunMutation, RunReceipt, WorkerLease};
+pub use native_session::{
+    NativeHistoryMessage, NativeSessionConnection, NativeSessionInvocation, NativeSessionOutcome,
+    NativeSessionSnapshot, NativeSessionWriter,
+};
 pub use provider::{
     AgentProviderGateway, CodexHistorySource, CodexItemsView, CodexThreadSnapshot,
     CodexThreadSourceKind, CodexTurnSnapshot, HostProviderModelCatalog, ProviderMessage,
