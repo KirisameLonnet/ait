@@ -1611,6 +1611,19 @@ export const ar: TranslationResources = {
       hostDisconnected: "Host غير متصل",
     },
   },
+  providerUsage: {
+    title: "استخدام الخطة",
+    refresh: "تحديث",
+    refreshing: "جارٍ التحديث…",
+    loading: "جارٍ تحميل الاستخدام...",
+    empty: "لا توجد بيانات استخدام",
+    errorTitle: "تعذّر تحميل الاستخدام",
+    hostUnavailable: "اتصل بهذا المضيف لعرض استخدام المزوّدين",
+    hostUpgradeRequired: "حدّث هذا المضيف لعرض استخدام المزوّدين",
+    clientUnavailable: "الاتصال بالمضيف ليس جاهزًا",
+    retry: "إعادة المحاولة",
+    tooltipLoading: "جارٍ تحميل استخدام الخطة…",
+  },
   pairing: {
     connectionMethods: {
       title: "إضافة اتصال",
@@ -2411,9 +2424,27 @@ export const ar: TranslationResources = {
       },
       agents: {
         unavailable: "Connect to this host to manage agents",
+        browserTools: {
+          accessibilityLabel: "تفعيل أدوات المتصفح",
+        },
       },
       workspaces: {
         unavailable: "Connect to this host to manage workspaces",
+        archiveMergedPr: {
+          title: "أرشفة مساحات العمل المدمجة",
+          hint: "أرشفة مساحات عمل Ait النظيفة تلقائيًا بعد دمج طلب السحب الخاص بها",
+          accessibilityLabel: "أرشفة مساحات العمل المدمجة",
+          updateFailed: "تعذّر تحديث مساحات العمل",
+        },
+      },
+      terminalAgents: {
+        title: "وكلاء الطرفية",
+      },
+      terminalAgentHooks: {
+        title: "تفعيل خطافات وكلاء الطرفية",
+        hint: "الحصول على الإشعارات والحالة من وكلاء الطرفية. يضيف هذا الخطافات في ملفات إعدادات الوكلاء لديك.",
+        accessibilityLabel: "تفعيل خطافات وكلاء الطرفية",
+        updateFailed: "تعذّر تحديث خطافات وكلاء الطرفية",
       },
       terminalProfiles: {
         unavailable: "Connect to this host to manage terminal profiles",
