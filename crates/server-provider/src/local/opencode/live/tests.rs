@@ -46,6 +46,7 @@ async fn server_ports_discover_run_multiple_turns_restore_and_read_without_submi
         assert!(client.is_available().await.unwrap());
         let details = client.discover(&spec.cwd).await.unwrap();
         assert_eq!(details.models[0]["id"], "local/test-model");
+        assert_eq!(details.models[0]["provider"], "opencode");
         assert_eq!(details.modes[0]["id"], "build");
         let mut session = client.create_session(&spec).await.unwrap();
         assert_eq!(fixture.state.lock().unwrap().submissions, 0);
@@ -106,6 +107,57 @@ async fn server_ports_discover_run_multiple_turns_restore_and_read_without_submi
         resumed.close().await.unwrap();
         assert_eq!(fixture.state.lock().unwrap().submissions, 3);
     }
+}
+
+#[tokio::test]
+async fn v1_repeated_resumes_reuse_permissions_and_recover_old_duplicates() {
+    let fixture = Fixture::start(Version::V1).await;
+    let client = OpenCodeClient::new(fixture.binary.clone());
+    let spec = spec(&fixture);
+    let mut session = client.create_session(&spec).await.unwrap();
+    let handle = session.persistence().unwrap();
+    session.close().await.unwrap();
+    for _ in 0..3 {
+        let mut resumed = client
+            .resume_session(&handle, &spec, AgentResumePurpose::Interactive)
+            .await
+            .unwrap();
+        resumed.close().await.unwrap();
+    }
+    {
+        let mut state = fixture.state.lock().unwrap();
+        assert_eq!(state.permission_updates, 0);
+        assert_eq!(state.permission.as_array().unwrap().len(), 9);
+        let rules = state.permission.as_array().unwrap();
+        state.permission = json!(rules.iter().chain(rules).cloned().collect::<Vec<_>>());
+    }
+    let mut resumed = client
+        .resume_session(&handle, &spec, AgentResumePurpose::Interactive)
+        .await
+        .unwrap();
+    resumed
+        .start_turn("after old failed restore", &spec.config)
+        .await
+        .unwrap();
+    assert!(matches!(
+        drain(resumed.as_mut()).await.last(),
+        Some(AgentTurnEvent::Completed(_))
+    ));
+    resumed.close().await.unwrap();
+    {
+        let mut state = fixture.state.lock().unwrap();
+        assert_eq!(state.permission_updates, 0);
+        assert_eq!(state.permission.as_array().unwrap().len(), 18);
+        state.permission[17]["action"] = json!("allow");
+    }
+    assert!(
+        client
+            .resume_session(&handle, &spec, AgentResumePurpose::Interactive)
+            .await
+            .is_err()
+    );
+    assert_eq!(fixture.state.lock().unwrap().permission_updates, 0);
+    assert_eq!(fixture.state.lock().unwrap().submissions, 1);
 }
 
 #[tokio::test]
@@ -266,10 +318,12 @@ async fn streamed_text_uses_the_final_native_item_key_in_both_protocols() {
             state.stream_text = true;
         }
         let turn = session.start_turn("hello", &spec.config).await.unwrap();
-        let progress = tokio::time::timeout(Duration::from_secs(3), async {
+        let (observation, progress) = tokio::time::timeout(Duration::from_secs(3), async {
             loop {
-                if let Some(AgentTurnEvent::Progress { entry, .. }) = session.poll_turn().unwrap() {
-                    return entry;
+                if let Some(AgentTurnEvent::Progress { observation, entry }) =
+                    session.poll_turn().unwrap()
+                {
+                    return (observation, entry);
                 }
                 tokio::time::sleep(Duration::from_millis(5)).await;
             }
@@ -278,9 +332,25 @@ async fn streamed_text_uses_the_final_native_item_key_in_both_protocols() {
         .unwrap();
         assert_eq!(progress.item["text"], "ans");
         assert_eq!(progress.turn_id.as_deref(), Some(turn.as_str()));
+        let timeline = crate::storage::timeline::Timeline::memory().unwrap();
+        timeline
+            .progress("agent", "opencode", &observation, &progress)
+            .unwrap();
         fixture.state.lock().unwrap().busy = false;
         let events = drain(session.as_mut()).await;
         assert!(events.iter().any(|event|matches!(event,AgentTurnEvent::Timeline(item) if item.key==progress.key && item.item["text"]=="answer")));
+        for event in events {
+            if let AgentTurnEvent::Timeline(item) = event {
+                timeline.append("agent", "opencode", &[item]).unwrap();
+            }
+        }
+        let rows = timeline.read("agent").unwrap().1;
+        let text = rows
+            .iter()
+            .filter(|row| row.entry.item["type"] == "assistant_message")
+            .map(|row| row.entry.item["text"].as_str().unwrap())
+            .collect::<String>();
+        assert_eq!(text, "answer");
         session.close().await.unwrap();
     }
 }

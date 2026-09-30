@@ -175,7 +175,7 @@ impl ProgressSink for Bridge {
             format!("{id}:0")
         };
         let entry = NativeItem {
-            key: key.clone(),
+            key: format!("native:opencode:{key}"),
             turn_id: Some(self.turn.clone()),
             timestamp: chrono::Utc::now().to_rfc3339(),
             item: json!({"type":"assistant_message","messageId":key,"text":delta}),

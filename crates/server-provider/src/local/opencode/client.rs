@@ -225,7 +225,7 @@ impl AgentClient for OpenCodeClient {
                 .discover_models(cwd.into())
                 .await
                 .map_err(error)?;
-            Ok(Details { models: models.iter().enumerate().map(|(index, model)| json!({"id":model.id,"label":model.name,"description":model.name,"isSelectable":true,"isDefault":index==0,
+            Ok(Details { models: models.iter().enumerate().map(|(index, model)| json!({"provider":"opencode","id":model.id,"label":model.name,"description":model.name,"isSelectable":true,"isDefault":index==0,
                 "thinkingOptions":model.reasoning_efforts.iter().map(|id|json!({"id":id,"label":id})).collect::<Vec<_>>()})).collect(), modes: modes(), features: vec![] })
         })
     }

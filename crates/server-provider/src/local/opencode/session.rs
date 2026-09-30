@@ -92,13 +92,13 @@ pub(super) async fn prepare(api: &Api, request: &Invocation) -> Result<Snapshot,
                 "OpenCode session is active elsewhere",
             ));
         }
-        let body = match api.version {
-            Version::V1 => json!({"permission":permission}),
-            Version::V2 => json!({"permissions":permission}),
-        };
-        api.json(Method::PATCH, &api.path(id, ""), Some(&body))
-            .await?;
         if api.version == Version::V2 {
+            api.json(
+                Method::PATCH,
+                &api.path(id, ""),
+                Some(&json!({"permissions":permission})),
+            )
+            .await?;
             api.json(
                 Method::POST,
                 &api.path(id, "/model"),
@@ -106,6 +106,7 @@ pub(super) async fn prepare(api: &Api, request: &Invocation) -> Result<Snapshot,
             )
             .await?;
         }
+        // V1 PATCH appends rules. Reuse the creation policy and verify it in snapshot.
         id.clone()
     } else {
         let body = match api.version {
@@ -199,6 +200,20 @@ fn permissions(version: Version) -> Value {
     )
 }
 
+fn permissions_match(version: Version, actual: Option<&Value>) -> bool {
+    let expected = permissions(version);
+    if version == Version::V2 {
+        return actual == Some(&expected);
+    }
+    let Some(rules) = actual.and_then(Value::as_array) else {
+        return false;
+    };
+    let expected = expected.as_array().expect("permission policy is an array");
+    // Older Ait resumes appended whole copies of this policy. Only accept exact copies,
+    // preserving rule order and rejecting any additional grants or partial policies.
+    !rules.is_empty() && rules.chunks(expected.len()).all(|chunk| chunk == expected)
+}
+
 pub(super) async fn snapshot(
     api: &Api,
     id: &str,
@@ -224,7 +239,7 @@ pub(super) async fn snapshot(
     };
     if required_string(info, "id")? != id
         || std::path::Path::new(cwd) != request.cwd
-        || (request.verify_settings && effective_permissions != Some(&permissions(api.version)))
+        || (request.verify_settings && !permissions_match(api.version, effective_permissions))
     {
         return Err(failure(
             Fault::AgentCapabilityUnsupported,
@@ -283,6 +298,9 @@ pub(super) async fn snapshot(
         outcome,
     })
 }
+
+#[cfg(test)]
+mod tests;
 
 impl Connection {
     #[cfg(test)]

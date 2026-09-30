@@ -48,7 +48,7 @@ pub(super) fn entries(
                     .as_ref()
                     .and_then(|id| clients.get(id))
                     .map_or(record.id.as_str(), String::as_str);
-                entries.push(NativeItem { key: record.id.clone(), turn_id: turn.clone(), timestamp: timestamp.clone(), item: json!({"type":"user_message","messageId":record.id,"clientMessageId":client,"text":texts.join("\n")}) });
+                entries.push(NativeItem { key: format!("native:opencode:{}", record.id), turn_id: turn.clone(), timestamp: timestamp.clone(), item: json!({"type":"user_message","messageId":record.id,"clientMessageId":client,"text":texts.join("\n")}) });
             }
             continue;
         }
@@ -91,7 +91,7 @@ pub(super) fn entries(
                 item["clientMessageId"] = json!(client);
             }
             entries.push(NativeItem {
-                key,
+                key: format!("native:opencode:{key}"),
                 turn_id: turn.clone(),
                 timestamp: timestamp.clone(),
                 item,

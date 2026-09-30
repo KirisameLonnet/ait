@@ -2,7 +2,7 @@ use std::os::unix::fs::PermissionsExt;
 
 use serde_json::json;
 
-use super::transport::{connect, request};
+use super::transport::{Socket, connect, request};
 use super::{ready, start_with_path, terminate};
 
 const METHODS: &[&str] = &[
@@ -27,16 +27,7 @@ async fn opencode_is_discovered_executed_and_restored_through_the_real_server() 
     let mut process = start_with_path(&state, &log, Some(&fixture.path));
     let address = ready(&mut process, &log).await;
     let mut socket = connect(&address, METHODS).await;
-    let models = request(
-        &mut socket,
-        "provider.models.list.request",
-        json!({"provider":"opencode","cwd":cwd}),
-    )
-    .await;
-    assert_eq!(
-        models["result"]["models"][0]["id"], "local/model",
-        "{models}"
-    );
+    assert_discovery(&mut socket, &cwd).await;
     let available = request(&mut socket, "provider.available.list.request", json!({})).await;
     assert!(available.to_string().contains("opencode"), "{available}");
     request(&mut socket, "workspace.open.request", json!({"cwd":cwd})).await;
@@ -116,6 +107,32 @@ async fn opencode_is_discovered_executed_and_restored_through_the_real_server() 
     assert_eq!(native["seq"], 3);
     assert_eq!(native["history"].as_array().unwrap().len(), 6);
     assert_helpers_reaped(fixture.root.path());
+}
+
+async fn assert_discovery(socket: &mut Socket, cwd: &std::path::Path) {
+    let models = request(
+        socket,
+        "provider.models.list.request",
+        json!({"provider":"opencode","cwd":cwd}),
+    )
+    .await;
+    assert_eq!(
+        models["result"]["models"][0]["id"], "local/model",
+        "{models}"
+    );
+    assert_eq!(
+        models["result"]["models"][0]["provider"], "opencode",
+        "{models}"
+    );
+    let snapshot = request(socket, "provider.snapshot.get.request", json!({"cwd":cwd})).await;
+    let entry = snapshot["result"]["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["provider"] == "opencode")
+        .unwrap();
+    assert_eq!(entry["status"], "ready", "{snapshot}");
+    assert_eq!(entry["models"][0]["provider"], "opencode", "{snapshot}");
 }
 
 fn fixture() -> super::native::NativeFixture {

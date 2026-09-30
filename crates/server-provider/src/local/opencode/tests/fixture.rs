@@ -24,7 +24,8 @@ use super::super::http::Version;
 pub(in crate::local::opencode) struct StateData {
     version: Version,
     cwd: PathBuf,
-    permission: Value,
+    pub(in crate::local::opencode) permission: Value,
+    pub(in crate::local::opencode) permission_updates: usize,
     model: Value,
     history: Vec<Value>,
     pub(in crate::local::opencode) submissions: usize,
@@ -53,7 +54,7 @@ impl Fixture {
         let address = listener.local_addr().unwrap();
         let binary = directory.path().join("opencode-fixture");
         let (release, password) = match version {
-            Version::V1 => ("1.14.46", "OPENCODE_SERVER_PASSWORD"),
+            Version::V1 => ("1.18.33", "OPENCODE_SERVER_PASSWORD"),
             Version::V2 => ("2.0.10", "OPENCODE_PASSWORD"),
         };
         let script = format!(
@@ -69,6 +70,7 @@ impl Fixture {
             version,
             cwd: cwd.clone(),
             permission: Value::Null,
+            permission_updates: 0,
             model: Value::Null,
             history: Vec::new(),
             submissions: 0,
@@ -116,7 +118,7 @@ async fn handle(State(state): State<Arc<Mutex<StateData>>>, request: Request) ->
         if state.stream_text {
             let value = match state.version {
                 Version::V1 => {
-                    json!({"type":"message.part.updated","properties":{"part":{"id":"pa1","messageID":"a1","sessionID":"ses_one","type":"text","text":"ans"}}})
+                    json!({"type":"message.part.updated","properties":{"part":{"id":"prt_0123456789abABCDEFGHIJKLM1","messageID":"msg_0123456789abABCDEFGHIJKLM1","sessionID":"ses_one","type":"text","text":"ans"}}})
                 }
                 Version::V2 => {
                     json!({"type":"session.text.delta","data":{"sessionID":"ses_one","assistantMessageID":"answer1","delta":"ans"}})
@@ -181,7 +183,17 @@ async fn handle(State(state): State<Arc<Mutex<StateData>>>, request: Request) ->
             session_info(&state)
         }
         ("PATCH", "/session/ses_one" | "/api/session/ses_one") => {
-            state.permission = body[if v2 { "permissions" } else { "permission" }].clone();
+            state.permission_updates += 1;
+            if v2 {
+                state.permission = body["permissions"].clone();
+            } else {
+                // OpenCode 1.18.33 SessionHttpApi.update uses Permission.merge (flat).
+                state
+                    .permission
+                    .as_array_mut()
+                    .unwrap()
+                    .extend(body["permission"].as_array().unwrap().iter().cloned());
+            }
             if v2 {
                 Value::Null
             } else {
@@ -227,7 +239,7 @@ async fn handle(State(state): State<Arc<Mutex<StateData>>>, request: Request) ->
                     json!({"id":format!("answer{number}"),"type":"assistant","time":{"created":11,"completed":12},"content":[{"type":"text","text":"answer"}]})]);
             } else {
                 state.history.extend([json!({"info":{"id":body["messageID"],"sessionID":"ses_one","role":"user","time":{"created":10}},"parts":[{"id":"pu","sessionID":"ses_one","messageID":body["messageID"],"type":"text","text":body["parts"][0]["text"]}]}),
-                    json!({"info":{"id":format!("a{number}"),"sessionID":"ses_one","role":"assistant","time":{"created":11,"completed":12}},"parts":[{"id":format!("pa{number}"),"sessionID":"ses_one","messageID":format!("a{number}"),"type":"text","text":"answer"}]})]);
+                    json!({"info":{"id":format!("msg_0123456789abABCDEFGHIJKLM{number}"),"sessionID":"ses_one","role":"assistant","time":{"created":11,"completed":12}},"parts":[{"id":format!("prt_0123456789abABCDEFGHIJKLM{number}"),"sessionID":"ses_one","messageID":format!("msg_0123456789abABCDEFGHIJKLM{number}"),"type":"text","text":"answer"}]})]);
             }
             if state.early_failure {
                 state.history.pop();
