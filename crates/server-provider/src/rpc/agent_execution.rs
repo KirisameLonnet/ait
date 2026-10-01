@@ -647,7 +647,10 @@ fn parse_creation(params: Value) -> Result<(CreateRequest, Value), ErrorCode> {
         .validate()
         .map_err(|_| ErrorCode::InvalidMessage)?;
     }
-    if !matches!(request.config.provider.as_str(), "codex" | "claude") {
+    if !matches!(
+        request.config.provider.as_str(),
+        "codex" | "claude" | "deepseek-harness"
+    ) {
         return Err(ErrorCode::UnsupportedCapability);
     }
     if request

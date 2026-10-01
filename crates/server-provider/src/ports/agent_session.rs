@@ -242,6 +242,12 @@ pub trait AgentSession: Debug + Send {
 
 /// Factory and availability boundary for one independent provider adapter.
 pub trait AgentClient: Debug + Send + Sync {
+    /// Whether native history can be replayed as a complete authoritative transcript.
+    /// Adapters without replay retain the server's already persisted display timeline.
+    fn supports_history_replay(&self) -> bool {
+        true
+    }
+
     /// Create a session with ephemeral environment overrides for its native child process.
     ///
     /// Default adapters accept an empty environment and reject unsupported nonempty values.

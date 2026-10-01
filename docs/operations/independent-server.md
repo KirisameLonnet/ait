@@ -439,6 +439,9 @@ live Agent 返回原生 handle 和可选 activeTurn。list 的 `subscribe`/`sync
 自行管理认证。Codex 支持 read-only、auto、full-access 和经原生版本协商的 auto-review；
 Claude 模式见 [使用说明](claude-code.md)。配置、权限及能力边界见 [ADR-052](../decisions/adr-052-native-provider-capabilities.md)。
 
+DeepSeek Harness 使用 `dsh --profile acp`，可通过 `AIT_SERVER_DEEPSEEK_HARNESS_BIN`
+覆盖 CLI 路径。动态模型、审批、取消和恢复方式见 [Harness 使用说明](deepseek-harness.md)。
+
 先用 `workspace.open.request` 打开目录，再在已协商相应 capability 的连接中调用：
 
 | 方法                         | 参数                                                                                                                                                                     | 结果                                                             |
