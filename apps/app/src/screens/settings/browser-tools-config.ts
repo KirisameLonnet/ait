@@ -1,19 +1,18 @@
 import type { MutableDaemonConfig } from "@ait/protocol/messages";
 
-export const BROWSER_TOOLS_TITLE = "Browser tools";
-export const BROWSER_TOOLS_WARNING =
-  "Allow agents to access and control Ait browser tabs, including logged-in browser state. Only enable this for agents you trust.";
+export const BROWSER_TOOLS_TITLE_KEY = "settings.host.agents.browserTools.title";
+export const BROWSER_TOOLS_WARNING_KEY = "settings.host.agents.browserTools.hint";
 
 export interface BrowserToolsCardState {
   isVisible: boolean;
   isEnabled: boolean;
-  title: string;
-  warning: string;
+  titleKey: string;
+  warningKey: string;
 }
 
 export interface BrowserToolsMutationViewState {
   isSwitchDisabled: boolean;
-  loadingText: string | null;
+  loadingKey: string | null;
   errorText: string | null;
 }
 
@@ -24,8 +23,8 @@ export function getBrowserToolsCardState(input: {
   return {
     isVisible: input.isConnected,
     isEnabled: input.config?.browserTools.enabled === true,
-    title: BROWSER_TOOLS_TITLE,
-    warning: BROWSER_TOOLS_WARNING,
+    titleKey: BROWSER_TOOLS_TITLE_KEY,
+    warningKey: BROWSER_TOOLS_WARNING_KEY,
   };
 }
 
@@ -39,7 +38,7 @@ export function getBrowserToolsMutationViewState(input: {
 }): BrowserToolsMutationViewState {
   return {
     isSwitchDisabled: input.isPending,
-    loadingText: input.isPending ? "Updating browser tools…" : null,
+    loadingKey: input.isPending ? "settings.host.agents.browserTools.updating" : null,
     errorText: input.error ? toErrorMessage(input.error) : null,
   };
 }

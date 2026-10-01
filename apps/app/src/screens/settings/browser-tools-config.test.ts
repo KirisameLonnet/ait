@@ -1,7 +1,7 @@
 import type { MutableDaemonConfig } from "@ait/protocol/messages";
 import { describe, expect, it } from "vitest";
 import {
-  BROWSER_TOOLS_WARNING,
+  BROWSER_TOOLS_WARNING_KEY,
   createBrowserToolsPatch,
   getBrowserToolsCardState,
   getBrowserToolsMutationViewState,
@@ -25,8 +25,8 @@ describe("browser tools opt-in config", () => {
     expect(getBrowserToolsCardState({ isConnected: true, config: makeConfig(false) })).toEqual({
       isVisible: true,
       isEnabled: false,
-      title: "Browser tools",
-      warning: BROWSER_TOOLS_WARNING,
+      titleKey: "settings.host.agents.browserTools.title",
+      warningKey: BROWSER_TOOLS_WARNING_KEY,
     });
   });
 
@@ -54,7 +54,7 @@ describe("browser tools opt-in config", () => {
   it("shows loading and disables the toggle while browser tool settings save", () => {
     expect(getBrowserToolsMutationViewState({ isPending: true, error: null })).toEqual({
       isSwitchDisabled: true,
-      loadingText: "Updating browser tools…",
+      loadingKey: "settings.host.agents.browserTools.updating",
       errorText: null,
     });
   });
@@ -64,7 +64,7 @@ describe("browser tools opt-in config", () => {
       getBrowserToolsMutationViewState({ isPending: false, error: new Error("Disk full") }),
     ).toEqual({
       isSwitchDisabled: false,
-      loadingText: null,
+      loadingKey: null,
       errorText: "Disk full",
     });
   });

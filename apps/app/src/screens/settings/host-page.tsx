@@ -797,7 +797,7 @@ function UpdateDaemonCard({ host }: { host: HostProfile }) {
               status: "failed",
               title: t("settings.host.daemon.update.requestFailedTitle"),
               message: t("settings.host.daemon.update.requestFailedMessage", {
-                error: error instanceof Error ? error.message : "Unknown error",
+                error: error instanceof Error ? error.message : t("providerSelection.unknownError"),
               }),
             });
           });

@@ -801,9 +801,10 @@ function DesktopSidebar({
 }
 
 function WorkspacesSectionHeader() {
+  const { t } = useTranslation();
   return (
     <View style={styles.workspacesSectionHeader}>
-      <Text style={styles.workspacesSectionTitle}>Workspaces</Text>
+      <Text style={styles.workspacesSectionTitle}>{t("sidebar.sections.workspaces")}</Text>
       <View style={styles.workspacesSectionActions}>
         <Tooltip delayDuration={300}>
           <TooltipTrigger asChild>
@@ -812,7 +813,7 @@ function WorkspacesSectionHeader() {
             </View>
           </TooltipTrigger>
           <TooltipContent side="bottom" align="center" offset={8}>
-            <IconTooltipContent label="Display preferences" />
+            <IconTooltipContent label={t("sidebar.display.trigger")} />
           </TooltipContent>
         </Tooltip>
       </View>

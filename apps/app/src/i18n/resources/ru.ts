@@ -1173,6 +1173,7 @@ export const ru: TranslationResources = {
       appName: "Ait",
     },
     sections: {
+      workspaces: "Рабочие пространства",
       sessions: "История",
       search: "Поиск",
       schedules: "Расписания",
@@ -1323,7 +1324,24 @@ export const ru: TranslationResources = {
     },
     daemon: {
       listen: en.desktop.daemon.listen,
-      lifecycle: en.desktop.daemon.lifecycle,
+      lifecycle: {
+        owned: "Запущен этим сеансом Desktop",
+        attached: "Подключён к существующему демону",
+        ownedMessage: "Этот демон запущен этим сеансом Desktop.",
+        attachedMessage: "Этот демон запущен не этим сеансом Desktop.",
+        stopTitle: "Остановить локальный демон?",
+        stopMessage:
+          "{{ownership}}\nДомашний каталог: {{home}}\nPID супервизора: {{pid}}\nТекущие задачи агентов будут прерваны.",
+        stop: "Остановить демон",
+        stopping: "Остановка…",
+        stopFailed: "Не удалось остановить демон",
+        pauseAttached:
+          "Приостановить автоматическое управление демоном? Подключённый демон продолжит работу.",
+        pause: "Приостановить управление",
+        workerUpdated: "Рабочий процесс обновлён до {{version}}",
+        supervisorRefresh:
+          "Работающий супервизор сохраняет исходный код. Запустившая его программа должна остановить и снова запустить его для обновления.",
+      },
       title: "Демон",
       status: {
         title: "Статус",
@@ -1642,6 +1660,19 @@ export const ru: TranslationResources = {
     },
   },
   providerUsage: {
+    error: "Ошибка",
+    unavailable: "Недоступно",
+    updated: "Обновлено {{time}}",
+    remaining: "Осталось {{amount}}",
+    resettingNow: "сброс сейчас",
+    resets: "сброс через {{time}}",
+    runsOutNow: "заканчивается сейчас",
+    runsOut: "заканчивается через {{time}}",
+    justNow: "только что",
+    ago: "{{time}} назад",
+    days: "{{count}} д",
+    hours: "{{count}} ч",
+    minutes: "{{count}} мин",
     title: "Использование по тарифу",
     refresh: "Обновить",
     refreshing: "Обновление...",
@@ -2471,6 +2502,9 @@ export const ru: TranslationResources = {
       agents: {
         unavailable: "Подключитесь к этому хосту, чтобы управлять агентами",
         browserTools: {
+          title: "Инструменты браузера",
+          hint: "Разрешить агентам доступ к вкладкам браузера Ait и управление ими, включая активные сеансы входа. Включайте только для доверенных агентов.",
+          updating: "Обновление инструментов браузера…",
           accessibilityLabel: "Включить инструменты браузера",
         },
       },

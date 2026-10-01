@@ -1162,6 +1162,7 @@ export const ko: TranslationResources = {
       appName: "Ait",
     },
     sections: {
+      workspaces: "워크스페이스",
       sessions: "기록",
       search: "검색",
       schedules: "일정",
@@ -1311,7 +1312,23 @@ export const ko: TranslationResources = {
     },
     daemon: {
       listen: en.desktop.daemon.listen,
-      lifecycle: en.desktop.daemon.lifecycle,
+      lifecycle: {
+        owned: "이 데스크톱 세션에서 시작됨",
+        attached: "기존 데몬에 연결됨",
+        ownedMessage: "이 데몬은 이 데스크톱 세션에서 시작되었습니다.",
+        attachedMessage: "이 데몬은 이 데스크톱 세션에서 시작되지 않았습니다.",
+        stopTitle: "로컬 데몬을 중지할까요?",
+        stopMessage:
+          "{{ownership}}\n홈: {{home}}\n감독 프로세스 PID: {{pid}}\n실행 중인 에이전트 작업이 중단됩니다.",
+        stop: "데몬 중지",
+        stopping: "중지 중…",
+        stopFailed: "데몬을 중지할 수 없음",
+        pauseAttached: "데몬 자동 관리를 일시 중지할까요? 연결된 데몬은 계속 실행됩니다.",
+        pause: "관리 일시 중지",
+        workerUpdated: "워커가 {{version}} 버전으로 업데이트됨",
+        supervisorRefresh:
+          "실행 중인 감독 프로세스는 원래 코드를 유지합니다. 업데이트하려면 이를 시작한 프로그램에서 중지한 뒤 다시 시작해야 합니다.",
+      },
       title: "데몬",
       status: {
         title: "상태",
@@ -1623,6 +1640,19 @@ export const ko: TranslationResources = {
     },
   },
   providerUsage: {
+    error: "오류",
+    unavailable: "사용 불가",
+    updated: "{{time}} 업데이트",
+    remaining: "{{amount}} 남음",
+    resettingNow: "지금 초기화 중",
+    resets: "{{time}} 후 초기화",
+    runsOutNow: "곧 소진",
+    runsOut: "{{time}} 후 소진",
+    justNow: "방금",
+    ago: "{{time}} 전",
+    days: "{{count}}일",
+    hours: "{{count}}시간",
+    minutes: "{{count}}분",
     title: "요금제 사용량",
     refresh: "새로고침",
     refreshing: "새로고치는 중...",
@@ -2437,6 +2467,9 @@ export const ko: TranslationResources = {
       agents: {
         unavailable: "에이전트를 관리하려면 이 호스트에 연결하세요",
         browserTools: {
+          title: "브라우저 도구",
+          hint: "에이전트가 로그인 상태를 포함한 Ait 브라우저 탭에 접근하고 제어하도록 허용합니다. 신뢰하는 에이전트에만 활성화하세요.",
+          updating: "브라우저 도구 업데이트 중…",
           accessibilityLabel: "브라우저 도구 사용",
         },
       },
