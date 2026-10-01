@@ -1,6 +1,7 @@
 //! Bounded local Git reads for checkout status, diff, and commit history.
 
 mod naming;
+pub(crate) mod summary;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;

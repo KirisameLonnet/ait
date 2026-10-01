@@ -197,12 +197,19 @@ fn snapshot(directory: &Directory, request: &WorkspaceListRequest) -> Result<Sna
     let statuses = directory
         .workspace_statuses(&all_active, &timestamp())
         .map_err(directory_error)?;
+    let mut runtimes = BTreeMap::new();
     let entries = all_active
         .iter()
         .filter(|workspace| matches_filter(workspace, request))
         .map(|workspace| {
             let mut descriptor =
                 workspace_descriptor(workspace, projects.get(&workspace.project_id));
+            if let Some(runtime) = runtimes
+                .entry(workspace.cwd.as_str())
+                .or_insert_with(|| directory.runtime_snapshot(&workspace.cwd))
+            {
+                super::runtime::apply(&mut descriptor, runtime);
+            }
             if let Some(status) = statuses.get(&workspace.workspace_id) {
                 descriptor.status = status.bucket;
                 descriptor.status_entered_at = Some(status.entered_at.clone());

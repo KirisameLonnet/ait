@@ -11,7 +11,8 @@ use chrono::{SecondsFormat, Utc};
 use server_api::{Api, LifecycleIntent, LocalAddress, Services};
 use server_filesystem::local::{
     checkout::LocalCheckout, forge::LocalForge, github_projects::LocalGithubProjects,
-    provisioning::LocalDirectorySource, worktrees::LocalManagedWorktrees,
+    provisioning::LocalDirectorySource, workspace_runtime::LocalWorkspaceRuntime,
+    worktrees::LocalManagedWorktrees,
 };
 use server_filesystem::service::checkout::Checkout;
 use server_filesystem::service::files::Files;
@@ -340,7 +341,11 @@ fn compose_directory(
         )),
         server_id,
     })
-    .with_creations(creations))
+    .with_creations(creations)
+    .with_runtime_source(Arc::new(LocalWorkspaceRuntime::new(
+        LocalCheckout::new(config.data_dir.join("worktrees")),
+        LocalForge::new(),
+    ))))
 }
 
 fn compose_worktrees(
