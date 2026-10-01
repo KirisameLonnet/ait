@@ -1,8 +1,8 @@
 {
   "measurement_date": "2026-10-02",
-  "base_revision": "e098e9792699a8231c56ca0a8332e86d4007796f",
-  "revision_note": "Base revision plus the DeepSeek Harness changes in this PR; measured Rust source is identified by the hashes below.",
-  "rust_source_sha256": "4e9298bbbec815b3edb4644b7abd5a8e1a60cbc4fb743ad3b570e8d56f488fba",
+  "base_revision": "9f344e1dd37f959f62b5d0457fe679d4c5270190",
+  "revision_note": "Base revision plus the browser optional-reference Clippy fix and Rust 1.98.1 toolchain pin; measured Rust source is identified by the hashes below.",
+  "rust_source_sha256": "e963a78c39d7fe0043570c302ee8415919bf0486a23d5919151cf2cbd4371369",
   "hash_algorithm": "SHA-256 of sorted repo-relative path + NUL + per-file SHA-256 entries, joined by newlines, for all Git-visible bins/ and crates/ files plus Cargo.toml and Cargo.lock.",
   "scope": {
     "packages": "entire Cargo workspace",
@@ -25,7 +25,9 @@
     "cargo test --workspace",
     "cargo build --workspace",
     "cargo fmt --all --check",
-    "cargo clippy --workspace --all-targets -- -D warnings",
+    "cargo +stable clippy --workspace --all-targets -- -D warnings (installed stable is rustc 1.98.1)",
+    "cargo +1.99.0 fmt --all --check",
+    "cargo test -p server-browser protocol",
     "cargo llvm-cov --workspace --html --no-fail-fast -- --test-threads=1",
     "cargo llvm-cov report --json --summary-only --output-path /private/tmp/ait-deepseek-coverage-summary.json",
     "cargo llvm-cov report --lcov --output-path /private/tmp/ait-deepseek-coverage.lcov"
@@ -58,13 +60,13 @@
     },
     "instantiations": {
       "count": 11968,
-      "covered": 8635,
-      "percent": 72.15073529411765
+      "covered": 8634,
+      "percent": 72.14237967914438
     },
     "lines": {
-      "count": 46363,
-      "covered": 42648,
-      "percent": 91.98714492159696
+      "count": 46362,
+      "covered": 42649,
+      "percent": 91.9912859669557
     },
     "mcdc": {
       "count": 0,
@@ -73,21 +75,26 @@
       "percent": 0
     },
     "regions": {
-      "count": 72356,
+      "count": 72353,
       "covered": 64333,
-      "notcovered": 8023,
-      "percent": 88.91176958372492
+      "notcovered": 8020,
+      "percent": 88.9154561662958
     }
   },
   "server_provider_lines": {
-    "covered": 18340,
+    "covered": 18342,
     "count": 19640,
-    "percent": 93.38085539714868
+    "percent": 93.39103869653768
   },
   "server_bin_lines": {
     "covered": 876,
     "count": 929,
     "percent": 94.29494079655544
+  },
+  "server_browser_lines": {
+    "covered": 706,
+    "count": 725,
+    "percent": 97.37931034482759
   },
   "deepseek_harness_production_lines": {
     "covered": 960,
@@ -106,9 +113,9 @@
       "percent": 95.55815312682641
     },
     "server-browser": {
-      "covered": 707,
-      "count": 726,
-      "percent": 97.38292011019284
+      "covered": 706,
+      "count": 725,
+      "percent": 97.37931034482759
     },
     "server-domain": {
       "covered": 121,
@@ -136,9 +143,9 @@
       "percent": 100.0
     },
     "server-provider": {
-      "covered": 18340,
+      "covered": 18342,
       "count": 19640,
-      "percent": 93.38085539714868
+      "percent": 93.39103869653768
     },
     "server-schedule": {
       "covered": 802,
@@ -156,13 +163,23 @@
       "percent": 87.19704952581665
     }
   },
-  "comparable_baseline": null,
-  "baseline_note": "No coverage measurement of the same source before this change was taken.",
+  "comparable_baseline": {
+    "revision": "9f344e1dd37f959f62b5d0457fe679d4c5270190",
+    "artifact": "https://github.com/ait-app/ait/blob/9f344e1dd37f959f62b5d0457fe679d4c5270190/docs/reports/deepseek-harness-acp-coverage.json",
+    "workspace_lines": {
+      "count": 46363,
+      "covered": 42648,
+      "percent": 91.98714492159696
+    },
+    "workspace_line_percentage_point_change": 0.004141045358736051
+  },
+  "baseline_note": "Comparable baseline before the Clippy-only browser change is the previous PR head; no measurement before the initial Harness provider addition was taken.",
   "changed_rust_source_sha256": {
     "bins/server/src/host.rs": "e5bc467c9842ea53d34511ed20bd9732025c6725b782f3edf3a757475183a0c3",
     "bins/server/tests/process/daemon.rs": "8650a2345d6d97dc20316e0c584f1032602bdc6b69622bf54324642076f7d83d",
     "bins/server/tests/process/deepseek_harness.rs": "e933ed6e67b7f62e836f2ffb88bbf29e58951cc50faef99107e889aaf57aa3fa",
     "bins/server/tests/process/unix.rs": "16a3e2f01302d7a84a83c294eb2c0939c652a122a12ed8c5e74e987b87164fab",
+    "crates/server-browser/src/protocol.rs": "3f8cb700e48caf52c354b7973c47c539c9ea926951bfd18e299ae2488704f305",
     "crates/server-provider/src/local.rs": "8533f06a44a8e7085c4124f38128c9d51445370d455560c7cd792d8268a7d28f",
     "crates/server-provider/src/local/claude/config.rs": "a62711839ef2d21e405db9e038887a0493e7bc631810f4afe4c502c625992d14",
     "crates/server-provider/src/local/configuration.rs": "5dc2aa4e40ebe8471e3f7f10ac48c075e12e1f690e5592a1d4a51b4556137749",
@@ -182,6 +199,11 @@
     "crates/server-provider/src/rpc/agent_execution/workspace_creation/tests.rs": "a331f278b0668148195bdc99bd3494a477a2acc738bdf0853f16c8008ee0d795",
     "crates/server-provider/src/service/agent_manager.rs": "f7d306697a267992a55f1a59f5449d053745d1bacfecde396b98ea705c6148a5",
     "crates/server-provider/src/service/provider_catalog.rs": "60912bfb954701b961925c6b57bdfc6cb5f8e96c544ab04dec4bccb73fff5d01"
+  },
+  "configuration_sha256": {
+    "rust-toolchain.toml": "9252881b77e54d1d9abc7d7ce32c9be83f547602c0712190a323c7e8fbfa715b",
+    ".github/workflows/ci.yml": "600ec84c01901387749fb82cec4e89d6d003137b3d135d6fe935267ac684b889",
+    ".github/workflows/release.yml": "d023e501945fcc570c40d09978bb6db49cb34d1db729b6b48cf0352629f06dfc"
   },
   "deepseek_harness_production_files": [
     {
@@ -627,9 +649,9 @@
     {
       "path": "crates/server-browser/src/protocol.rs",
       "lines": {
-        "count": 376,
-        "covered": 370,
-        "percent": 98.40425531914892
+        "count": 375,
+        "covered": 369,
+        "percent": 98.4
       }
     },
     {
@@ -2364,8 +2386,8 @@
       "path": "crates/server-provider/src/service/agent_manager/generated_titles.rs",
       "lines": {
         "count": 99,
-        "covered": 90,
-        "percent": 90.9090909090909
+        "covered": 92,
+        "percent": 92.92929292929293
       }
     },
     {
@@ -2879,9 +2901,21 @@
     "command": "npm run typecheck --workspace=@ait/app",
     "exit_code": 2,
     "diagnostic_count": 63,
-    "baseline_comparison": "git archive HEAD apps/app into a temporary directory, symlink the same node_modules, run tsgo --noEmit; identical 63 error diagnostics.",
+    "baseline_comparison": "During the initial PR preparation, git archive e098e979 apps/app into a temporary directory, symlink the same node_modules, run tsgo --noEmit; identical 63 error diagnostics.",
     "cause": "Missing installed dependencies such as expo-clipboard, react-native-keyboard-controller, htmlparser2 and @xterm/*, plus existing node:sqlite types.",
-    "next_step": "Use a complete dependency installation in CI to validate the full app typecheck."
+    "ci_validation": "The initial PR head passed the complete UI job, including npm ci and desktop/app typecheck: https://github.com/ait-app/ait/actions/runs/36899552672/job/110495050874"
+  },
+  "ci_fix": {
+    "failed_job": "https://github.com/ait-app/ait/actions/runs/36899552672/job/110495051071",
+    "cause": "Rust 1.99.0 Clippy rejects the pre-existing for key in [\"ref\"] loop via single_element_loop; original local Clippy was Rust 1.98.1.",
+    "change": "Use a direct optional ref check, preserving validation behavior. Pin rust-toolchain.toml and CI/release actions to the previously validated Rust 1.98.1; retain all existing -D warnings checks.",
+    "focused_test": "cargo test -p server-browser protocol: 17 passed, 21 filtered out.",
+    "rust_1_99_check": {
+      "command": "CARGO_TARGET_DIR=target/ci-rust-1.99 cargo +1.99.0 clippy --workspace --all-targets -- -D warnings",
+      "exit_code": 101,
+      "result": "The production loop lint was resolved, then the new assert_is_empty lint reported 180 existing test assertions across the workspace. Rust 1.99 migration is left for an explicit toolchain upgrade."
+    },
+    "validated_toolchain": "Rust 1.98.1 full workspace strict Clippy, build, tests and coverage; Rust 1.99.0 fmt also passed."
   },
   "remaining_gaps": [
     "Real Harness profile/authentication, model inference and native tool execution have not been exercised; offline ACP peer and real Rust server process tests are used.",

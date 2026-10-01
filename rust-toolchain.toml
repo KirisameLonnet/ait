@@ -1,4 +1,5 @@
 [toolchain]
-channel = "stable"
+# Match CI validation; upgrade this version and the workflows explicitly together.
+channel = "1.98.1"
 components = ["clippy", "rustfmt"]
 profile = "minimal"
