@@ -34,12 +34,13 @@ pub(crate) async fn subscribe(
             },
         )
         .await;
-    let (value, observation) = match prepared {
+    let (value, mut observation) = match prepared {
         Ok(prepared) => prepared,
         Err(error) => return context.respond(Err(error)),
     };
     let outbound = context.outbound.clone();
     context.respond(Ok(value))?;
+    observation.activate();
     let observation = Arc::new(Mutex::new(observation));
     let directory = state.directory.clone();
     let runtime = state.runtime.clone();

@@ -115,6 +115,9 @@ mod workspace_runtime;
 #[path = "checkout.rs"]
 mod checkout;
 
+#[path = "git_fetch.rs"]
+mod git_fetch;
+
 #[path = "forge.rs"]
 mod forge;
 

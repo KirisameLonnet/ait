@@ -81,7 +81,7 @@ impl LocalCheckout {
             .flatten();
         let base_ref = resolve_default_branch(&cwd, current_branch.as_deref())?;
         let ahead_behind = match (&base_ref, &current_branch) {
-            (Some(base), Some(_)) => compare_refs(&cwd, base, "HEAD")?,
+            (Some(base), Some(_)) => compare_refs(&cwd, &comparison_base(&cwd, base)?, "HEAD")?,
             _ => None,
         };
         let upstream_ref =
@@ -161,6 +161,7 @@ impl CheckoutRuntime for LocalCheckout {
                         )
                     })?;
                 validate_ref(&base)?;
+                let base = comparison_base(&cwd, &base)?;
                 verify_commit(&cwd, &base)?;
                 let merge_base =
                     git_required(&cwd, &["merge-base", &base, "HEAD"], SMALL_OUTPUT_LIMIT)?;
@@ -236,7 +237,10 @@ impl CheckoutRuntime for LocalCheckout {
             });
         };
         let default_base = resolve_default_branch(&cwd, Some(&current_branch))?;
-        let comparison_base = default_base.filter(|base| base != &current_branch);
+        let comparison_base = default_base
+            .filter(|base| base != &current_branch)
+            .map(|base| most_ahead_base(&cwd, &base))
+            .transpose()?;
         let (workspace_records, base_revision) = if let Some(base) = &comparison_base {
             verify_commit(&cwd, base)?;
             let merge_base = git_optional(&cwd, &["merge-base", base, "HEAD"])?;
@@ -1210,6 +1214,19 @@ fn most_ahead_base(cwd: &Path, base: &str) -> Result<String, CheckoutRuntimeErro
                 Ok(name)
             }
         }
+    }
+}
+
+fn comparison_base(cwd: &Path, base: &str) -> Result<String, CheckoutRuntimeError> {
+    if base.starts_with("refs/heads/") || base.starts_with("refs/remotes/") {
+        return Ok(base.to_owned());
+    }
+    let name = local_base_name(base)?;
+    let origin = format!("origin/{name}");
+    if ref_exists(cwd, &format!("refs/remotes/{origin}"))? {
+        Ok(origin)
+    } else {
+        Ok(name)
     }
 }
 
