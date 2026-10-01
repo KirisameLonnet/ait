@@ -415,6 +415,13 @@ fn compose_provider(
     let (codex, claude) = native_clients(data_dir);
     manager.register_client(Box::new(codex))?;
     manager.register_client(Box::new(claude))?;
+    manager.register_client(Box::new(
+        server_provider::local::deepseek_harness::DeepSeekHarnessClient::new(
+            std::env::var_os("AIT_SERVER_DEEPSEEK_HARNESS_BIN")
+                .map_or_else(|| "dsh".into(), Into::into),
+        )
+        .with_image_directory(data_dir.join("agents/provider-images")),
+    ))?;
     AgentExecution::spawn(ExecutionDependencies {
         manager,
         directory: AgentRuntimeDirectory::new(

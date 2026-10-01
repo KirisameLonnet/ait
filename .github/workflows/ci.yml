@@ -60,7 +60,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      # Match rust-toolchain.toml so new stable lints cannot silently break this job.
+      - uses: dtolnay/rust-toolchain@1.98.1
         with:
           components: clippy,rustfmt
       - run: cargo fmt --all --check
