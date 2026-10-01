@@ -12,6 +12,8 @@
   Rust stdio ACP、动态模型与推理等级、工具/审批、取消、恢复及无历史重放的时间线保护；
   [使用说明](operations/deepseek-harness.md)、[验证报告](reports/deepseek-harness-acp.md)。
 
+- [Ait 0.0.12 发布说明](reports/release-0.0.12.md)：DeepSeek Harness、后台 Git 刷新、侧边栏状态、本地化更新和发布验证。
+
 - [Ait 0.0.11 发布说明](reports/release-0.0.11.md)：目录实时更新修复、GitLab 支持、升级说明和发布验证。
 - [Ait 0.0.10 发布说明（构建未发布）](reports/release-0.0.10.md)：首次构建记录与失败原因。
 
