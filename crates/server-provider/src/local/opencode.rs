@@ -10,6 +10,7 @@ mod live;
 mod projection;
 mod runtime;
 mod session;
+mod streaming;
 mod types;
 
 use std::path::PathBuf;

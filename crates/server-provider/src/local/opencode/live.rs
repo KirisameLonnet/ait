@@ -256,9 +256,10 @@ impl AgentSession for Session {
         Some(AgentPersistenceHandle {
             provider: "opencode".into(),
             session_id: self.info.session_id.clone()?,
-            native_handle: Some(
-                json!({"config":self.config,"model":self.info.model,"clients":self.clients}),
-            ),
+            native_handle: Some(json!(
+                json!({"config":self.config,"model":self.info.model,"clients":self.clients})
+                    .to_string()
+            )),
             metadata: None,
         })
     }

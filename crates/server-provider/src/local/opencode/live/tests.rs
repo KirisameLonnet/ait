@@ -2,6 +2,8 @@ use super::super::{OpenCodeExecutionLimits, client::OpenCodeClient, tests::fixtu
 use super::*;
 use crate::ports::agent_session::{AgentClient, AgentResumePurpose, AgentSessionSpec};
 
+mod streaming;
+
 fn spec(fixture: &Fixture) -> AgentSessionSpec {
     AgentSessionSpec {
         provider: "opencode".into(),
@@ -78,6 +80,10 @@ async fn server_ports_discover_run_multiple_turns_restore_and_read_without_submi
             assert_eq!(items[0].turn_id.as_deref(), Some(turn.as_str()));
         }
         let handle = session.persistence().unwrap();
+        assert!(
+            handle.native_handle.as_ref().unwrap().is_string(),
+            "nativeHandle must satisfy the frontend schema"
+        );
         session.close().await.unwrap();
         let history = client.history(&handle, &spec.cwd).await.unwrap();
         assert_eq!(history.len(), 4);

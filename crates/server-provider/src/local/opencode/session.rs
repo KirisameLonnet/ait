@@ -1,8 +1,8 @@
 //! Prepare, submit once, observe and reconcile; cancellation never becomes an input retry.
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use crate::local::opencode::types::{Fault, ProtocolError};
-use crate::local::opencode::types::{Invocation, ProgressEvent, ProgressSink, Snapshot};
+use crate::local::opencode::types::{Invocation, ProgressSink, Snapshot};
 use reqwest::Method;
 use serde_json::{Value, json};
 
@@ -11,6 +11,7 @@ use super::{
     failure, history,
     http::{Api, Events, Version, required_string},
     runtime::Runtime,
+    streaming::Stream,
 };
 
 pub(super) struct Connection {
@@ -460,7 +461,7 @@ impl Connection {
         progress: Arc<dyn ProgressSink>,
     ) -> Result<Snapshot, ProtocolError> {
         let mut timer = tokio::time::interval(Duration::from_secs(5));
-        let mut displayed = HashMap::<String, String>::new();
+        let mut displayed = Stream::new(&self.prepared.id, &self.prepared.input_id, self.limits);
         let mut approvals = Pending::new();
         loop {
             tokio::select! {
@@ -476,7 +477,14 @@ impl Connection {
                             && data.get("sessionID").and_then(Value::as_str)==Some(&self.prepared.id) {
                             approvals.observe(&self.runtime.api,&self.invocation,&self.prepared.id,data)?;
                         }
-                        self.progress(event, &progress, &mut displayed).await?;
+                        let updates = match displayed.observe(event, self.runtime.api.version) {
+                            Ok(updates) => updates,
+                            Err(error) => {
+                                if error.code == Fault::RunLimitExceeded {self.interrupt().await;}
+                                return Err(error);
+                            }
+                        };
+                        for update in updates {progress.report(update).await;}
                     } else {
                         // Lost events require state reconciliation; they never imply execution failure.
                         if let Ok(history) = snapshot(&self.runtime.api, &self.prepared.id, &self.invocation).await
@@ -501,58 +509,6 @@ impl Connection {
                 }
             }
         }
-    }
-
-    async fn progress(
-        &self,
-        raw: &Value,
-        progress: &Arc<dyn ProgressSink>,
-        displayed: &mut HashMap<String, String>,
-    ) -> Result<(), ProtocolError> {
-        let event = raw.get("payload").unwrap_or(raw);
-        let data = event
-            .get("properties")
-            .or_else(|| event.get("data"))
-            .unwrap_or(&Value::Null);
-        let owner = data
-            .get("sessionID")
-            .or_else(|| data.pointer("/part/sessionID"))
-            .and_then(Value::as_str);
-        if owner != Some(&self.prepared.id) {
-            return Ok(());
-        }
-        match event.get("type").and_then(Value::as_str) {
-            Some("message.part.updated")
-                if data.pointer("/part/type").and_then(Value::as_str) == Some("text") =>
-            {
-                let part = &data["part"];
-                let id = required_string(part, "id")?;
-                let text = required_string(part, "text")?;
-                let previous = displayed.entry(id.to_owned()).or_default();
-                if let Some(delta) = text.strip_prefix(previous.as_str())
-                    && !delta.is_empty()
-                {
-                    progress
-                        .report(ProgressEvent::TextDelta {
-                            id: id.into(),
-                            delta: delta.into(),
-                        })
-                        .await;
-                }
-                previous.clone_from(&text.to_owned());
-            }
-            Some("session.text.delta") => {
-                let id = required_string(data, "assistantMessageID")?;
-                progress
-                    .report(ProgressEvent::TextDelta {
-                        id: id.into(),
-                        delta: required_string(data, "delta")?.into(),
-                    })
-                    .await;
-            }
-            Some(_) | None => {}
-        }
-        Ok(())
     }
 }
 

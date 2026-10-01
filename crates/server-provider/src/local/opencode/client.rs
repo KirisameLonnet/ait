@@ -1,5 +1,6 @@
 //! Provider discovery, configuration and native history inspection.
 use std::{
+    borrow::Cow,
     collections::BTreeMap,
     path::{Path, PathBuf},
     sync::Arc,
@@ -60,10 +61,7 @@ impl OpenCodeClient {
         let mut clients = BTreeMap::new();
         let id = if let Some((handle, _)) = binding {
             validate_handle(handle)?;
-            let native = handle
-                .native_handle
-                .as_ref()
-                .ok_or(AgentSessionError::Rejected)?;
+            let native = native_handle(handle)?;
             let saved: StoredAgentConfig = serde_json::from_value(native["config"].clone())
                 .map_err(|_| AgentSessionError::Rejected)?;
             if saved
@@ -159,10 +157,7 @@ impl OpenCodeClient {
         cwd: &str,
     ) -> Result<SessionHistory, AgentSessionError> {
         validate_handle(handle)?;
-        let native = handle
-            .native_handle
-            .as_ref()
-            .ok_or(AgentSessionError::Rejected)?;
+        let native = native_handle(handle)?;
         let config: StoredAgentConfig = serde_json::from_value(native["config"].clone())
             .map_err(|_| AgentSessionError::Rejected)?;
         let clients = serde_json::from_value(native["clients"].clone())
@@ -346,6 +341,22 @@ fn validate_handle(handle: &AgentPersistenceHandle) -> Result<(), AgentSessionEr
     Ok(())
 }
 
+fn native_handle(handle: &AgentPersistenceHandle) -> Result<Cow<'_, Value>, AgentSessionError> {
+    match handle.native_handle.as_ref() {
+        Some(Value::String(encoded)) if encoded.len() <= 256 * 1024 => {
+            let value: Value =
+                serde_json::from_str(encoded).map_err(|_| AgentSessionError::Rejected)?;
+            if !value.is_object() {
+                return Err(AgentSessionError::Rejected);
+            }
+            Ok(Cow::Owned(value))
+        }
+        // Existing server records used an object before the frontend string contract was fixed.
+        Some(value @ Value::Object(_)) => Ok(Cow::Borrowed(value)),
+        _ => Err(AgentSessionError::Rejected),
+    }
+}
+
 fn validate_clients(clients: &BTreeMap<String, String>) -> Result<(), AgentSessionError> {
     if clients.len() > 512
         || clients.iter().any(|(native, client)| {
@@ -430,3 +441,6 @@ fn history(
         entries,
     })
 }
+
+#[cfg(test)]
+mod tests;

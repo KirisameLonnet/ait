@@ -169,6 +169,7 @@ impl ApprovalSink for DenyApprovals {
     }
 }
 
+#[derive(Debug)]
 pub(super) enum ProgressEvent {
     TextDelta { id: String, delta: String },
 }

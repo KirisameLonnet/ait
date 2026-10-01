@@ -36,6 +36,7 @@ pub(in crate::local::opencode) struct StateData {
     pub(in crate::local::opencode) pending_permissions: Vec<Value>,
     pub(in crate::local::opencode) replies: Vec<Value>,
     pub(in crate::local::opencode) stream_text: bool,
+    pub(in crate::local::opencode) stream_events: Vec<Value>,
 }
 
 pub(in crate::local::opencode) struct Fixture {
@@ -81,6 +82,7 @@ impl Fixture {
             pending_permissions: Vec::new(),
             replies: Vec::new(),
             stream_text: false,
+            stream_events: Vec::new(),
         }));
         let router = Router::new()
             .fallback(any(handle))
@@ -115,7 +117,16 @@ async fn handle(State(state): State<Arc<Mutex<StateData>>>, request: Request) ->
             .unwrap();
         let mut events = vec![Ok::<_, Infallible>(event)];
         let state = state.lock().unwrap();
+        events.extend(
+            state
+                .stream_events
+                .iter()
+                .map(|value| Ok(Event::default().json_data(value).unwrap())),
+        );
         if state.stream_text {
+            if state.version == Version::V1 {
+                events.push(Ok(Event::default().json_data(json!({"type":"message.updated","properties":{"info":{"id":"msg_0123456789abABCDEFGHIJKLM1","sessionID":"ses_one","role":"assistant"}}})).unwrap()));
+            }
             let value = match state.version {
                 Version::V1 => {
                     json!({"type":"message.part.updated","properties":{"part":{"id":"prt_0123456789abABCDEFGHIJKLM1","messageID":"msg_0123456789abABCDEFGHIJKLM1","sessionID":"ses_one","type":"text","text":"ans"}}})

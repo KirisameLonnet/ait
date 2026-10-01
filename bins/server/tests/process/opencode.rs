@@ -7,6 +7,7 @@ use super::{ready, start_with_path, terminate};
 
 const METHODS: &[&str] = &[
     "workspace.open.request",
+    "workspace.create.request",
     "agent.create.request",
     "agent.message.send.request",
     "agent.finish.wait.request",
@@ -163,4 +164,44 @@ fn assert_helpers_reaped(root: &std::path::Path) {
             "OpenCode helper {pid} survived shutdown"
         );
     }
+}
+
+#[tokio::test]
+async fn opencode_workspace_creation_returns_frontend_compatible_resume_handles() {
+    let fixture = fixture();
+    let cwd = fixture.cwd.canonicalize().unwrap();
+    let state = fixture.root.path().join("state");
+    let log = fixture.root.path().join("server.log");
+    let mut process = start_with_path(&state, &log, Some(&fixture.path));
+    let address = ready(&mut process, &log).await;
+    let mut socket = connect(&address, METHODS).await;
+    let (created, _) = super::transport::creation(&mut socket, "workspace.create.request",
+        json!({"idempotencyKey":"opencode-workspace", "subscribe":true,
+        "source":{"kind":"directory","path":cwd}, "agent":{"config":{"provider":"opencode","cwd":cwd,"model":"local/model","modeId":"build"},"initialPrompt":"hello gui"}})).await;
+    assert_eq!(created["type"], "response", "{created}");
+    let result = &created["result"];
+    assert!(result["error"].is_null(), "{created}");
+    assert_eq!(result["creation"]["phase"], "completed");
+    for agent in [&result["agent"], &result["creation"]["agent"]] {
+        let encoded = agent["persistence"]["nativeHandle"]
+            .as_str()
+            .expect("frontend requires an opaque string handle");
+        let decoded: serde_json::Value = serde_json::from_str(encoded).unwrap();
+        assert_eq!(decoded["model"], "local/model");
+    }
+    let mut finished = request(
+        &mut socket,
+        "agent.finish.wait.request",
+        json!({"agentId":result["agent"]["id"]}),
+    )
+    .await;
+    while finished["type"] == "event" {
+        finished = super::transport::receive(&mut socket).await;
+    }
+    assert_eq!(
+        finished["result"]["lastMessage"], "authoritative answer",
+        "{finished}"
+    );
+    terminate(&mut process).await;
+    assert_helpers_reaped(fixture.root.path());
 }
