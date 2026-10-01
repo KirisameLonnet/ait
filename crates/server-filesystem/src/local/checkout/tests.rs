@@ -6,6 +6,8 @@ use tempfile::TempDir;
 mod naming;
 mod paseo;
 
+mod remote_base;
+
 use super::{LocalCheckout, is_below};
 use crate::ports::checkout::{
     CheckoutBranchResolution, CheckoutBranchSource, CheckoutCommitFileStatus, CheckoutDiffCompare,

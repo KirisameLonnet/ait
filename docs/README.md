@@ -1,5 +1,9 @@
 # 概念与架构文档
 
+- [ADR-069：活跃工作区的后台 Git fetch](decisions/adr-069-background-git-fetch.md)：
+  目录订阅观察生命周期、仓库去重、180 秒远端刷新、取消回收及 Git 状态推送；
+  [验证报告](reports/background-git-fetch.md)。
+
 - [ADR-068：Workspace 侧边栏运行时摘要](decisions/adr-068-workspace-runtime-summaries.md)：
   Git/Forge 缓存投影、目录订阅更新与 Provider 完成后的运行标记收敛；
   [实施报告](reports/workspace-sidebar-runtime.md)。
