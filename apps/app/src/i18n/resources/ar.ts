@@ -1154,6 +1154,7 @@ export const ar: TranslationResources = {
       appName: "Ait",
     },
     sections: {
+      workspaces: "مساحات العمل",
       sessions: "السجل",
       search: "بحث",
       schedules: "الجداول",
@@ -1303,7 +1304,24 @@ export const ar: TranslationResources = {
     },
     daemon: {
       listen: en.desktop.daemon.listen,
-      lifecycle: en.desktop.daemon.lifecycle,
+      lifecycle: {
+        owned: "بدأته جلسة سطح المكتب هذه",
+        attached: "متصل بخدمة خلفية موجودة",
+        ownedMessage: "بدأت جلسة سطح المكتب هذه هذه الخدمة الخلفية.",
+        attachedMessage: "لم تبدأ جلسة سطح المكتب هذه هذه الخدمة الخلفية.",
+        stopTitle: "إيقاف الخدمة الخلفية المحلية؟",
+        stopMessage:
+          "{{ownership}}\nالمجلد الرئيسي: {{home}}\nمعرّف عملية المشرف: {{pid}}\nستتم مقاطعة مهام الوكلاء الجارية.",
+        stop: "إيقاف الخدمة الخلفية",
+        stopping: "جارٍ الإيقاف…",
+        stopFailed: "تعذّر إيقاف الخدمة الخلفية",
+        pauseAttached:
+          "إيقاف الإدارة التلقائية للخدمة الخلفية مؤقتًا؟ ستستمر الخدمة المتصلة في العمل.",
+        pause: "إيقاف الإدارة مؤقتًا",
+        workerUpdated: "تم تحديث العامل إلى {{version}}",
+        supervisorRefresh:
+          "يحتفظ المشرف الجاري بشفرته الأصلية. يجب أن يوقفه البرنامج الذي بدأه ويعيد تشغيله لتحديثه.",
+      },
       title: "Daemon",
       status: {
         title: "حالة",
@@ -1612,6 +1630,19 @@ export const ar: TranslationResources = {
     },
   },
   providerUsage: {
+    error: "خطأ",
+    unavailable: "غير متاح",
+    updated: "تم التحديث {{time}}",
+    remaining: "المتبقي {{amount}}",
+    resettingNow: "جارٍ إعادة الضبط الآن",
+    resets: "إعادة الضبط بعد {{time}}",
+    runsOutNow: "ينفد الآن",
+    runsOut: "ينفد بعد {{time}}",
+    justNow: "الآن",
+    ago: "منذ {{time}}",
+    days: "{{count}} يوم",
+    hours: "{{count}} س",
+    minutes: "{{count}} د",
     title: "استخدام الخطة",
     refresh: "تحديث",
     refreshing: "جارٍ التحديث…",
@@ -2425,6 +2456,9 @@ export const ar: TranslationResources = {
       agents: {
         unavailable: "Connect to this host to manage agents",
         browserTools: {
+          title: "أدوات المتصفح",
+          hint: "اسمح للوكلاء بالوصول إلى علامات تبويب متصفح Ait والتحكم بها، بما في ذلك حالة تسجيل الدخول. فعّل هذا فقط للوكلاء الذين تثق بهم.",
+          updating: "جارٍ تحديث أدوات المتصفح…",
           accessibilityLabel: "تفعيل أدوات المتصفح",
         },
       },

@@ -1191,6 +1191,7 @@ export const fr: TranslationResources = {
       appName: "Ait",
     },
     sections: {
+      workspaces: "Espaces de travail",
       sessions: "Historique",
       search: "Rechercher",
       schedules: "Planifications",
@@ -1340,7 +1341,24 @@ export const fr: TranslationResources = {
     },
     daemon: {
       listen: en.desktop.daemon.listen,
-      lifecycle: en.desktop.daemon.lifecycle,
+      lifecycle: {
+        owned: "Lancé par cette session de bureau",
+        attached: "Connecté à un daemon existant",
+        ownedMessage: "Ce daemon a été lancé par cette session de bureau.",
+        attachedMessage: "Ce daemon n’a pas été lancé par cette session de bureau.",
+        stopTitle: "Arrêter le daemon local ?",
+        stopMessage:
+          "{{ownership}}\nRépertoire personnel : {{home}}\nPID du superviseur : {{pid}}\nLes tâches des agents en cours seront interrompues.",
+        stop: "Arrêter le daemon",
+        stopping: "Arrêt en cours…",
+        stopFailed: "Impossible d’arrêter le daemon",
+        pauseAttached:
+          "Suspendre la gestion automatique du daemon ? Le daemon connecté continuera de fonctionner.",
+        pause: "Suspendre la gestion",
+        workerUpdated: "Worker mis à jour vers {{version}}",
+        supervisorRefresh:
+          "Le superviseur en cours conserve son code d’origine. Le programme qui l’a lancé doit l’arrêter puis le redémarrer pour le mettre à jour.",
+      },
       title: "Daemon",
       status: {
         title: "Statut",
@@ -1663,6 +1681,19 @@ export const fr: TranslationResources = {
     },
   },
   providerUsage: {
+    error: "Erreur",
+    unavailable: "Indisponible",
+    updated: "Mis à jour {{time}}",
+    remaining: "{{amount}} restants",
+    resettingNow: "réinitialisation en cours",
+    resets: "réinitialisation dans {{time}}",
+    runsOutNow: "épuisement imminent",
+    runsOut: "épuisement dans {{time}}",
+    justNow: "à l’instant",
+    ago: "il y a {{time}}",
+    days: "{{count}} j",
+    hours: "{{count}} h",
+    minutes: "{{count}} min",
     title: "Utilisation du forfait",
     refresh: "Actualiser",
     refreshing: "Actualisation...",
@@ -2487,6 +2518,9 @@ export const fr: TranslationResources = {
       agents: {
         unavailable: "Connect to this host to manage agents",
         browserTools: {
+          title: "Outils du navigateur",
+          hint: "Autorisez les agents à accéder aux onglets du navigateur Ait et à les contrôler, y compris les sessions connectées. Activez uniquement pour les agents de confiance.",
+          updating: "Mise à jour des outils du navigateur…",
           accessibilityLabel: "Activer les outils du navigateur",
         },
       },
