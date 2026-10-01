@@ -1,5 +1,9 @@
 # 概念与架构文档
 
+- [ADR-068：Workspace 侧边栏运行时摘要](decisions/adr-068-workspace-runtime-summaries.md)：
+  Git/Forge 缓存投影、目录订阅更新与 Provider 完成后的运行标记收敛；
+  [实施报告](reports/workspace-sidebar-runtime.md)。
+
 - [ADR-067：DeepSeek Harness ACP Provider](decisions/adr-067-deepseek-harness-acp.md)：
   Rust stdio ACP、动态模型与推理等级、工具/审批、取消、恢复及无历史重放的时间线保护；
   [使用说明](operations/deepseek-harness.md)、[验证报告](reports/deepseek-harness-acp.md)。

@@ -6,6 +6,7 @@ pub mod provisioning;
 pub mod registry;
 pub mod workspace_automation;
 pub mod workspace_labels;
+pub mod workspace_runtime;
 pub mod workspace_state;
 pub mod worktrees;
 

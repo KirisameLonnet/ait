@@ -1868,6 +1868,7 @@ dependencies = [
  "chrono",
  "getrandom 0.4.3",
  "libc",
+ "memchr",
  "serde",
  "serde_json",
  "server-metadata",

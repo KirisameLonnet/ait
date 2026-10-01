@@ -109,6 +109,9 @@ mod workspace_labels;
 #[path = "workspace_state.rs"]
 mod workspace_state;
 
+#[path = "workspace_runtime.rs"]
+mod workspace_runtime;
+
 #[path = "checkout.rs"]
 mod checkout;
 

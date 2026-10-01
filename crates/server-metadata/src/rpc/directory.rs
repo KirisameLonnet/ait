@@ -35,6 +35,7 @@ use serde_json::Value;
 
 pub(crate) mod listing;
 mod pagination;
+mod runtime;
 
 /// Decode and execute one metadata directory request.
 ///
@@ -535,7 +536,8 @@ fn workspace_create_worktree(
                 directory.name_workspace(created.workspace.workspace_id.clone(), source);
             }
             WorkspaceCreateResult {
-                workspace: Some(workspace_descriptor(
+                workspace: Some(runtime_workspace_descriptor(
+                    directory,
                     &created.workspace,
                     Some(&created.project),
                 )),
@@ -791,7 +793,23 @@ fn describe_workspace(
         .map_err(directory_error)?
         .into_iter()
         .find(|project| project.project_id == workspace.project_id);
-    Ok(workspace_descriptor(workspace, project.as_ref()))
+    Ok(runtime_workspace_descriptor(
+        directory,
+        workspace,
+        project.as_ref(),
+    ))
+}
+
+fn runtime_workspace_descriptor(
+    directory: &Directory,
+    workspace: &PersistedWorkspaceRecord,
+    project: Option<&PersistedProjectRecord>,
+) -> WorkspaceDescriptorPayload {
+    let mut descriptor = workspace_descriptor(workspace, project);
+    if let Some(snapshot) = directory.runtime_snapshot(&workspace.cwd) {
+        runtime::apply(&mut descriptor, &snapshot);
+    }
+    descriptor
 }
 
 fn matches_filter(workspace: &PersistedWorkspaceRecord, request: &WorkspaceListRequest) -> bool {
