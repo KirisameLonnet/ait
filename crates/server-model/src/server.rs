@@ -70,6 +70,9 @@ impl Default for Limits {
 pub struct ServerInfo {
     /// Stable UUID persisted in this server's data directory.
     pub server_id: String,
+    /// Running software version, distinct from the wire protocol; absent on older servers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
     /// UUID generated for this process start.
     pub instance_id: String,
     /// Actual bound socket address.
@@ -90,3 +93,6 @@ pub struct ServerInfo {
     /// Enforced transport budgets.
     pub limits: Limits,
 }
+
+#[cfg(test)]
+mod tests;

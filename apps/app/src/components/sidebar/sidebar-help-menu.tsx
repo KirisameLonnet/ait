@@ -28,7 +28,7 @@ import { openChangelog } from "@/changelog";
 import { openExternalUrl } from "@/utils/open-external-url";
 
 const DISCORD_URL = "https://discord.gg/jz8T2uahpH";
-const GITHUB_ISSUE_URL = "https://github.com/necokeine/ait/issues/new";
+const GITHUB_ISSUE_URL = "https://github.com/ait-app/ait/issues/new";
 const ThemedActivity = withUnistyles(Activity);
 const ThemedCircleHelp = withUnistyles(CircleHelp);
 const ThemedGift = withUnistyles(Gift);

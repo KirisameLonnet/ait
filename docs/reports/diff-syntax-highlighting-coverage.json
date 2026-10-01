@@ -1,0 +1,55 @@
+{
+  "baseline_revision": "e098e9792699a8231c56ca0a8332e86d4007796f",
+  "measurement": "working tree with Diff highlighting and anchored-header parser fix; focused server-filesystem checkout tests",
+  "command": "CARGO_TARGET_DIR=/private/tmp/ait-diff-highlight-coverage cargo llvm-cov test --offline -p server-filesystem --lib checkout --json --output-path /private/tmp/ait-diff-highlight-coverage.json",
+  "features": "default",
+  "test_filter": "checkout",
+  "test_result": {
+    "passed": 111,
+    "failed": 0,
+    "ignored": 0,
+    "filtered_out": 243
+  },
+  "files": [
+    {
+      "path": "crates/server-filesystem/src/local/checkout.rs",
+      "sha256": "6ab91b33e3ffcc9d296bf884e0d265f77d227859baf35947d38326e5c13c4df0",
+      "lines": {
+        "count": 1468,
+        "covered": 1255,
+        "percent": 85.49046321525884
+      }
+    },
+    {
+      "path": "crates/server-filesystem/src/local/checkout/highlight.rs",
+      "sha256": "4621f582a1f1eff1854490e350776d1a38389ac1416fa0161ed43a1854b5187d",
+      "lines": {
+        "count": 314,
+        "covered": 312,
+        "percent": 99.36305732484077
+      }
+    },
+    {
+      "path": "crates/server-filesystem/src/rpc/checkout.rs",
+      "sha256": "e1e69c2308d6af750b34fa7cbbfb40513a1df7c991c4fb38bae006a00b54e08c",
+      "lines": {
+        "count": 540,
+        "covered": 445,
+        "percent": 82.4074074074074
+      }
+    }
+  ],
+  "selected_crate_lines": {
+    "count": 11326,
+    "covered": 4009,
+    "percent": 35.396432986049795
+  },
+  "workspace_coverage": "deferred until commit preparation",
+  "comparable_baseline": null,
+  "uncovered_behavior": [
+    "Parser or scope-stack failures and cache poisoning are handled by plain-text fallback but were not fault-injected."
+  ],
+  "platform": "macOS arm64; no on-device iOS/Android or live desktop UI run",
+  "raw_report": "/private/tmp/ait-diff-highlight-coverage.json",
+  "excluded_files": "cargo llvm-cov default filtering; test functions excluded from production coverage"
+}

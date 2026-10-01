@@ -195,7 +195,7 @@ pub struct CheckoutDiffUnsubscribeRequest {
     pub subscription_id: String,
 }
 
-/// Syntax-highlight token. The independent server currently omits these optional values.
+/// Theme-independent syntax-highlight token produced by the checkout adapter.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct HighlightToken {
     /// Source text.

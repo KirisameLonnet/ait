@@ -81,13 +81,14 @@ function harness(
   const stopHello = transport.onOpen(() =>
     transport.send(JSON.stringify({ type: "hello", clientId: "test" })),
   );
-  function ready() {
+  function ready(version?: string) {
     for (const socket of sockets) socket.open();
     for (const [index, socket] of sockets.entries())
       socket.message({
         type: "server_info",
         info: {
           server_id: "server",
+          version,
           instance_id: "instance",
           protocol: { major: 1, minor: 0 },
           implemented_capabilities: implemented,
@@ -116,6 +117,25 @@ function harness(
 }
 
 describe("Rust protocol adapter", () => {
+  it("passes the connected server's software version to the SDK", async () => {
+    const h = harness();
+    h.stopHello();
+    const client = new DaemonClient({
+      url: "ws://127.0.0.1:7316/v1/ws",
+      clientId: "server-version-test",
+      transportFactory: () => h.transport,
+      reconnect: { enabled: false },
+    });
+    try {
+      const connected = client.connect();
+      h.ready("0.0.10");
+      await connected;
+      expect(client.getLastServerInfoMessage()?.version).toBe("0.0.10");
+    } finally {
+      await client.close();
+    }
+  });
+
   it("completes interleaved SDK file reads using the original request IDs", async () => {
     const h = harness();
     h.stopHello();
@@ -722,7 +742,7 @@ describe("Rust protocol adapter", () => {
         method: "status.server_info",
         params: {
           subscriptionId: "lifecycle",
-          info: { server_id: "server", lifecycle: "draining" },
+          info: { server_id: "server", version: "0.0.10", lifecycle: "draining" },
         },
       });
       expect(h.received.at(-1)).toMatchObject({
@@ -731,6 +751,7 @@ describe("Rust protocol adapter", () => {
           payload: {
             status: "server_info",
             serverId: "server",
+            version: "0.0.10",
             subscriptionId: "lifecycle",
           },
         },

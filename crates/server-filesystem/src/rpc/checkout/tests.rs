@@ -9,6 +9,110 @@ use crate::service::checkout::{
 };
 
 #[test]
+fn diff_projection_preserves_highlight_tokens_on_the_wire() {
+    use crate::ports::checkout::{DiffHunk, DiffLine, DiffLineKind, HighlightToken};
+    let file = ParsedDiffFile {
+        path: "source.rs".to_owned(),
+        old_path: None,
+        is_new: true,
+        is_deleted: false,
+        additions: 1,
+        deletions: 0,
+        status: None,
+        hunks: vec![DiffHunk {
+            old_start: 0,
+            old_count: 0,
+            new_start: 1,
+            new_count: 1,
+            lines: vec![DiffLine {
+                kind: DiffLineKind::Add,
+                content: "fn".to_owned(),
+                tokens: Some(vec![HighlightToken {
+                    text: "fn".to_owned(),
+                    style: Some("keyword".to_owned()),
+                }]),
+            }],
+        }],
+    };
+    let result = serde_json::to_value(super::protocol_diff_file(file)).unwrap();
+    assert_eq!(
+        result["hunks"][0]["lines"][0]["tokens"],
+        json!([{"text":"fn","style":"keyword"}])
+    );
+}
+
+fn highlighted_file(line_count: usize) -> ParsedDiffFile {
+    use crate::ports::checkout::{DiffHunk, DiffLine, DiffLineKind, HighlightToken};
+    let line = DiffLine {
+        kind: DiffLineKind::Add,
+        content: "a".repeat(20),
+        tokens: Some(vec![
+            HighlightToken {
+                text: "a".to_owned(),
+                style: Some("keyword".to_owned()),
+            };
+            20
+        ]),
+    };
+    ParsedDiffFile {
+        path: "source.rs".to_owned(),
+        old_path: None,
+        is_new: true,
+        is_deleted: false,
+        additions: u64::try_from(line_count).unwrap(),
+        deletions: 0,
+        status: None,
+        hunks: vec![DiffHunk {
+            old_start: 0,
+            old_count: 0,
+            new_start: 1,
+            new_count: u64::try_from(line_count).unwrap(),
+            lines: vec![line; line_count],
+        }],
+    }
+}
+
+#[test]
+fn highlight_output_budget_keeps_large_file_diff_readable() {
+    let projected = super::protocol_diff_file(highlighted_file(8000));
+    assert!(
+        projected.hunks[0]
+            .lines
+            .iter()
+            .all(|line| line.tokens.is_none())
+    );
+    assert_eq!(projected.hunks[0].lines[0].content, "a".repeat(20));
+    assert!(super::fits_highlighted_diff_budget(&projected));
+}
+
+#[test]
+fn highlight_output_budget_applies_to_the_entire_subscription_snapshot() {
+    let file = highlighted_file(4000);
+    assert!(
+        super::protocol_diff_file(file.clone()).hunks[0].lines[0]
+            .tokens
+            .is_some()
+    );
+    let result = super::protocol_diff_result(
+        "/repo",
+        Ok(CheckoutDiff {
+            files: vec![file.clone(), file],
+            diff_too_large: false,
+        }),
+    );
+    assert!(
+        result
+            .files
+            .iter()
+            .flat_map(|file| &file.hunks)
+            .flat_map(|hunk| &hunk.lines)
+            .all(|line| line.tokens.is_none())
+    );
+    assert!(super::fits_highlighted_diff_budget(&result));
+    assert!(result.diff_too_large.is_none());
+}
+
+#[test]
 fn status_projection_preserves_managed_checkout_facts() {
     let checkout = checkout();
     let result = execute(

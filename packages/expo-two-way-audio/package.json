@@ -9,9 +9,9 @@
     "expo-two-way-audio",
     "react-native"
   ],
-  "homepage": "https://github.com/necokeine/ait",
+  "homepage": "https://github.com/ait-app/ait",
   "bugs": {
-    "url": "https://github.com/necokeine/ait/issues"
+    "url": "https://github.com/ait-app/ait/issues"
   },
   "license": "MIT",
   "author": "Necokeine",
@@ -20,7 +20,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/necokeine/ait.git",
+    "url": "https://github.com/ait-app/ait.git",
     "directory": "packages/expo-two-way-audio"
   },
   "main": "build/index.js",

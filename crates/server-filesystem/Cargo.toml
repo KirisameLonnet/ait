@@ -14,12 +14,15 @@ server-metadata = { version = "0.0.11", path = "../server-metadata" }
 base64 = "0.22.1"
 chrono = "0.4.42"
 getrandom = "0.4.3"
+# SIMD-backed newline counting for bounded untracked-file sidebar statistics.
+memchr = "2.8.3"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 sha2 = "0.10.9"
 tempfile = "3.27.0"
 thiserror = "2.0.20"
 uuid = { version = "1.22.0", features = ["v4"] }
+two-face = { version = "0.5.2", default-features = false, features = ["syntect-fancy"] }
 
 [target."cfg(unix)".dependencies]
 libc = "0.2"

@@ -1,5 +1,11 @@
 # 概念与架构文档
 
+- [ADR-068：Workspace 侧边栏运行时摘要](decisions/adr-068-workspace-runtime-summaries.md)：
+  Git/Forge 缓存投影、目录订阅更新与 Provider 完成后的运行标记收敛；
+  [实施报告](reports/workspace-sidebar-runtime.md)。
+
+- [ADR-067：Diff 服务端语法高亮](decisions/adr-067-checkout-diff-syntax-highlighting.md)：参照 Paseo 读取比较两侧快照、填充语法 token 和按行号重建；[修复报告](reports/diff-syntax-highlighting.md)。
+
 - [Ait 0.0.11 发布说明](reports/release-0.0.11.md)：目录实时更新修复、GitLab 支持、升级说明和发布验证。
 - [Ait 0.0.10 发布说明（构建未发布）](reports/release-0.0.10.md)：首次构建记录与失败原因。
 

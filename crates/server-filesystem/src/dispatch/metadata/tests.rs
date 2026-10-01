@@ -47,6 +47,7 @@ fn bounded_diff_preserves_file_names_changes_and_unicode() {
                 lines: vec![DiffLine {
                     kind: DiffLineKind::Add,
                     content: "新".repeat(100_000),
+                    tokens: None,
                 }],
             }],
         }],

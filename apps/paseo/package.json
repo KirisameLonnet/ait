@@ -3,14 +3,14 @@
   "version": "0.0.11",
   "private": true,
   "description": "Ait desktop app (Electron wrapper)",
-  "homepage": "https://github.com/necokeine/ait",
+  "homepage": "https://github.com/ait-app/ait",
   "license": "Apache-2.0",
   "author": {
     "name": "Necokeine"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/necokeine/ait.git"
+    "url": "https://github.com/ait-app/ait.git"
   },
   "main": "dist/main.js",
   "scripts": {
