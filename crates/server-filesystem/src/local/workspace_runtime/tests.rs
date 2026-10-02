@@ -118,6 +118,36 @@ fn workspace_runtime_cache_coalesces_clones_and_refreshes_local_edits() {
 }
 
 #[test]
+fn workspace_runtime_clears_cached_diff_after_remote_base_advances() {
+    let root = tempfile::tempdir().unwrap();
+    let repo = repository(root.path());
+    git(&repo, &["update-ref", "refs/remotes/origin/main", "main"]);
+    fs::write(repo.join("tracked.txt"), "base\nnew\n").unwrap();
+    git(&repo, &["commit", "-am", "feature"]);
+    let source = LocalWorkspaceRuntime::new(
+        LocalCheckout::new(root.path().join("managed")),
+        LocalForge::new(),
+    );
+    let changed = wait_for(&source, &repo, |snapshot| {
+        snapshot
+            .git
+            .as_ref()
+            .is_some_and(|git| git.diff_stat.is_some())
+    });
+    assert_eq!(changed.git.unwrap().diff_stat.unwrap().additions, 1);
+
+    git(&repo, &["update-ref", "refs/remotes/origin/main", "HEAD"]);
+    // Leave HEAD untouched and let the normal cache expiry discover the updated base.
+    let merged = wait_for(&source, &repo, |snapshot| {
+        snapshot
+            .git
+            .as_ref()
+            .is_some_and(|git| git.diff_stat.is_none() && git.is_dirty == Some(false))
+    });
+    assert!(merged.git.unwrap().diff_stat.is_none());
+}
+
+#[test]
 fn workspace_runtime_read_permits_are_bounded_and_released_on_drop() {
     let active = Arc::<AtomicUsize>::default();
     let first = Permit::acquire(&active).unwrap();

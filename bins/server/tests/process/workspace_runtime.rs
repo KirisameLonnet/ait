@@ -83,6 +83,7 @@ async fn binary_workspace_runtime_streams_sidebar_facts_and_live_edits() {
     let capabilities = [
         "workspace.open.request",
         "workspace.list.request",
+        "checkout.diff.get.request",
         "subscription.release.request",
     ];
     let mut client = connect(&address, &capabilities).await;
@@ -131,6 +132,24 @@ async fn binary_workspace_runtime_streams_sidebar_facts_and_live_edits() {
         list["result"]["entries"][0]["githubRuntime"]["pullRequest"]["number"],
         136
     );
+
+    git(&repo, &["commit", "-am", "feature"]);
+    git(&repo, &["update-ref", "refs/remotes/origin/main", "HEAD"]);
+    let diff = request(
+        &mut reader,
+        "checkout.diff.get.request",
+        json!({"cwd":repo,"compare":{"mode":"base","baseRef":"main"}}),
+    )
+    .await;
+    assert!(diff["result"]["error"].is_null(), "{diff}");
+    assert_eq!(diff["result"]["files"], json!([]));
+    loop {
+        let workspace = next_workspace(&mut client).await;
+        if workspace["diffStat"].is_null() {
+            assert_eq!(workspace["gitRuntime"]["isDirty"], false);
+            break;
+        }
+    }
 
     let released = request(
         &mut client,

@@ -76,6 +76,58 @@ fn sidebar_summary_includes_committed_staged_working_and_untracked_changes() {
 }
 
 #[test]
+fn sidebar_summary_clears_merged_changes_when_origin_main_moves() {
+    use crate::ports::checkout::{CheckoutDiffCompare, CheckoutDiffMode};
+
+    let repo = repository();
+    git(
+        repo.path(),
+        &["update-ref", "refs/remotes/origin/main", "main"],
+    );
+    git(repo.path(), &["checkout", "-b", "feature"]);
+    fs::write(repo.path().join("tracked.txt"), "one\nthree\n").unwrap();
+    git(repo.path(), &["commit", "-am", "feature"]);
+    assert_eq!(
+        summary(repo.path()).diff_stat,
+        Some(WorkspaceDiffStat {
+            additions: 1,
+            deletions: 1
+        })
+    );
+
+    // A fetch after merging moves origin/main while the local main and feature HEAD stay put.
+    git(
+        repo.path(),
+        &["update-ref", "refs/remotes/origin/main", "HEAD"],
+    );
+    let checkout = LocalCheckout::new(repo.path().join("managed"));
+    let diff = checkout
+        .diff(
+            repo.path().to_str().unwrap(),
+            &CheckoutDiffCompare {
+                mode: CheckoutDiffMode::Base,
+                base_ref: Some("main".to_owned()),
+                ignore_whitespace: false,
+            },
+        )
+        .unwrap();
+    assert!(diff.files.is_empty());
+    let merged = summary(repo.path());
+    assert_eq!(merged.is_dirty, Some(false));
+    assert!(merged.diff_stat.is_none());
+
+    fs::write(repo.path().join("tracked.txt"), "one\nthree\nfour\n").unwrap();
+    fs::write(repo.path().join("untracked.txt"), "new\n").unwrap();
+    assert_eq!(
+        summary(repo.path()).diff_stat,
+        Some(WorkspaceDiffStat {
+            additions: 2,
+            deletions: 0
+        })
+    );
+}
+
+#[test]
 fn sidebar_summary_main_compares_against_origin_and_clean_local_repos_hide_counts() {
     let repo = repository();
     assert!(summary(repo.path()).diff_stat.is_none());
