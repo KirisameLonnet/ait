@@ -24,6 +24,9 @@ pub(crate) struct Observation {
     request: WorkspaceListRequest,
     previous: BTreeMap<String, Value>,
     empty_projects: BTreeSet<String>,
+    paths: Vec<String>,
+    git_observer: Option<std::sync::Arc<dyn crate::ports::workspace_git::WorkspaceGitObserver>>,
+    git_interest: Option<Box<dyn crate::ports::workspace_git::WorkspaceGitObservation>>,
 }
 
 pub(super) fn list(
@@ -48,6 +51,11 @@ pub(crate) fn prepare(
     request.subscribe = None;
     let snapshot = snapshot(directory, &request)?;
     let previous = wire_entries(&snapshot.entries)?;
+    let paths = snapshot
+        .entries
+        .iter()
+        .map(|entry| entry.workspace_directory.clone())
+        .collect();
     let empty_projects = snapshot
         .empty
         .iter()
@@ -65,16 +73,35 @@ pub(crate) fn prepare(
             request,
             previous,
             empty_projects,
+            paths,
+            git_observer: directory.git_observer(),
+            git_interest: None,
         },
     ))
 }
 
 impl Observation {
+    pub(crate) fn activate(&mut self) {
+        if let Some(observer) = &self.git_observer {
+            let mut observation = observer.observe();
+            observation.set_paths(&self.paths);
+            self.git_interest = Some(observation);
+        }
+    }
+
     pub(crate) fn update(
         &mut self,
         directory: &Directory,
     ) -> Result<Vec<ServerMessage>, ErrorCode> {
         let snapshot = snapshot(directory, &self.request)?;
+        if let Some(observation) = &mut self.git_interest {
+            self.paths = snapshot
+                .entries
+                .iter()
+                .map(|entry| entry.workspace_directory.clone())
+                .collect();
+            observation.set_paths(&self.paths);
+        }
         let next = wire_entries(&snapshot.entries)?;
         let empty: BTreeMap<_, _> = snapshot
             .empty

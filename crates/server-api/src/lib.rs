@@ -125,6 +125,8 @@ pub struct Services {
     pub agents: Option<Agents>,
     /// Git checkout status, diff, refresh, and history use cases.
     pub checkout: Option<Checkout>,
+    /// Background origin fetches for actively observed workspace repositories.
+    pub git_fetch: Option<server_filesystem::service::git_fetch::GitFetch>,
     /// Paseo Agent runtime directory and metadata lifecycle use cases.
     pub agent_runtime: Option<AgentRuntimeDirectory>,
     /// Daemon status, mutable configuration, diagnostics, and update boundary.
@@ -210,13 +212,13 @@ impl Api {
             limits: Limits::default(),
         }));
         let worktrees = services.worktrees;
-        let directory = services.directory.map(|directory| {
-            if let Some(worktrees) = &worktrees {
-                directory.with_worktrees(Arc::new(WorkspaceWorktrees::new(worktrees.clone())))
-            } else {
-                directory
-            }
-        });
+        let (directory, has_git_fetch) = compose_directory(
+            services.directory,
+            worktrees.as_ref(),
+            services.git_fetch,
+            &runtime,
+            &session_events,
+        );
         let metadata = Arc::new(server_metadata::dispatch::State {
             push_tokens: services.push_tokens.map(shared_service),
             runtime: runtime.clone(),
@@ -229,6 +231,7 @@ impl Api {
             creations,
             has_agent_execution: services.agent_execution.is_some(),
             has_terminals: services.terminals.is_some(),
+            has_git_fetch,
         });
         let filesystem = Arc::new(server_filesystem::dispatch::State {
             metadata_generator: services.metadata_generator,
@@ -528,6 +531,29 @@ async fn upgrade(
 
 #[cfg(test)]
 mod tests;
+
+fn compose_directory(
+    directory: Option<Directory>,
+    worktrees: Option<&Arc<Mutex<Worktrees>>>,
+    git_fetch: Option<server_filesystem::service::git_fetch::GitFetch>,
+    runtime: &Arc<Runtime>,
+    events: &server_metadata::service::session::SessionEvents,
+) -> (Option<Directory>, bool) {
+    let has_git_fetch = directory.is_some() && git_fetch.is_some();
+    let directory = directory.map(|directory| {
+        let directory = if let Some(worktrees) = worktrees {
+            directory.with_worktrees(Arc::new(WorkspaceWorktrees::new(worktrees.clone())))
+        } else {
+            directory
+        };
+        if let Some(fetch) = git_fetch {
+            directory.with_git_observer(fetch.start(runtime, events.clone()))
+        } else {
+            directory
+        }
+    });
+    (directory, has_git_fetch)
+}
 
 fn shared_service<S>(service: S) -> Arc<Mutex<S>> {
     Arc::new(Mutex::new(service))

@@ -1181,6 +1181,7 @@ export const ptBR: TranslationResources = {
       appName: "Ait",
     },
     sections: {
+      workspaces: "Espaços de trabalho",
       sessions: "Histórico",
       search: "Buscar",
       schedules: "Agendamentos",
@@ -1330,7 +1331,24 @@ export const ptBR: TranslationResources = {
     },
     daemon: {
       listen: en.desktop.daemon.listen,
-      lifecycle: en.desktop.daemon.lifecycle,
+      lifecycle: {
+        owned: "Iniciado por esta sessão do Desktop",
+        attached: "Conectado a um daemon existente",
+        ownedMessage: "Este daemon foi iniciado por esta sessão do Desktop.",
+        attachedMessage: "Este daemon não foi iniciado por esta sessão do Desktop.",
+        stopTitle: "Parar o daemon local?",
+        stopMessage:
+          "{{ownership}}\nDiretório pessoal: {{home}}\nPID do supervisor: {{pid}}\nOs trabalhos de agentes em execução serão interrompidos.",
+        stop: "Parar daemon",
+        stopping: "Parando…",
+        stopFailed: "Não foi possível parar o daemon",
+        pauseAttached:
+          "Pausar o gerenciamento automático do daemon? O daemon conectado continuará em execução.",
+        pause: "Pausar gerenciamento",
+        workerUpdated: "Worker atualizado para {{version}}",
+        supervisorRefresh:
+          "O supervisor em execução mantém seu código original. O programa que o iniciou deve pará-lo e iniciá-lo novamente para atualizá-lo.",
+      },
       title: "Daemon",
       status: {
         title: "Status",
@@ -1644,6 +1662,19 @@ export const ptBR: TranslationResources = {
     },
   },
   providerUsage: {
+    error: "Erro",
+    unavailable: "Indisponível",
+    updated: "Atualizado {{time}}",
+    remaining: "{{amount}} restantes",
+    resettingNow: "redefinindo agora",
+    resets: "redefine em {{time}}",
+    runsOutNow: "esgota agora",
+    runsOut: "esgota em {{time}}",
+    justNow: "agora mesmo",
+    ago: "há {{time}}",
+    days: "{{count}} d",
+    hours: "{{count}} h",
+    minutes: "{{count}} min",
     title: "Uso do plano",
     refresh: "Atualizar",
     refreshing: "Atualizando...",
@@ -2464,6 +2495,9 @@ export const ptBR: TranslationResources = {
       agents: {
         unavailable: "Conecte-se a este host para gerenciar agentes",
         browserTools: {
+          title: "Ferramentas do navegador",
+          hint: "Permita que agentes acessem e controlem abas do navegador Ait, incluindo sessões conectadas. Ative apenas para agentes em que você confia.",
+          updating: "Atualizando ferramentas do navegador…",
           accessibilityLabel: "Ativar ferramentas do navegador",
         },
       },

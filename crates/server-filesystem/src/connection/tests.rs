@@ -32,6 +32,7 @@ impl Harness {
             runtime: Arc::new(Runtime::new(ServerInfo {
                 server_id: "test-server".to_owned(),
                 instance_id: "test-instance".to_owned(),
+                version: None,
                 listen: "127.0.0.1:0".to_owned(),
                 lifecycle: Lifecycle::Ready,
                 protocol: server_model::server::VERSION,

@@ -1,10 +1,27 @@
 # 概念与架构文档
 
+- [ADR-071：Diff 服务端语法高亮](decisions/adr-071-checkout-diff-syntax-highlighting.md)：参照 Paseo 读取比较两侧快照、填充语法 token 和按行号重建；[修复报告](reports/diff-syntax-highlighting.md)。
+
+- [ADR-070：Ait iOS TestFlight 手动发布工作流](decisions/adr-070-ios-testflight-release.md)（Accepted）：
+  手动 GitHub Actions 工作流、稳定标签 → 桌面 Release → 手动触发的固定顺序、`ios-testflight`
+  environment 审核人门禁、仅 `EXPO_TOKEN` 一个 Secret、EAS 托管签名/ASC 凭据、`ait` profile、
+  重复构建快速失败与显式 `build_id` 重试、不自动提交 App Store 审核；[操作指南](operations/releasing.md#apple-testflight-ios-手动发布)。
+
+- [ADR-069：活跃工作区的后台 Git fetch](decisions/adr-069-background-git-fetch.md)：
+  目录订阅观察生命周期、仓库去重、180 秒远端刷新、取消回收及 Git 状态推送；
+  [验证报告](reports/background-git-fetch.md)。
+
 - [ADR-068：Workspace 侧边栏运行时摘要](decisions/adr-068-workspace-runtime-summaries.md)：
   Git/Forge 缓存投影、目录订阅更新与 Provider 完成后的运行标记收敛；
   [实施报告](reports/workspace-sidebar-runtime.md)。
 
-- [ADR-067：Diff 服务端语法高亮](decisions/adr-067-checkout-diff-syntax-highlighting.md)：参照 Paseo 读取比较两侧快照、填充语法 token 和按行号重建；[修复报告](reports/diff-syntax-highlighting.md)。
+- [ADR-067：DeepSeek Harness ACP Provider](decisions/adr-067-deepseek-harness-acp.md)：
+  Rust stdio ACP、动态模型与推理等级、工具/审批、取消、恢复及无历史重放的时间线保护；
+  [使用说明](operations/deepseek-harness.md)、[验证报告](reports/deepseek-harness-acp.md)。
+
+- [Ait 0.0.13 发布说明](reports/release-0.0.13.md)：DeepSeek 模型发现修复、移动端手动发布流程和发布验证。
+
+- [Ait 0.0.12 发布说明](reports/release-0.0.12.md)：DeepSeek Harness、后台 Git 刷新、侧边栏状态、本地化更新和发布验证。
 
 - [Ait 0.0.11 发布说明](reports/release-0.0.11.md)：目录实时更新修复、GitLab 支持、升级说明和发布验证。
 - [Ait 0.0.10 发布说明（构建未发布）](reports/release-0.0.10.md)：首次构建记录与失败原因。

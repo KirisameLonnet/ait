@@ -150,6 +150,11 @@ async fn discover(client: &dyn AgentClient, cwd: &str) -> Entry {
     };
     let mut value = json!({"provider":client.provider(),"status":status,"enabled":true,"source":"builtin",
         "models":details.models,"modes":details.modes,"fetchedAt":Utc::now().to_rfc3339()});
+    if client.provider() == "deepseek-harness" {
+        value["label"] = json!("DeepSeek Harness");
+        value["description"] = json!("DeepSeek Harness via Agent Client Protocol");
+        value["defaultModeId"] = Value::Null;
+    }
     if let Some(error) = error {
         value["error"] = json!(error);
     }

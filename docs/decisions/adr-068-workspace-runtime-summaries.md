@@ -1,6 +1,6 @@
 # ADR-068：Workspace 侧边栏运行时摘要
 
-状态：Accepted  
+状态：Accepted
 日期：2026-10-02
 
 ## 背景

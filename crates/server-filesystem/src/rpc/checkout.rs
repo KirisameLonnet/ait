@@ -351,7 +351,7 @@ fn protocol_branch_suggestion(
     }
 }
 
-fn protocol_status(
+pub(crate) fn protocol_status(
     cwd: &str,
     result: Result<port::CheckoutStatus, port::CheckoutRuntimeError>,
 ) -> protocol::CheckoutStatusResult {

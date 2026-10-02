@@ -1,4 +1,4 @@
-# ADR-067：在 Rust checkout adapter 生成 Diff 语法 token
+# ADR-071：在 Rust checkout adapter 生成 Diff 语法 token
 
 状态：Accepted（2026-10-02）
 

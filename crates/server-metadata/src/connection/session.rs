@@ -57,6 +57,7 @@ pub(crate) fn subscribe(
             ) && !state.has_agent_execution)
                 || (event == "status.daemon_config_changed" && state.daemon.is_none())
                 || (event == "terminal_attention_required" && !state.has_terminals)
+                || (event == "checkout_status_update" && !state.has_git_fetch)
         }) {
             return Err(ErrorCode::UnsupportedCapability);
         }

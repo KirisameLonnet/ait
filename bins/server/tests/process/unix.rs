@@ -44,6 +44,10 @@ fn start_with_path(directory: &Path, log: &Path, path: Option<&std::ffi::OsStr>)
             directory.parent().unwrap().join("claude"),
         )
         .env(
+            "AIT_SERVER_DEEPSEEK_HARNESS_BIN",
+            directory.parent().unwrap().join("dsh"),
+        )
+        .env(
             "CLAUDE_CONFIG_DIR",
             directory.parent().unwrap().join("claude-config"),
         )
@@ -71,6 +75,9 @@ mod agent_execution;
 
 #[path = "claude.rs"]
 mod claude;
+
+#[path = "deepseek_harness.rs"]
+mod deepseek_harness;
 
 #[path = "native.rs"]
 mod native;
@@ -107,6 +114,9 @@ mod workspace_runtime;
 
 #[path = "checkout.rs"]
 mod checkout;
+
+#[path = "git_fetch.rs"]
+mod git_fetch;
 
 #[path = "forge.rs"]
 mod forge;

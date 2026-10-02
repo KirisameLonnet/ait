@@ -1,5 +1,20 @@
 # Ait changelog
 
+## 0.0.13 - 2026-10-02
+
+- Fix DeepSeek model discovery when optional descriptions or default reasoning metadata are absent, and accept null descriptions from older servers.
+- Add a manual iOS TestFlight workflow for published stable releases, with duplicate-build checks and explicit retries.
+- Configure the Ait Android submission profile for Google Play Internal testing and make legacy mobile release workflows manual.
+
+## 0.0.12 - 2026-10-02
+
+- Add DeepSeek Harness as a local ACP provider with model discovery, reasoning options, tool approvals, cancellation, and session restore.
+- Refresh remote Git refs for active workspaces in the background and update checkout status after fetching.
+- Restore workspace sidebar diff counts, pull/merge request status, CI results, and Git hover details.
+- Clear completed and cancelled agent activity reliably while allowing new turns to show their running state.
+- Complete localization of settings, provider usage, terminals, browser tools, and workspace navigation.
+- Add an Ait iOS EAS release profile and remove the obsolete Paseo documentation link.
+
 ## 0.0.11 - 2026-09-30
 
 - Fix live workspace and agent directory updates by translating Rust event names into the client protocol.

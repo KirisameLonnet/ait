@@ -33,6 +33,9 @@ export function serverInfo(info: Payload, implemented: Set<string>): Payload {
     desktopManaged: false,
     sessionEventTypes: [
       "status.server_info",
+      ...(features.has("checkout-git-events-v1") && has("checkout.status.get.request")
+        ? ["checkout_status_update"]
+        : []),
       ...(has("daemon.config.get.request") ? ["status.daemon_config_changed"] : []),
       ...(has("provider.snapshot.get.request")
         ? ["providers_snapshot_update", "agent_attention_required"]
@@ -157,6 +160,10 @@ function providerSnapshot(payload: Payload): Payload {
 
 export function eventMessage(method: string, params: unknown): Payload {
   const payload = object(params);
+  if (method === "checkout.status.update") {
+    // The SDK reuses the correlated status schema for unsolicited updates.
+    return session("checkout_status_update", { requestId: "", ...payload });
+  }
   if (method === "providers_snapshot_update" || method === "provider.snapshot.update") {
     return session("providers_snapshot_update", providerSnapshot(payload));
   }

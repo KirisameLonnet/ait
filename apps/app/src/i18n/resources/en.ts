@@ -1163,6 +1163,7 @@ export const en = {
       appName: "Ait",
     },
     sections: {
+      workspaces: "Workspaces",
       sessions: "History",
       search: "Search",
       schedules: "Schedules",
@@ -1904,6 +1905,19 @@ export const en = {
     },
   },
   providerUsage: {
+    error: "Error",
+    unavailable: "Unavailable",
+    updated: "Updated {{time}}",
+    remaining: "{{amount}} left",
+    resettingNow: "resetting now",
+    resets: "resets {{time}}",
+    runsOutNow: "runs out now",
+    runsOut: "runs out {{time}}",
+    justNow: "just now",
+    ago: "{{time}} ago",
+    days: "{{count}}d",
+    hours: "{{count}}h",
+    minutes: "{{count}}m",
     title: "Plan usage",
     refresh: "Refresh",
     refreshing: "Refreshing...",
@@ -2815,6 +2829,9 @@ export const en = {
       agents: {
         unavailable: "Connect to this host to manage agents",
         browserTools: {
+          title: "Browser tools",
+          hint: "Allow agents to access and control Ait browser tabs, including logged-in browser state. Only enable this for agents you trust.",
+          updating: "Updating browser tools…",
           accessibilityLabel: "Enable browser tools",
         },
       },

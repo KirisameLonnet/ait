@@ -15,6 +15,7 @@ async fn event_topics_require_installed_producers_and_shutdown_follows_the_subsc
         "agent_attention_required",
         "status.daemon_config_changed",
         "providers_snapshot_update",
+        "checkout_status_update",
     ] {
         assert_eq!(
             request(

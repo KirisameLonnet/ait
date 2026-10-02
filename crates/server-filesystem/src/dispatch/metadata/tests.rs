@@ -92,6 +92,7 @@ fn state(root: &std::path::Path, fail: bool) -> (State, std::sync::Arc<Generator
     let runtime = Arc::new(server_model::Runtime::new(server_model::ServerInfo {
         server_id: "test".into(),
         instance_id: "test".into(),
+        version: None,
         listen: "127.0.0.1:0".into(),
         lifecycle: server_model::Lifecycle::Ready,
         protocol: server_model::server::VERSION,

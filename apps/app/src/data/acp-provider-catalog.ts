@@ -128,6 +128,15 @@ const CATALOG_DATA = [
     command: ["npx", "-y", "deepagents-acp@0.1.20"],
   },
   {
+    id: "deepseek-harness",
+    title: "DeepSeek Harness",
+    description: "DeepSeek's agent harness with persistent ACP sessions and native tools",
+    version: "installed",
+    iconId: "deepseek-harness",
+    installLink: "https://github.com/deepseek-ai/deepseek-harness",
+    command: ["dsh", "--profile", "acp"],
+  },
+  {
     id: "devin",
     title: "Devin CLI",
     description: "Cognition's Devin for Terminal via Agent Client Protocol",

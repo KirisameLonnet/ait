@@ -1826,7 +1826,7 @@ dependencies = [
 
 [[package]]
 name = "server-api"
-version = "0.0.11"
+version = "0.0.13"
 dependencies = [
  "axum",
  "chrono",
@@ -1856,7 +1856,7 @@ dependencies = [
 
 [[package]]
 name = "server-bin"
-version = "0.0.11"
+version = "0.0.13"
 dependencies = [
  "anyhow",
  "axum",
@@ -1889,7 +1889,7 @@ dependencies = [
 
 [[package]]
 name = "server-browser"
-version = "0.0.11"
+version = "0.0.13"
 dependencies = [
  "futures-util",
  "serde",
@@ -1902,7 +1902,7 @@ dependencies = [
 
 [[package]]
 name = "server-domain"
-version = "0.0.11"
+version = "0.0.13"
 dependencies = [
  "serde",
  "serde_json",
@@ -1912,7 +1912,7 @@ dependencies = [
 
 [[package]]
 name = "server-filesystem"
-version = "0.0.11"
+version = "0.0.13"
 dependencies = [
  "base64",
  "chrono",
@@ -1935,7 +1935,7 @@ dependencies = [
 
 [[package]]
 name = "server-metadata"
-version = "0.0.11"
+version = "0.0.13"
 dependencies = [
  "base64",
  "chrono",
@@ -1956,7 +1956,7 @@ dependencies = [
 
 [[package]]
 name = "server-model"
-version = "0.0.11"
+version = "0.0.13"
 dependencies = [
  "base64",
  "icu_collator",
@@ -1970,7 +1970,7 @@ dependencies = [
 
 [[package]]
 name = "server-protocol"
-version = "0.0.11"
+version = "0.0.13"
 dependencies = [
  "serde",
  "serde_json",
@@ -1979,7 +1979,7 @@ dependencies = [
 
 [[package]]
 name = "server-provider"
-version = "0.0.11"
+version = "0.0.13"
 dependencies = [
  "base64",
  "chrono",
@@ -2004,7 +2004,7 @@ dependencies = [
 
 [[package]]
 name = "server-schedule"
-version = "0.0.11"
+version = "0.0.13"
 dependencies = [
  "chrono",
  "chrono-tz",
@@ -2020,7 +2020,7 @@ dependencies = [
 
 [[package]]
 name = "server-terminal"
-version = "0.0.11"
+version = "0.0.13"
 dependencies = [
  "chrono",
  "nix 0.31.3",
@@ -2042,7 +2042,7 @@ dependencies = [
 
 [[package]]
 name = "server-voice"
-version = "0.0.11"
+version = "0.0.13"
 dependencies = [
  "axum",
  "base64",

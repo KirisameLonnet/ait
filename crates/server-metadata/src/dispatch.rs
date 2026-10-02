@@ -33,6 +33,8 @@ pub struct State {
     pub has_agent_execution: bool,
     /// Whether terminal hook attention events are installed.
     pub has_terminals: bool,
+    /// Whether background Git observations and checkout state events are installed.
+    pub has_git_fetch: bool,
 }
 
 impl std::ops::Deref for State {

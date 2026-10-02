@@ -226,6 +226,10 @@ impl AgentManager {
             .clients
             .get(&record.provider)
             .ok_or(ErrorCode::UnsupportedCapability)?;
+        if !client.supports_history_replay() {
+            self.loaded_timelines.insert(agent_id.to_owned());
+            return Ok(());
+        }
         let entries = client
             .history(handle, &record.cwd)
             .await

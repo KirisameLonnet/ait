@@ -141,6 +141,7 @@ pub struct WorkspaceCreation<'a> {
 pub struct Directory {
     sync: server_model::directory_sync::DirectorySync,
     activity: activity::ActivityProjection,
+    git_observer: Option<Arc<dyn crate::ports::workspace_git::WorkspaceGitObserver>>,
     creations: super::creation::Creations,
     names: Option<super::workspace_names::WorkspaceNames>,
     runtime_source: Option<Arc<dyn crate::ports::workspace_runtime::WorkspaceRuntimeSource>>,
@@ -179,6 +180,7 @@ impl Directory {
                 uuid::Uuid::new_v4().to_string(),
             ),
             activity: activity::ActivityProjection::default(),
+            git_observer: None,
             creations: super::creation::Creations::default(),
             names: None,
             runtime_source: None,
@@ -228,6 +230,22 @@ impl Directory {
         self.runtime_source
             .as_ref()
             .map(|source| source.snapshot(cwd))
+    }
+
+    /// Install filesystem-owned background Git observations for directory subscriptions.
+    #[must_use]
+    pub fn with_git_observer(
+        mut self,
+        observer: Arc<dyn crate::ports::workspace_git::WorkspaceGitObserver>,
+    ) -> Self {
+        self.git_observer = Some(observer);
+        self
+    }
+
+    pub(crate) fn git_observer(
+        &self,
+    ) -> Option<Arc<dyn crate::ports::workspace_git::WorkspaceGitObserver>> {
+        self.git_observer.clone()
     }
 
     /// Install the shared first-prompt naming coordinator.

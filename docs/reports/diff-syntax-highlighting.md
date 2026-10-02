@@ -1,7 +1,10 @@
 # Diff 代码语法高亮修复
 
 日期：2026-10-02。基线：`e098e9792699a8231c56ca0a8332e86d4007796f` 加当前未提交改动。
-架构决策：[ADR-067](../decisions/adr-067-checkout-diff-syntax-highlighting.md)。
+架构决策：[ADR-071](../decisions/adr-071-checkout-diff-syntax-highlighting.md)。
+
+以下为初始定向验证记录。与最新 main 合并后的完整 PR 检查和当前覆盖率见
+[提交验证报告](diff-pr-validation.md)。
 
 ## 原因与 Paseo 对照
 

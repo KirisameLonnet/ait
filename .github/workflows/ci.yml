@@ -53,6 +53,7 @@ jobs:
               - '.oxfmtrc.json'
               - '.github/workflows/ci.yml'
               - '.github/workflows/release.yml'
+              - '.github/workflows/release-ios-testflight.yml'
 
   rust:
     needs: changes
@@ -60,7 +61,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      # Match rust-toolchain.toml so new stable lints cannot silently break this job.
+      - uses: dtolnay/rust-toolchain@1.98.1
         with:
           components: clippy,rustfmt
       - run: cargo fmt --all --check
@@ -82,6 +84,7 @@ jobs:
       - run: npm run verify:local-packages
       - run: npm run verify:release
       - run: npm run test:release
+      - run: npm run test:mobile-release
       - run: npm run build:desktop-main
       - run: npm run test --workspace=@ait/protocol
       - run: npm run typecheck --workspace=@ait/desktop --workspace=@ait/app
