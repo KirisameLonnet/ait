@@ -72,6 +72,12 @@ async fn discovers_opaque_grouped_models_and_actual_reasoning_choices() {
     assert_eq!(settings["capabilities"]["supportsSessionListing"], false);
     let details = client.discover(&spec.cwd).await.unwrap();
     assert_eq!(details.models.len(), 2);
+    assert!(
+        details
+            .models
+            .iter()
+            .all(|model| model.get("description").is_none())
+    );
     assert_eq!(details.models[0]["id"], PRO);
     assert_eq!(details.models[0]["label"], "DeepSeek V4 Pro");
     assert_eq!(details.models[0]["defaultThinkingOptionId"], "high");

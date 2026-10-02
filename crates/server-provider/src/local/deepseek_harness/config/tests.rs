@@ -82,3 +82,25 @@ fn preserves_empty_provider_default_effort_and_rejects_malformed_catalogs() {
     assert!(super::state(&json!({})).is_err());
     assert!(super::state(&json!({"configOptions":[{"id":"model","type":"select","options":[{"value":1,"name":"bad"}]}]})).is_err());
 }
+
+#[test]
+fn omits_absent_optional_model_fields_and_preserves_descriptions() {
+    let options = json!([{
+        "id":"model", "type":"select", "category":"model", "currentValue":"missing",
+        "options":[
+            {"value":"missing", "name":"Missing"},
+            {"value":"null", "name":"Null", "description":null},
+            {"value":"described", "name":"Described", "description":"Model description"}
+        ]
+    }]);
+    let catalog = details(&options).unwrap();
+    assert!(catalog.models[0].get("description").is_none());
+    assert!(catalog.models[1].get("description").is_none());
+    assert_eq!(catalog.models[2]["description"], "Model description");
+    assert!(
+        catalog
+            .models
+            .iter()
+            .all(|model| model.get("defaultThinkingOptionId").is_none())
+    );
+}
