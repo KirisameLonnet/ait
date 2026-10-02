@@ -14,18 +14,18 @@ The aim of the module is to facilitate creating real-time conversational apps. T
 - Provide volume level both for the input and output samples. Float between 0 and 1.
 - [iOS only] Get microphone mode and prompt user to select a microphone mode.
 
-Check out our [examples/](./examples) to see the module in action.
+Check out our [examples/](examples) to see the module in action.
 
 ## Build from the repository root
 
 ```
 npm ci
-npm run build:app-deps
+npm run build:ui-deps
 ```
 
 ## Usage
 
-Please check out our [examples/](./examples) to get full sample code.
+Please check out our [examples/](examples) to get full sample code.
 
 1. Request permissions for recording audio
 

@@ -36,7 +36,7 @@ const frontend = createServer(async (request, response) => {
     response.setHeader("Content-Type", "text/html");
     response.end('<!doctype html><script src="/fixture.js"></script>');
   } else {
-    const dist = path.join(root, "apps/app/dist");
+    const dist = path.join(root, "apps/mobile/dist");
     const file = path.resolve(dist, `.${pathname}`);
     try {
       if (!file.startsWith(dist + path.sep)) throw new Error("index");
@@ -56,7 +56,7 @@ const frontend = createServer(async (request, response) => {
 try {
   const compiled = await build({
     stdin: {
-      contents: `export { DaemonClient } from '@ait/client/internal/daemon-client'; export { buildRustClientConfig } from './apps/app/src/runtime/rust-server/connection';`,
+      contents: `export { DaemonClient } from '@ait/client/internal/daemon-client'; export { buildRustClientConfig } from './apps/mobile/src/runtime/rust-daemon/connection';`,
       resolveDir: root,
       loader: "ts",
     },
@@ -65,7 +65,7 @@ try {
     format: "iife",
     globalName: "fixture",
     platform: "browser",
-    tsconfig: path.join(root, "apps/app/tsconfig.json"),
+    tsconfig: path.join(root, "apps/mobile/tsconfig.json"),
     plugins: [
       {
         name: "browser-platform",
@@ -86,7 +86,7 @@ try {
   await once(frontend, "listening");
   const origin = `http://127.0.0.1:${frontend.address().port}`;
   backend = spawn(
-    process.env.AIT_SERVER_BIN ?? path.join(root, "target/debug/server"),
+    process.env.AIT_SERVER_BIN ?? path.join(root, "target/debug/daemon"),
     ["--data-dir", path.join(work, "server"), "--listen", "127.0.0.1:0", "--web-origin", origin],
     { env: { ...process.env, AIT_SERVER_TOKEN: token }, stdio: ["ignore", "ignore", "pipe"] },
   );
@@ -108,7 +108,7 @@ try {
     });
     backend.stderr.on("data", (chunk) => {
       output += chunk.toString();
-      const match = output.match(/server ready\s+listen=(127\.0\.0\.1:\d+)/);
+      const match = output.match(/daemon ready\s+listen=(127\.0\.0\.1:\d+)/);
       if (match) {
         clearTimeout(timeout);
         resolve(match[1]);

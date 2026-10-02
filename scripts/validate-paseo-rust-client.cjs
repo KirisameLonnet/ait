@@ -20,7 +20,7 @@ const filesOnly = process.argv.includes("--files");
 const focused = terminalOnly || filesOnly;
 const upstream = focused ? repo : process.env.PASEO_SOURCE_ROOT || path.resolve(repo, "../paseo");
 const deps = process.env.PASEO_TEST_DEPS || path.join(repo, "node_modules");
-const serverBinary = process.env.AIT_SERVER_BIN || path.join(repo, "target/debug/server");
+const serverBinary = process.env.AIT_SERVER_BIN || path.join(repo, "target/debug/daemon");
 const work = fs.mkdtempSync(path.join(os.tmpdir(), "ait-paseo-validation-"));
 const pin = "2c8e8a826810337492cc5a38bb0bbd705b6fb632";
 const resolve = (name) => require.resolve(name, { paths: [deps, repo] });
@@ -35,7 +35,7 @@ const wsModule = require(wsPath);
 const WebSocket = wsModule.WebSocket || wsModule.ws || wsModule;
 let DaemonClient,
   WSOutboundMessageSchema,
-  createRustServerTransportFactory,
+  createRustDaemonTransportFactory,
   createDesktopDaemonTransportFactory,
   createLocalTransportManager,
   LiveFileModel;
@@ -84,10 +84,10 @@ async function buildFixtures() {
   );
   for (const [name, entry] of [
     ["sdk", path.join(work, "sdk-entry.ts")],
-    ["adapter", path.join(repo, "apps/app/src/runtime/rust-server/transport.ts")],
-    ["renderer", path.join(repo, "apps/app/src/desktop/daemon/desktop-daemon-transport.ts")],
-    ["main", path.join(repo, "apps/paseo/src/daemon/local-transport.ts")],
-    ["file-model", path.join(repo, "apps/app/src/file-pane/live-file/model.ts")],
+    ["adapter", path.join(repo, "apps/mobile/src/runtime/rust-daemon/transport.ts")],
+    ["renderer", path.join(repo, "apps/mobile/src/desktop/daemon/desktop-daemon-transport.ts")],
+    ["main", path.join(repo, "apps/desktop/src/daemon/local-transport.ts")],
+    ["file-model", path.join(repo, "apps/mobile/src/file-pane/live-file/model.ts")],
   ]) {
     await esbuild.build({
       entryPoints: [entry],
@@ -153,7 +153,7 @@ async function runIntegration() {
       sendMessage: (input) => manager.send(input),
       closeSession: async (id) => manager.close(id),
     });
-    const factory = createRustServerTransportFactory(base);
+    const factory = createRustDaemonTransportFactory(base);
     const checkedFactory = (options) => {
       const t = factory(options);
       t.onMessage((data, binary) => {
@@ -509,7 +509,7 @@ function runUnitTests() {
       find: "@ait/client/internal/daemon-client-websocket-transport",
       replacement: path.join(upstream, "packages/client/src/daemon-client-websocket-transport.ts"),
     },
-    { find: "@", replacement: path.join(repo, "apps/app/src") },
+    { find: "@", replacement: path.join(repo, "apps/mobile/src") },
     { find: "zod", replacement: resolve("zod") },
     {
       find: "vitest",
@@ -541,22 +541,22 @@ vi.mock('@/desktop/daemon/local-daemon-transport-rpc', () => ({ defaultLocalDaem
     test: {
       setupFiles: [path.join(work, "setup.mjs")],
       include: [
-        "apps/app/src/runtime/rust-server/transport.test.ts",
-        "apps/app/src/utils/test-daemon-connection.test.ts",
-        "apps/app/src/desktop/daemon/desktop-daemon-transport.test.ts",
-        "apps/paseo/src/daemon/local-transport.test.ts",
+        "apps/mobile/src/runtime/rust-daemon/transport.test.ts",
+        "apps/mobile/src/utils/test-daemon-connection.test.ts",
+        "apps/mobile/src/desktop/daemon/desktop-daemon-transport.test.ts",
+        "apps/desktop/src/daemon/local-transport.test.ts",
         ...(filesOnly
           ? [
-              "apps/app/src/file-pane/live-file/model.test.ts",
-              "apps/app/src/file-explorer/preview-target.test.ts",
-              "apps/app/src/assistant-file-links/resolver.test.ts",
-              "apps/app/src/assistant-file-links/parse.test.ts",
+              "apps/mobile/src/file-pane/live-file/model.test.ts",
+              "apps/mobile/src/file-explorer/preview-target.test.ts",
+              "apps/mobile/src/assistant-file-links/resolver.test.ts",
+              "apps/mobile/src/assistant-file-links/parse.test.ts",
             ]
           : [
-              "apps/app/src/terminal/runtime/terminal-stream-controller.test.ts",
-              "apps/app/src/utils/terminal-renderer-readiness.test.ts",
-              "apps/app/src/components/terminal-pane-focus-claim.test.ts",
-              "apps/paseo/src/window/compositor-watchdog/index.test.ts",
+              "apps/mobile/src/terminal/runtime/terminal-stream-controller.test.ts",
+              "apps/mobile/src/utils/terminal-renderer-readiness.test.ts",
+              "apps/mobile/src/components/terminal-pane-focus-claim.test.ts",
+              "apps/desktop/src/window/compositor-watchdog/index.test.ts",
             ]),
       ],
       environment: "node",
@@ -583,14 +583,14 @@ vi.mock('@/desktop/daemon/local-daemon-transport-rpc', () => ({ defaultLocalDaem
         }).trim(),
         pin,
       );
-    assert(fs.existsSync(serverBinary), "Build server-bin or set AIT_SERVER_BIN");
+    assert(fs.existsSync(serverBinary), "Build daemon or set AIT_SERVER_BIN");
     fs.writeFileSync(
       path.join(work, "ws.cjs"),
       `const mod=require(${JSON.stringify(wsPath)});exports.WebSocket=mod.WebSocket||mod.ws||mod;`,
     );
     await buildFixtures();
     ({ DaemonClient, WSOutboundMessageSchema } = require(path.join(work, "sdk.cjs")));
-    ({ createRustServerTransportFactory } = require(path.join(work, "adapter.cjs")));
+    ({ createRustDaemonTransportFactory } = require(path.join(work, "adapter.cjs")));
     ({ createDesktopDaemonTransportFactory } = require(path.join(work, "renderer.cjs")));
     ({ createLocalTransportManager } = require(path.join(work, "main.cjs")));
     ({ LiveFileModel } = require(path.join(work, "file-model.cjs")));

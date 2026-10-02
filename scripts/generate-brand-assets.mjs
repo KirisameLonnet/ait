@@ -6,7 +6,7 @@ import sharp from "sharp";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const check = process.argv.includes("--check");
 const syncNative = process.argv.includes("--sync-native");
-const brand = JSON.parse(await readFile(resolve(root, "apps/app/src/branding/ait-mark.json")));
+const brand = JSON.parse(await readFile(resolve(root, "apps/mobile/src/branding/ait-mark.json")));
 const { colors, placements } = brand;
 const outputs = new Map();
 
@@ -142,11 +142,11 @@ for (const [filename, size] of Object.entries({
   "256x256.png": 256,
   "512x512.png": 512,
 }))
-  add(`apps/paseo/assets/${filename}`, await png(size <= 32 ? favicon("light") : tile, size));
-add("apps/paseo/assets/icon.ico", await ico());
-add("apps/paseo/assets/icon.icns", await icns());
+  add(`apps/desktop/assets/${filename}`, await png(size <= 32 ? favicon("light") : tile, size));
+add("apps/desktop/assets/icon.ico", await ico());
+add("apps/desktop/assets/icon.icns", await icns());
 
-const images = "apps/app/assets/images";
+const images = "apps/mobile/assets/images";
 add(`${images}/icon.png`, await png(mobile, 1024, true));
 add(`${images}/android-icon-foreground.png`, await png(adaptive, 1024));
 add(`${images}/notification-icon.png`, await png(svg(bird(placements.icon, colors.surface)), 96));
@@ -167,7 +167,7 @@ for (const [name, size] of [
   ["pwa-icon-512", 512],
 ]) {
   add(
-    `apps/app/public/${name}.png`,
+    `apps/mobile/public/${name}.png`,
     await png(name === "apple-touch-icon" ? mobile : maskable, size, true),
   );
 }
@@ -175,7 +175,7 @@ for (const [name, size] of [
 // Native folders are generated/ignored. Refresh an existing iOS prebuild explicitly;
 // clean prebuilds consume app.config.js and the assets above automatically.
 if (syncNative) {
-  const ios = resolve(root, "apps/app/ios");
+  const ios = resolve(root, "apps/mobile/ios");
   let projects = [];
   try {
     projects = await readdir(ios, { withFileTypes: true });
@@ -183,7 +183,7 @@ if (syncNative) {
     if (error.code !== "ENOENT") throw error;
   }
   for (const project of projects.filter((entry) => entry.isDirectory() && entry.name !== "Pods")) {
-    const catalog = `apps/app/ios/${project.name}/Images.xcassets`;
+    const catalog = `apps/mobile/ios/${project.name}/Images.xcassets`;
     try {
       await access(resolve(root, catalog));
     } catch (error) {

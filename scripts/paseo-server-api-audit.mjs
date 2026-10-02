@@ -21,7 +21,7 @@ const { SessionInboundMessageSchema } = await tsImport(
   import.meta.url,
 );
 const sha = (text) => crypto.createHash("sha256").update(text).digest("hex");
-const catalog = fs.readFileSync("crates/server-protocol/src/methods.rs", "utf8");
+const catalog = fs.readFileSync("crates/protocol/src/methods.rs", "utf8");
 const mapping = new Map(
   [...catalog.matchAll(/(request|event|response)!\(\s*(\w+),\s*"([^"]+)",\s*"([^"]+)"\s*\)/g)].map(
     (match) => [match[3], { kind: match[1], group: match[2], canonical: match[4] }],
@@ -29,7 +29,7 @@ const mapping = new Map(
 );
 const excluded = new Set(
   fs
-    .readFileSync("crates/server-protocol/src/methods/fixtures/excluded-inbound.txt", "utf8")
+    .readFileSync("crates/protocol/src/methods/fixtures/excluded-inbound.txt", "utf8")
     .split("\n")
     .filter((line) => line && !line.startsWith("#")),
 );
@@ -161,7 +161,7 @@ assert.equal(
   new Set(entries.filter((entry) => !entry.excluded).map((entry) => entry.canonical)).size,
   168,
 );
-const fixture = "crates/server-protocol/src/methods/fixtures/paseo-api-contracts.json";
+const fixture = "crates/protocol/src/methods/fixtures/paseo-api-contracts.json";
 const source = {
   revision,
   packageVersion: JSON.parse(
@@ -192,8 +192,8 @@ const rows = entries.map((entry) => {
   return `| \`${entry.name}\` | ${entry.canonical ? `\`${entry.canonical}\`` : "已移除"} | ${fields} | ${entry.excluded ? "—" : handlers} | ${entry.assessment} |`;
 });
 write(
-  "docs/reports/paseo-server-api-matrix-2026-09-29.md",
-  `# Paseo Server 逐接口索引\n\n由 \`scripts/paseo-server-api-audit.mjs\` 从本地 Paseo \`${revision}\` 的真实 Zod union 生成。\n205 个入站名称，34 个已明确移除，171 个有效名称归并为 168 个 canonical 方法。\n完整嵌套字段、每项 schema 指纹、上游分派位置和关联 Rust 测试保存在\n[契约快照](../../${fixture})；测试索引不是逐项语义覆盖率。\n\n[修复、验证与未覆盖范围](paseo-server-api-audit-2026-09-29.md)。表格不以“有路由”推断完全兼容。\n\n| Paseo 入站名称 | Ait 方法 | 上游输入字段 | Rust 入口 | 对照结果 / 限制 |\n| --- | --- | --- | --- | --- |\n${rows.join("\n")}\n`,
+  "docs/reports/daemon/paseo-api-matrix-2026-09-29.md",
+  `# Paseo Server 逐接口索引\n\n由 \`scripts/paseo-server-api-audit.mjs\` 从本地 Paseo \`${revision}\` 的真实 Zod union 生成。\n205 个入站名称，34 个已明确移除，171 个有效名称归并为 168 个 canonical 方法。\n完整嵌套字段、每项 schema 指纹、上游分派位置和关联 Rust 测试保存在\n[契约快照](../../../${fixture})；测试索引不是逐项语义覆盖率。\n\n[修复、验证与未覆盖范围](paseo-api-audit-2026-09-29.md)。表格不以“有路由”推断完全兼容。\n\n| Paseo 入站名称 | Ait 方法 | 上游输入字段 | Rust 入口 | 对照结果 / 限制 |\n| --- | --- | --- | --- | --- |\n${rows.join("\n")}\n`,
 );
 console.log(
   JSON.stringify({

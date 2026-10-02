@@ -4,8 +4,8 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-rust = (ROOT / "crates/server-protocol/src/methods.rs").read_text()
-client = (ROOT / "apps/app/src/runtime/rust-server/methods.ts").read_text()
+rust = (ROOT / "crates/protocol/src/methods.rs").read_text()
+client = (ROOT / "apps/mobile/src/runtime/rust-daemon/methods.ts").read_text()
 expected = {
     source: (kind, canonical)
     for kind, _, source, canonical in re.findall(

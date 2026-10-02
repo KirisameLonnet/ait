@@ -30,13 +30,13 @@ async function responds(url) {
 const expoPort = await freePort();
 const serverPort = await freePort();
 const urls = [`http://127.0.0.1:${expoPort}`, `http://127.0.0.1:${serverPort}/healthz`];
-const child = spawn(process.execPath, [path.join(root, "apps/app/scripts/dev-server.mjs")], {
+const child = spawn(process.execPath, [path.join(root, "apps/mobile/scripts/dev-server.mjs")], {
   cwd: root,
   env: {
     ...process.env,
     AIT_SERVER_TOKEN: token,
     AIT_SERVER_DATA_DIR: data,
-    AIT_SERVER_BIN: process.env.AIT_SERVER_BIN ?? path.join(root, "target/debug/server"),
+    AIT_SERVER_BIN: process.env.AIT_SERVER_BIN ?? path.join(root, "target/debug/daemon"),
     AIT_SERVER_LISTEN: `127.0.0.1:${serverPort}`,
     EXPO_PORT: String(expoPort),
     EXPO_NO_TELEMETRY: "1",
@@ -79,7 +79,7 @@ try {
   console.log(
     JSON.stringify(
       {
-        entrypoint: "dev:app",
+        entrypoint: "dev:mobile",
         frontend: "ready",
         backend: "ready",
         configuredOrigin: "accepted",

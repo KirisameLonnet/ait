@@ -1,0 +1,266 @@
+use std::collections::{BTreeMap, BTreeSet};
+
+use domain::agent_runtime::StoredAgentConfig;
+use serde_json::{Value, json};
+
+use super::{CodexClient, Transport, native_sessions};
+use crate::ports::agent_session::{AgentSessionError, AgentSessionSpec};
+use crate::ports::controls::NativeSubagent;
+
+impl CodexClient {
+    pub(super) async fn query(
+        &self,
+        cwd: &str,
+        method: &str,
+        params: Value,
+    ) -> Result<Value, AgentSessionError> {
+        let mut transport = self.launch_transport(cwd, false)?;
+        let result = async {
+            transport.initialize().await?;
+            transport.request(method, params).await
+        }
+        .await;
+        transport.close().await?;
+        result
+    }
+
+    pub(super) async fn validate_remote(
+        &self,
+        spec: &AgentSessionSpec,
+    ) -> Result<(), AgentSessionError> {
+        super::validate(spec)?;
+        if spec.config.mode_id.as_deref() == Some("auto-review")
+            || spec
+                .config
+                .feature_values
+                .as_ref()
+                .is_some_and(|values| values.contains_key("plan_mode"))
+        {
+            let mut transport = self.launch_transport(&spec.cwd, false)?;
+            let result = async {
+                transport.initialize().await?;
+                self.inspect_workflows(&mut transport).await?;
+                self.validate_workflows(&spec.config)
+            }
+            .await;
+            transport.close().await?;
+            result?;
+        }
+        if !fast(&spec.config) {
+            return Ok(());
+        }
+        let details = self.discover_native(&spec.cwd).await?;
+        let model = details.models.iter().find(|model| {
+            spec.config
+                .model
+                .as_ref()
+                .map_or(model["isDefault"] == true, |id| model["id"] == *id)
+        });
+        if model.is_some_and(|model| model["supportsFastMode"] == true) {
+            Ok(())
+        } else {
+            Err(AgentSessionError::Rejected)
+        }
+    }
+
+    pub(super) async fn native_commands(&self, cwd: &str) -> Result<Vec<Value>, AgentSessionError> {
+        let mut transport = self.launch_transport(cwd, false)?;
+        let result = async {
+            transport.initialize().await?;
+            self.inspect_workflows(&mut transport).await?;
+            let response = transport.request("skills/list", json!({"cwds":[cwd],"forceReload":true})).await?;
+            let mut commands: Vec<_> = skills(&response,cwd)?.into_iter().map(|skill|json!({"name":skill.name,"description":skill.description,"argumentHint":"","kind":"skill"})).collect();
+            commands.push(json!({"name":"compact","description":"Summarize the native conversation context","argumentHint":"","kind":"command"}));
+            if self.goals() { commands.push(json!({"name":"goal","description":"Set, pause, resume or clear the native goal","argumentHint":"[<objective>|pause|resume|clear]","kind":"command"})); }
+            commands.extend(super::prompts::list(&super::prompts::directory()?)?);
+            commands.sort_by(|a,b| a["name"].as_str().cmp(&b["name"].as_str()));
+            Ok(commands)
+        }.await;
+        transport.close().await?;
+        result
+    }
+
+    pub(super) async fn native_subagents(
+        &self,
+        cwd: &str,
+    ) -> Result<Vec<NativeSubagent>, AgentSessionError> {
+        let mut transport = self.launch_transport(cwd, false)?;
+        let result = async {
+            transport.initialize().await?;
+            child_pages(&mut transport).await
+        }
+        .await;
+        transport.close().await?;
+        result
+    }
+}
+
+async fn child_pages(transport: &mut Transport) -> Result<Vec<NativeSubagent>, AgentSessionError> {
+    let mut cursor: Option<String> = None;
+    let mut seen = BTreeSet::new();
+    let mut children = BTreeMap::new();
+    loop {
+        let response = transport.request("thread/list",json!({"cursor":cursor,"limit":100,
+            "sortKey":"updated_at","sortDirection":"desc","sourceKinds":["subAgentThreadSpawn"],"modelProviders":[]})).await?;
+        for thread in response["data"]
+            .as_array()
+            .ok_or(AgentSessionError::Failed)?
+        {
+            let Some(parent) = native_sessions::parent(thread)? else {
+                continue;
+            };
+            let facts = native_sessions::descriptor(thread)?;
+            let status = match thread.pointer("/status/type").and_then(Value::as_str) {
+                Some("active") => "running",
+                Some("systemError") => "failed",
+                Some("idle" | "notLoaded") => "completed",
+                _ => return Err(AgentSessionError::Failed),
+            };
+            let id = facts.provider_handle_id;
+            let child = NativeSubagent {
+                persistence: None,
+                parent_id: parent,
+                cwd: facts.cwd.clone(),
+                id: id.clone(),
+                descriptor: json!({"id":id,"provider":"codex","title":facts.title.or_else(||thread["agentNickname"].as_str().map(str::to_owned)),
+                    "description":facts.first_prompt_preview,"status":status,"createdAt":native_sessions::timestamp(&thread["createdAt"])?,
+                    "updatedAt":facts.last_activity_at,"toolCallId":null,"cwd":facts.cwd,"subtitle":thread["agentRole"].as_str()}),
+            };
+            if let Some(previous) = children.insert(id, child) {
+                let current = children
+                    .get(&previous.id)
+                    .ok_or(AgentSessionError::Failed)?;
+                if previous.parent_id != current.parent_id || previous.cwd != current.cwd {
+                    return Err(AgentSessionError::Failed);
+                }
+            }
+            if children.len() > 4096 {
+                return Err(AgentSessionError::Failed);
+            }
+        }
+        cursor = match &response["nextCursor"] {
+            Value::Null => return Ok(children.into_values().collect()),
+            Value::String(cursor) if !cursor.is_empty() => Some(cursor.clone()),
+            _ => return Err(AgentSessionError::Failed),
+        };
+        if seen.len() >= 64 || !seen.insert(cursor.clone()) {
+            return Err(AgentSessionError::Failed);
+        }
+    }
+}
+
+pub(super) struct Skill {
+    pub(super) name: String,
+    pub(super) description: String,
+    pub(super) path: String,
+}
+
+pub(super) fn skills(response: &Value, cwd: &str) -> Result<Vec<Skill>, AgentSessionError> {
+    let cwd = std::fs::canonicalize(cwd).map_err(|_| AgentSessionError::Failed)?;
+    let mut result = BTreeMap::new();
+    for entry in response["data"]
+        .as_array()
+        .ok_or(AgentSessionError::Failed)?
+    {
+        if entry["cwd"]
+            .as_str()
+            .and_then(|path| std::fs::canonicalize(path).ok())
+            .as_ref()
+            != Some(&cwd)
+        {
+            continue;
+        }
+        if !entry["errors"].as_array().is_some_and(Vec::is_empty) {
+            return Err(AgentSessionError::Failed);
+        }
+        for skill in entry["skills"]
+            .as_array()
+            .ok_or(AgentSessionError::Failed)?
+        {
+            if skill["enabled"] != true {
+                continue;
+            }
+            let name = native_sessions::text(skill, "name")?.to_owned();
+            let path = native_sessions::text(skill, "path")?.to_owned();
+            if !std::path::Path::new(&path).is_absolute() {
+                return Err(AgentSessionError::Failed);
+            }
+            let description = skill["description"]
+                .as_str()
+                .ok_or(AgentSessionError::Failed)?
+                .to_owned();
+            result.entry(name.clone()).or_insert(Skill {
+                name,
+                description,
+                path,
+            });
+        }
+    }
+    Ok(result.into_values().collect())
+}
+
+pub(super) fn fast(config: &StoredAgentConfig) -> bool {
+    config
+        .feature_values
+        .as_ref()
+        .and_then(|values| values.get("fast_mode"))
+        .is_some_and(|value| value == true)
+}
+
+pub(super) fn modes() -> Vec<Value> {
+    vec![
+        json!({"id":"auto","label":"Default Permissions",
+            "description":"Write in the workspace and request approval when needed",
+            "icon":"Shield","colorTier":"moderate"}),
+        json!({"id":"full-access","label":"Full Access",
+            "description":"Run without sandbox restrictions or approval prompts",
+            "icon":"ShieldOff","colorTier":"dangerous","isUnattended":true}),
+    ]
+}
+
+pub(super) fn features(config: &StoredAgentConfig) -> Vec<Value> {
+    vec![json!({"id":"fast_mode","type":"toggle","label":"Fast",
+            "description":"Priority inference at increased usage",
+            "tooltip":"Toggle fast mode","icon":"zap","value":fast(config)})]
+}
+
+pub(super) fn policy(config: &StoredAgentConfig) -> (Value, &str, Value) {
+    let (approval, sandbox) = match config.mode_id.as_deref().unwrap_or("read-only") {
+        "auto" | "auto-review" => ("on-request", "workspace-write"),
+        "full-access" => ("never", "danger-full-access"),
+        _ => ("never", "read-only"),
+    };
+    let options = config.provider_options.as_ref();
+    let mut approval = options
+        .and_then(|options| options.get("approval_policy"))
+        .cloned()
+        .unwrap_or_else(|| json!(approval));
+    crate::local::configuration::complete_codex_approval(&mut approval);
+    let sandbox = options
+        .and_then(|options| options.get("sandbox_mode"))
+        .and_then(Value::as_str)
+        .unwrap_or(sandbox);
+    let mut policy = match sandbox {
+        "workspace-write" => json!({"type":"workspaceWrite","networkAccess":false}),
+        "danger-full-access" => json!({"type":"dangerFullAccess"}),
+        _ => json!({"type":"readOnly","networkAccess":false}),
+    };
+    if sandbox == "workspace-write"
+        && let Some(settings) = options.and_then(|options| options.get("sandbox_workspace_write"))
+    {
+        for (source, target) in [
+            ("writable_roots", "writableRoots"),
+            ("network_access", "networkAccess"),
+            ("exclude_slash_tmp", "excludeSlashTmp"),
+            ("exclude_tmpdir_env_var", "excludeTmpdirEnvVar"),
+        ] {
+            if let Some(value) = settings.get(source) {
+                policy[target] = value.clone();
+            }
+        }
+    }
+    (approval, sandbox, policy)
+}
+
+#[cfg(test)]
+mod tests;

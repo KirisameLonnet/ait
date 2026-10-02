@@ -41,6 +41,9 @@ jobs:
               - '.clippy.toml'
               - '.github/workflows/ci.yml'
             ui:
+              - 'docs/**'
+              - 'README.md'
+              - 'AGENTS.md'
               - 'apps/**'
               - 'packages/**'
               - 'scripts/**'
@@ -83,10 +86,11 @@ jobs:
       - run: npm ci
       - run: npm run verify:local-packages
       - run: npm run verify:release
+      - run: npm run check:docs
       - run: npm run test:release
       - run: npm run test:mobile-release
       - run: npm run build:desktop-main
       - run: npm run test --workspace=@ait/protocol
-      - run: npm run typecheck --workspace=@ait/desktop --workspace=@ait/app
+      - run: npm run typecheck --workspace=@ait/desktop --workspace=@ait/mobile
       - run: npm test --workspace=@ait/desktop
-      - run: npm run test --workspace=@ait/app -- src/i18n/resources.test.ts src/runtime/rust-server maestro/support native-release-version.test.ts
+      - run: npm run test --workspace=@ait/mobile -- src/i18n/resources.test.ts src/runtime/rust-daemon maestro/support native-release-version.test.ts
