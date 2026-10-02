@@ -595,7 +595,8 @@ cargo llvm-cov --workspace --html
 三个配置方法返回 `{agentId, accepted, error, notice}`。省略字段保持原值，null 清除宿主覆盖并
 交给原生 Provider 继承；它不保证回到创建时的模型。修改不打断正在执行的 turn；活动期间成功
 修改会返回下一轮生效的 notice。accepted 只表示保存成功，真实模型可用性仍在执行时验证。
-Codex thinking 支持 none/minimal/low/medium/high/xhigh；模型非空、无控制字符且最多 256 字节。
+Codex thinking 支持 none/minimal/low/medium/high/xhigh/max/ultra；具体模型可选等级以原生
+`model/list` 返回为准。模型非空、无控制字符且最多 256 字节。
 归档 Agent 拒绝修改。批量 config 暂不接受 modeId 或 featureValues；sandbox 仍是只读。
 
 Session 事件支持 `agent_attention_required`、`status.daemon_config_changed`、
