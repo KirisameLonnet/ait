@@ -1,0 +1,46 @@
+{
+  "base_revision": "8bf92d1812a7a5870240ca5256f324011db8f44d",
+  "scope": "Rust workspace, default features, macOS arm64",
+  "command": "cargo llvm-cov --workspace --html",
+  "workspace_lines": {
+    "count": 47358,
+    "covered": 43615,
+    "percent": 92.09637231301998
+  },
+  "server_provider_lines": {
+    "covered": 18355,
+    "count": 19647,
+    "percent": 93.42393240698325
+  },
+  "deepseek_harness_lines": {
+    "covered": 871,
+    "count": 922,
+    "percent": 94.46854663774404
+  },
+  "changed_files": [
+    {
+      "file": "crates/server-provider/src/local/deepseek_harness/config.rs",
+      "lines": {
+        "count": 216,
+        "covered": 210,
+        "percent": 97.22222222222221
+      }
+    }
+  ],
+  "tests": {
+    "passed": 1531,
+    "failed": 0,
+    "ignored": 3
+  },
+  "ignored_tests": [
+    "installed_claude_control_protocol_discovers_models_without_inference",
+    "installed_claude_completes_a_native_turn_and_reopens_history",
+    "installed_codex_completes_a_native_turn_and_reopens_history"
+  ],
+  "notes": [
+    "No comparable baseline was measured.",
+    "Only macOS arm64 was executed; other platforms were unavailable.",
+    "No explicit file exclusions; cargo-llvm-cov default exclusions apply.",
+    "Live authenticated provider tests remain opt-in; ACP behavior is covered by subprocess fixtures."
+  ]
+}

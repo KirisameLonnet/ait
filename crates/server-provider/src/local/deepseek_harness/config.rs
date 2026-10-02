@@ -133,11 +133,17 @@ pub(super) fn details(options: &Value) -> Result<Details, AgentSessionError> {
         models: choices(models)?
             .into_iter()
             .map(|choice| {
-                json!({"provider":PROVIDER,
-            "id":choice["value"],"label":choice["name"],"description":choice["description"],
-            "isDefault":choice["value"] == models["currentValue"],"isSelectable":true,
-            "thinkingOptions":thinking_options,
-            "defaultThinkingOptionId":thinking.map(|option| &option["currentValue"])})
+                let mut model = json!({"provider":PROVIDER,
+                    "id":choice["value"],"label":choice["name"],
+                    "isDefault":choice["value"] == models["currentValue"],"isSelectable":true,
+                    "thinkingOptions":thinking_options});
+                if let Some(description) = choice["description"].as_str() {
+                    model["description"] = json!(description);
+                }
+                if let Some(default) = thinking.and_then(|option| option["currentValue"].as_str()) {
+                    model["defaultThinkingOptionId"] = json!(default);
+                }
+                model
             })
             .collect(),
         ..Details::default()
