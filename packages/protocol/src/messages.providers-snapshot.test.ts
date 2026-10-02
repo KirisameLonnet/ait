@@ -114,6 +114,21 @@ test("accepts a bodyless announcement with separate discovery freshness", async 
   expect(result.success).toBe(true);
 });
 
+test("preserves models without an optional description", () => {
+  const model = { provider: "deepseek", id: "model", label: "Model" };
+  const response = ListProviderModelsResponseMessageSchema.parse({
+    type: "list_provider_models_response",
+    payload: {
+      provider: "deepseek",
+      models: [model],
+      requestId: "models",
+      fetchedAt: "2026-10-02T02:00:00.000Z",
+    },
+  });
+
+  expect(response.payload.models?.[0]).toStrictEqual(model);
+});
+
 test("normalizes null model descriptions from native providers", async () => {
   const model = { provider: "opencode", id: "model", label: "Model", description: null };
   const entry = ProviderSnapshotEntrySchema.parse({
