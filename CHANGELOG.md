@@ -1,5 +1,13 @@
 # Ait changelog
 
+## 0.0.14 - 2026-10-03
+
+- Add theme-aware syntax highlighting to workspace, base, and commit diffs, including multi-line syntax and renamed files.
+- Fix diff parsing when source code contains a `diff --git` string, avoiding phantom file entries.
+- Align workspace sidebar change counts with the fetched origin base and clear stale counts after merge.
+- Accept Codex max and ultra reasoning levels for new and resumed sessions.
+- Show the running server version and update release, documentation, feedback, and community links to ait-app/ait.
+
 ## 0.0.13 - 2026-10-02
 
 - Fix DeepSeek model discovery when optional descriptions or default reasoning metadata are absent, and accept null descriptions from older servers.
