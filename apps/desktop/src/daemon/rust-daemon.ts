@@ -119,6 +119,7 @@ export class RustDaemonManager {
         pid: null,
         listen: null,
         connectAddress: null,
+        version: null,
         ownedByDesktop: false,
         error: null,
       };
@@ -182,6 +183,7 @@ export class RustDaemonManager {
         pid: child.pid ?? null,
         listen: null,
         connectAddress: null,
+        version: null,
         startedAt: new Date().toISOString(),
         ownedByDesktop: true,
         error: null,
@@ -201,6 +203,7 @@ export class RustDaemonManager {
           pid: null,
           listen: null,
           connectAddress: null,
+          version: null,
           ownedByDesktop: false,
           error: failure?.message ?? "Rust daemon exited.",
         };
@@ -226,7 +229,7 @@ export class RustDaemonManager {
         if (!listen) await new Promise((resolve) => setTimeout(resolve, 25));
       }
       if (!listen) throw new Error("Timed out waiting for Rust daemon readiness.");
-      const serverId = await probeRustDaemon(
+      const info = await probeRustDaemon(
         serverConnectAddress(listen),
         this.token!,
         Math.max(1, deadline - Date.now()),
@@ -236,7 +239,7 @@ export class RustDaemonManager {
       this.configuredListen = configuredListen;
       this.state = {
         ...this.state,
-        serverId,
+        ...info,
         listen,
         connectAddress: serverConnectAddress(listen),
         status: "running",
@@ -251,6 +254,7 @@ export class RustDaemonManager {
         pid: null,
         listen: null,
         connectAddress: null,
+        version: null,
         ownedByDesktop: false,
         error: error instanceof Error ? error.message : String(error),
       };
@@ -259,20 +263,24 @@ export class RustDaemonManager {
   }
 }
 
-function probeRustDaemon(listen: string, token: string, timeout: number): Promise<string> {
+function probeRustDaemon(
+  listen: string,
+  token: string,
+  timeout: number,
+): Promise<Pick<RustDaemonStatus, "serverId" | "version">> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(`ws://${listen}/v1/ws`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const timer = setTimeout(() => finish(new Error("Rust daemon handshake timed out.")), timeout);
     let settled = false;
-    const finish = (error?: Error, serverId?: string) => {
+    const finish = (error?: Error, info?: Pick<RustDaemonStatus, "serverId" | "version">) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       ws.close();
       if (error) reject(error);
-      else resolve(serverId!);
+      else resolve(info!);
     };
     ws.on("error", (error) => finish(error));
     ws.on("close", () => finish(new Error("Rust daemon closed before readiness handshake.")));
@@ -291,7 +299,10 @@ function probeRustDaemon(listen: string, token: string, timeout: number): Promis
       try {
         const message = JSON.parse(data.toString());
         if (message.type === "server_info" && typeof message.info?.server_id === "string")
-          finish(undefined, message.info.server_id);
+          finish(undefined, {
+            serverId: message.info.server_id,
+            version: typeof message.info.version === "string" ? message.info.version : null,
+          });
         else finish(new Error("Unexpected Rust daemon readiness response."));
       } catch {
         finish(new Error("Invalid Rust daemon readiness response."));

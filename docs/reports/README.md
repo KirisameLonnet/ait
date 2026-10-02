@@ -71,6 +71,7 @@
 
 ## 客户端、连接与品牌
 
+- [桌面 daemon 版本状态修复](clients/desktop-daemon-version.md)
 - [AIT 飞鸟 Logo 落地报告](clients/ait-brand-rollout.md)
 - [Ait E2E 迁移：提交准备覆盖率报告](clients/ait-e2e-coverage.md)
 - [Ait E2E、运行路径与旧功能清理](clients/ait-e2e-migration.md)

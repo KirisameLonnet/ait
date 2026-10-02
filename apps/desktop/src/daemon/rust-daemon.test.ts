@@ -4,6 +4,9 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { RustDaemonManager, resolveDesktopDaemonHome } from "./rust-daemon";
 
+const { version: expectedVersion } = JSON.parse(
+  readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+);
 const managers: RustDaemonManager[] = [];
 const homes: string[] = [];
 function create(
@@ -88,6 +91,7 @@ describe.skipIf(!process.env.AIT_SERVER_BIN)("real Rust child lifecycle", () => 
     expect(a).toEqual(b);
     expect(a.status).toBe("running");
     expect(a.serverId).not.toBe("");
+    expect(a.version).toBe(expectedVersion);
     const token = manager.authorization(`ws://${a.listen}/v1/ws`)!;
     expect(token).toHaveLength(64);
     expect(manager.authorization(`ws://localhost:${a.listen!.split(":").at(-1)}/v1/ws`)).toBe(
@@ -103,11 +107,13 @@ describe.skipIf(!process.env.AIT_SERVER_BIN)("real Rust child lifecycle", () => 
     expect(manager.status().status).toBe("running");
     const restarted = await manager.restart();
     expect(restarted.serverId).toBe(a.serverId);
+    expect(restarted.version).toBe(expectedVersion);
     expect(restarted.listen).toBe(a.listen);
     expect(restarted.pid).not.toBe(a.pid);
     expect(manager.authorization(`ws://${restarted.listen}/v1/ws`)).not.toBe(token);
     expect(() => process.kill(a.pid!, 0)).toThrow();
     await manager.stop();
+    expect(manager.status()).toMatchObject({ status: "stopped", version: null });
     expect(() => process.kill(restarted.pid!, 0)).toThrow();
     expect(manager.authorization(`ws://${restarted.listen}/v1/ws`)).toBeUndefined();
   }, 40000);
