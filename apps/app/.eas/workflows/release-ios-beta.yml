@@ -1,9 +1,8 @@
 name: Release iOS Beta
 
+# Legacy production/Paseo workflow; this is not the Ait TestFlight path.
 on:
-  push:
-    tags:
-      - "v*-beta.*"
+  workflow_dispatch: {}
 
 jobs:
   build_ios:

@@ -75,7 +75,10 @@ npm run build:ios
 导出可安装或可提交的 IPA，需要自己的 Bundle ID、Apple Team、签名证书和匹配的
 provisioning profile。在 Xcode 的 Signing & Capabilities 配置自己的 Team，按用途导出一次
 ExportOptions.plist（development / ad-hoc / App Store Connect），保存在 Git 之外。
-然后运行：
+Ait 正式 TestFlight 发布不走这条本地签名路径，而是经由托管在 EAS 的签名凭据和手动 GitHub
+Actions 工作流完成，见[发布操作指南的 Apple TestFlight iOS 手动发布一节](releasing.md#apple-testflight-ios-手动发布)
+和 [ADR-070](../decisions/adr-070-ios-testflight-release.md)。
+本地未签名归档流程仍可用于验证原生编译，然后运行：
 
 ```sh
 export APPLE_TEAM_ID='YOURTEAMID'
