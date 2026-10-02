@@ -8,7 +8,7 @@ use server_metadata::ports::workspace_runtime::{WorkspaceDiffStat, WorkspaceGitS
 
 use super::{
     CheckoutFailureKind, CheckoutRuntime, CheckoutRuntimeError, DIFF_OUTPUT_LIMIT, LocalCheckout,
-    SMALL_OUTPUT_LIMIT, checkout_error, diff_head, git_optional, git_required,
+    SMALL_OUTPUT_LIMIT, checkout_error, comparison_base, diff_head, git_optional, git_required,
     require_git_directory, validate_relative_path,
 };
 
@@ -36,7 +36,8 @@ impl LocalCheckout {
         let head = git_optional(&cwd, &["rev-parse", "--verify", "HEAD^{commit}"])?;
         let comparison = match (&status.base_ref, &status.current_branch) {
             (Some(base), Some(branch)) if base != branch => {
-                git_optional(&cwd, &["merge-base", base, "HEAD"])?
+                let base = comparison_base(&cwd, base)?;
+                git_optional(&cwd, &["merge-base", &base, "HEAD"])?
             }
             (_, Some(branch)) => git_optional(
                 &cwd,
