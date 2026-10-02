@@ -34,6 +34,7 @@ impl Fixture {
         let runtime = Arc::new(Runtime::new(ServerInfo {
             server_id: "server".to_owned(),
             instance_id: "instance".to_owned(),
+            version: None,
             listen: "127.0.0.1:7316".to_owned(),
             lifecycle: Lifecycle::Ready,
             protocol: VERSION,

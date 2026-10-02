@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import Constants from "expo-constants";
 import { parseChangelog, type ChangelogRelease } from "./parse-changelog";
 
-const CHANGELOG_URL = "https://raw.githubusercontent.com/necokeine/ait/main/CHANGELOG.md";
+const CHANGELOG_URL = "https://raw.githubusercontent.com/ait-app/ait/main/CHANGELOG.md";
 
 export type ChangelogState =
   | { status: "loading" }

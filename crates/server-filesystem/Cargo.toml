@@ -22,6 +22,7 @@ sha2 = "0.10.9"
 tempfile = "3.27.0"
 thiserror = "2.0.20"
 uuid = { version = "1.22.0", features = ["v4"] }
+two-face = { version = "0.5.2", default-features = false, features = ["syntect-fancy"] }
 
 [target."cfg(unix)".dependencies]
 libc = "0.2"

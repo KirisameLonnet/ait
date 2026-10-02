@@ -179,7 +179,7 @@ export function WelcomeScreen({ onHostAdded }: WelcomeScreenProps) {
   }, [router]);
 
   const handleOpenAitSite = useCallback(() => {
-    void openExternalUrl("https://github.com/necokeine/ait");
+    void openExternalUrl("https://github.com/ait-app/ait");
   }, []);
 
   const handleOpenSettings = useCallback(() => {

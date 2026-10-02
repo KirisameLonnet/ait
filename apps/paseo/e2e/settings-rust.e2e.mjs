@@ -116,7 +116,7 @@ try {
   }
 
   await open("About");
-  const changelogUrl = "https://raw.githubusercontent.com/necokeine/ait/main/CHANGELOG.md";
+  const changelogUrl = "https://raw.githubusercontent.com/ait-app/ait/main/CHANGELOG.md";
   await page.route(changelogUrl, (route) => route.fulfill({ status: 404, body: "Not found" }));
   const unavailableChangelog = page.waitForResponse(changelogUrl);
   await page.getByTestId("settings-whats-new").click();

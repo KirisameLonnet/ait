@@ -3,7 +3,9 @@ use std::process::Command;
 
 use tempfile::TempDir;
 
+mod highlight;
 mod naming;
+mod parser;
 mod paseo;
 
 mod remote_base;

@@ -1,5 +1,7 @@
 # 概念与架构文档
 
+- [ADR-071：Diff 服务端语法高亮](decisions/adr-071-checkout-diff-syntax-highlighting.md)：参照 Paseo 读取比较两侧快照、填充语法 token 和按行号重建；[修复报告](reports/diff-syntax-highlighting.md)。
+
 - [ADR-070：Ait iOS TestFlight 手动发布工作流](decisions/adr-070-ios-testflight-release.md)（Accepted）：
   手动 GitHub Actions 工作流、稳定标签 → 桌面 Release → 手动触发的固定顺序、`ios-testflight`
   environment 审核人门禁、仅 `EXPO_TOKEN` 一个 Secret、EAS 托管签名/ASC 凭据、`ait` profile、

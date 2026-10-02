@@ -11,7 +11,7 @@ import {
 import { useStableEvent } from "@/hooks/use-stable-event";
 import { openExternalUrl } from "@/utils/open-external-url";
 
-const FALLBACK_DOWNLOAD_URL = "https://github.com/necokeine/ait/releases";
+const FALLBACK_DOWNLOAD_URL = "https://github.com/ait-app/ait/releases";
 
 function RosettaCalloutDescription({ t }: { t: ReturnType<typeof useTranslation>["t"] }) {
   return (

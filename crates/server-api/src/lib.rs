@@ -201,6 +201,7 @@ impl Api {
         let creations = creation_receipts(&services);
         let runtime = Arc::new(Runtime::new(ServerInfo {
             server_id,
+            version: Some(env!("CARGO_PKG_VERSION").to_owned()),
             instance_id,
             listen: address.to_string(),
             lifecycle: Lifecycle::Ready,

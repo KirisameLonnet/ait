@@ -29,7 +29,7 @@ export function serverInfo(info: Payload, implemented: Set<string>): Payload {
     status: "server_info",
     serverId: info.server_id,
     hostname: null,
-    version: null,
+    version: typeof info.version === "string" ? info.version : null,
     desktopManaged: false,
     sessionEventTypes: [
       "status.server_info",

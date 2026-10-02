@@ -34,6 +34,23 @@ function info(methods: string[]) {
   return parseServerInfoStatusPayload(object(object(message.message).payload));
 }
 
+describe("Rust server software version", () => {
+  it.each(["0.0.10", "v0.0.11"])("preserves the connected server's version %s", (version) => {
+    const envelope = serverInfo({ server_id: "ait", version }, new Set());
+    const value = parseServerInfoStatusPayload(object(object(envelope.message).payload));
+    expect(value?.version).toBe(version);
+  });
+
+  it.each([undefined, null, 11, { major: 1, minor: 0 }])(
+    "keeps an unknown software version when the server sends %j",
+    (version) => {
+      const envelope = serverInfo({ server_id: "ait", version }, new Set());
+      const value = parseServerInfoStatusPayload(object(object(envelope.message).payload));
+      expect(value?.version).toBeNull();
+    },
+  );
+});
+
 it("preserves Rust timeline search counts in the SDK response envelope", () => {
   const result = {
     agentId: "agent",
