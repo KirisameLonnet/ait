@@ -32,7 +32,7 @@ Cargo.lock、根 package.json、所有活跃 npm workspace 及其 lockfile。然
 
 ```bash
 npm ci
-npm run verify:release -- v0.0.12
+npm run verify:release -- v0.0.13
 npm run test:release
 npm run build:desktop-main
 npm run typecheck --workspace=@ait/desktop --workspace=@ait/app
@@ -46,9 +46,9 @@ npm run typecheck --workspace=@ait/desktop --workspace=@ait/app
 ```bash
 git switch main
 git pull --ff-only
-npm run verify:release -- v0.0.12
-git tag -a v0.0.12 -m "Ait v0.0.12"
-git push origin v0.0.12
+npm run verify:release -- v0.0.13
+git tag -a v0.0.13 -m "Ait v0.0.13"
+git push origin v0.0.13
 ```
 
 `.github/workflows/release.yml` 在 Linux x86_64 和 macOS arm64 原生 runner 上执行：
@@ -278,11 +278,11 @@ eas submit --platform android --profile ait --latest
 3. 手动运行 `Release iOS TestFlight` 工作流，输入同一个已存在的稳定标签：
 
    ```bash
-    gh workflow run release-ios-testflight.yml --ref main -f tag=v0.0.12
+    gh workflow run release-ios-testflight.yml --ref main -f tag=v0.0.13
    ```
 
    `tag` 必须指向已经打好、已经发布且包含 `build.ait` 和 `submit.ait.ios` 的标签；
-   `v0.0.12` 仅示意下一个符合条件的版本，发布前须实际准备并创建该标签。已发布的
+   `v0.0.13` 仅示意下一个符合条件的版本，发布前须实际准备并创建该标签。已发布的
    `v0.0.11` 源码不含这些 profile，不能用它启动此工作流。工作流不创建、也不移动标签。
 
 ### 版本与标签门禁
@@ -341,7 +341,7 @@ profile、对应的 app 版本和 iOS build number，并且状态为 `finished`�
 跑一遍完整构建：
 
 ```bash
-gh workflow run release-ios-testflight.yml --ref main -f tag=v0.0.12 -f build_id=<existing-build-id>
+gh workflow run release-ios-testflight.yml --ref main -f tag=v0.0.13 -f build_id=<existing-build-id>
 ```
 
 ### 不提交 App Store 审核
