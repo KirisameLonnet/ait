@@ -89,6 +89,43 @@ describe("createSidebarWorkspaceEntry workspace directory label", () => {
   });
 });
 
+describe("createSidebarWorkspaceEntry completion reconciliation", () => {
+  it.each([1_000, 2_000])(
+    "retires cached running activity at %i after directory completion",
+    (at) => {
+      const descriptor = workspaceWithForge(undefined, "https://github.com/acme/repo/pull/42");
+      descriptor.statusEnteredAt = new Date(2_000);
+      const activity = new Map([
+        [descriptor.id, { agentId: "agent", status: "running" as const, enteredAt: new Date(at) }],
+      ]);
+
+      // Rebuilding the row when switching workspaces must not resurrect the cached turn.
+      for (let rebuild = 0; rebuild < 2; rebuild += 1) {
+        const entry = createSidebarWorkspaceEntry({
+          serverId: "srv",
+          workspace: descriptor,
+          workspaceAgentActivity: activity,
+        });
+        expect(entry.statusBucket).toBe("done");
+        expect(entry.statusEnteredAt).toEqual(new Date(2_000));
+      }
+    },
+  );
+
+  it("shows a new turn while the Workspace directory still contains the previous completion", () => {
+    const descriptor = workspaceWithForge(undefined, "https://github.com/acme/repo/pull/42");
+    descriptor.statusEnteredAt = new Date(2_000);
+    const entry = createSidebarWorkspaceEntry({
+      serverId: "srv",
+      workspace: descriptor,
+      workspaceAgentActivity: new Map([
+        [descriptor.id, { agentId: "agent", status: "running", enteredAt: new Date(3_000) }],
+      ]),
+    });
+    expect(entry.statusBucket).toBe("running");
+  });
+});
+
 interface OrderedItem {
   key: string;
 }

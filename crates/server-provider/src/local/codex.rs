@@ -992,7 +992,7 @@ fn validate_config(config: &StoredAgentConfig) -> Result<(), AgentSessionError> 
     }) || config.thinking_option_id.as_deref().is_some_and(|effort| {
         !matches!(
             effort,
-            "none" | "minimal" | "low" | "medium" | "high" | "xhigh"
+            "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | "ultra"
         )
     }) || config
         .mode_id

@@ -1,5 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
+  CompactProviderSnapshotModelSchema,
+  ListProviderModelsResponseMessageSchema,
   GetProvidersSnapshotResponseMessageSchema,
   ProviderSnapshotEntrySchema,
   ProvidersSnapshotUpdateMessageSchema,
@@ -110,4 +112,53 @@ test("accepts a bodyless announcement with separate discovery freshness", async 
   expect(ProvidersSnapshotUpdateMessageSchema.parse(message)).toEqual(message);
   const result = validateWSOutboundMessage({ type: "session", message });
   expect(result.success).toBe(true);
+});
+
+test("preserves models without an optional description", () => {
+  const model = { provider: "deepseek", id: "model", label: "Model" };
+  const response = ListProviderModelsResponseMessageSchema.parse({
+    type: "list_provider_models_response",
+    payload: {
+      provider: "deepseek",
+      models: [model],
+      requestId: "models",
+      fetchedAt: "2026-10-02T02:00:00.000Z",
+    },
+  });
+
+  expect(response.payload.models?.[0]).toStrictEqual(model);
+});
+
+test("normalizes null model descriptions from native providers", async () => {
+  const model = { provider: "opencode", id: "model", label: "Model", description: null };
+  const entry = ProviderSnapshotEntrySchema.parse({
+    provider: "opencode",
+    status: "ready",
+    models: [model],
+  });
+  expect(entry.models?.[0]?.description).toBeUndefined();
+  expect(CompactProviderSnapshotModelSchema.parse(model).description).toBeUndefined();
+  const response = ListProviderModelsResponseMessageSchema.parse({
+    type: "list_provider_models_response",
+    payload: {
+      provider: "opencode",
+      models: [model],
+      requestId: "models",
+      fetchedAt: "2026-10-02T02:00:00.000Z",
+    },
+  });
+  expect(response.payload.models?.[0]?.description).toBeUndefined();
+  const { validateWSOutboundMessage } = await import("./validation/ws-outbound.js");
+  const validated = validateWSOutboundMessage({
+    type: "session",
+    message: { ...response, payload: { ...response.payload, models: [model] } },
+  });
+  expect(validated.success).toBe(true);
+  expect(
+    ProviderSnapshotEntrySchema.safeParse({
+      provider: "opencode",
+      status: "ready",
+      models: [{ ...model, description: 42 }],
+    }).success,
+  ).toBe(false);
 });

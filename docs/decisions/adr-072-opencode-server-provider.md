@@ -1,4 +1,4 @@
-# ADR-067：OpenCode 迁入独立 server Provider
+# ADR-072：OpenCode 迁入独立 server Provider
 
 - 状态：Accepted，2026-09-30。
 - 范围：`bins/server` 与 `crates/server-provider`；取代本分支旧 Harness ADR-029 的执行路径。

@@ -1163,6 +1163,7 @@ export const en = {
       appName: "Ait",
     },
     sections: {
+      workspaces: "Workspaces",
       sessions: "History",
       search: "Search",
       schedules: "Schedules",
@@ -1903,6 +1904,32 @@ export const en = {
       hostDisconnected: "Host is not connected",
     },
   },
+  providerUsage: {
+    error: "Error",
+    unavailable: "Unavailable",
+    updated: "Updated {{time}}",
+    remaining: "{{amount}} left",
+    resettingNow: "resetting now",
+    resets: "resets {{time}}",
+    runsOutNow: "runs out now",
+    runsOut: "runs out {{time}}",
+    justNow: "just now",
+    ago: "{{time}} ago",
+    days: "{{count}}d",
+    hours: "{{count}}h",
+    minutes: "{{count}}m",
+    title: "Plan usage",
+    refresh: "Refresh",
+    refreshing: "Refreshing...",
+    loading: "Loading usage...",
+    empty: "No usage data",
+    errorTitle: "Unable to load usage",
+    hostUnavailable: "Connect to this host to see provider usage",
+    hostUpgradeRequired: "Update the host to see provider usage",
+    clientUnavailable: "Host connection is not ready",
+    retry: "Try again",
+    tooltipLoading: "Loading plan usage…",
+  },
   pairing: {
     connectionMethods: {
       title: "Add connection",
@@ -2392,7 +2419,6 @@ export const en = {
       preferredHint: "Choose the model Ait uses",
       model: "Model",
       fallbackHint: "If it is unavailable, Ait falls back to another available model",
-      docs: "Docs",
       saveError: "Unable to update metadata generation",
     },
     general: {
@@ -2802,9 +2828,30 @@ export const en = {
       },
       agents: {
         unavailable: "Connect to this host to manage agents",
+        browserTools: {
+          title: "Browser tools",
+          hint: "Allow agents to access and control Ait browser tabs, including logged-in browser state. Only enable this for agents you trust.",
+          updating: "Updating browser tools…",
+          accessibilityLabel: "Enable browser tools",
+        },
       },
       workspaces: {
         unavailable: "Connect to this host to manage workspaces",
+        archiveMergedPr: {
+          title: "Archive merged PR workspaces",
+          hint: "Automatically archive clean Ait workspaces after their pull request is merged",
+          accessibilityLabel: "Archive merged PR workspaces",
+          updateFailed: "Unable to update workspaces",
+        },
+      },
+      terminalAgents: {
+        title: "Terminal agents",
+      },
+      terminalAgentHooks: {
+        title: "Enable terminal agent hooks",
+        hint: "Get notifications and status from terminal agents. This installs hooks in your agent config files.",
+        accessibilityLabel: "Enable terminal agent hooks",
+        updateFailed: "Unable to update terminal agent hooks",
       },
       terminalProfiles: {
         unavailable: "Connect to this host to manage terminal profiles",

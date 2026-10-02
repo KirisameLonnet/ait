@@ -4,6 +4,9 @@ use super::super::transport::Socket;
 use super::*;
 use futures_util::StreamExt;
 
+#[path = "directory_sync/completion.rs"]
+mod completion;
+
 #[tokio::test]
 async fn websocket_directory_streams_keep_sequences_ownership_and_reconnect_checkpoints() {
     let super::super::native::NativeFixture { root, cwd, path } =

@@ -1173,6 +1173,7 @@ export const ru: TranslationResources = {
       appName: "Ait",
     },
     sections: {
+      workspaces: "Рабочие пространства",
       sessions: "История",
       search: "Поиск",
       schedules: "Расписания",
@@ -1323,7 +1324,24 @@ export const ru: TranslationResources = {
     },
     daemon: {
       listen: en.desktop.daemon.listen,
-      lifecycle: en.desktop.daemon.lifecycle,
+      lifecycle: {
+        owned: "Запущен этим сеансом Desktop",
+        attached: "Подключён к существующему демону",
+        ownedMessage: "Этот демон запущен этим сеансом Desktop.",
+        attachedMessage: "Этот демон запущен не этим сеансом Desktop.",
+        stopTitle: "Остановить локальный демон?",
+        stopMessage:
+          "{{ownership}}\nДомашний каталог: {{home}}\nPID супервизора: {{pid}}\nТекущие задачи агентов будут прерваны.",
+        stop: "Остановить демон",
+        stopping: "Остановка…",
+        stopFailed: "Не удалось остановить демон",
+        pauseAttached:
+          "Приостановить автоматическое управление демоном? Подключённый демон продолжит работу.",
+        pause: "Приостановить управление",
+        workerUpdated: "Рабочий процесс обновлён до {{version}}",
+        supervisorRefresh:
+          "Работающий супервизор сохраняет исходный код. Запустившая его программа должна остановить и снова запустить его для обновления.",
+      },
       title: "Демон",
       status: {
         title: "Статус",
@@ -1640,6 +1658,32 @@ export const ru: TranslationResources = {
       workspaceDirectoryNotFound: "Каталог рабочего пространства не найден",
       hostDisconnected: "Хост не подключён",
     },
+  },
+  providerUsage: {
+    error: "Ошибка",
+    unavailable: "Недоступно",
+    updated: "Обновлено {{time}}",
+    remaining: "Осталось {{amount}}",
+    resettingNow: "сброс сейчас",
+    resets: "сброс через {{time}}",
+    runsOutNow: "заканчивается сейчас",
+    runsOut: "заканчивается через {{time}}",
+    justNow: "только что",
+    ago: "{{time}} назад",
+    days: "{{count}} д",
+    hours: "{{count}} ч",
+    minutes: "{{count}} мин",
+    title: "Использование по тарифу",
+    refresh: "Обновить",
+    refreshing: "Обновление...",
+    loading: "Загрузка использования...",
+    empty: "Нет данных об использовании",
+    errorTitle: "Не удалось загрузить использование",
+    hostUnavailable: "Подключитесь к этому хосту, чтобы увидеть использование провайдеров",
+    hostUpgradeRequired: "Обновите этот хост, чтобы увидеть использование провайдеров",
+    clientUnavailable: "Подключение к хосту не готово",
+    retry: "Повторить",
+    tooltipLoading: "Загрузка использования по тарифу…",
   },
   pairing: {
     connectionMethods: {
@@ -2038,7 +2082,6 @@ export const ru: TranslationResources = {
       preferredHint: "Выберите модель, которую использует Ait",
       model: "Модель",
       fallbackHint: "Если она недоступна, Ait использует другую доступную модель",
-      docs: "Документация",
       saveError: "Не удалось обновить настройки генерации метаданных",
     },
     general: {
@@ -2458,9 +2501,30 @@ export const ru: TranslationResources = {
       },
       agents: {
         unavailable: "Подключитесь к этому хосту, чтобы управлять агентами",
+        browserTools: {
+          title: "Инструменты браузера",
+          hint: "Разрешить агентам доступ к вкладкам браузера Ait и управление ими, включая активные сеансы входа. Включайте только для доверенных агентов.",
+          updating: "Обновление инструментов браузера…",
+          accessibilityLabel: "Включить инструменты браузера",
+        },
       },
       workspaces: {
         unavailable: "Подключитесь к этому хосту, чтобы управлять рабочими пространствами",
+        archiveMergedPr: {
+          title: "Архивировать рабочие пространства с merged PR",
+          hint: "Автоматически архивирует чистые рабочие пространства Ait после слияния их pull request",
+          accessibilityLabel: "Архивировать рабочие пространства с merged PR",
+          updateFailed: "Не удалось обновить рабочие пространства",
+        },
+      },
+      terminalAgents: {
+        title: "Агенты терминала",
+      },
+      terminalAgentHooks: {
+        title: "Включить хуки агентов терминала",
+        hint: "Получайте уведомления и статус от агентов терминала. Это устанавливает хуки в файлы конфигурации агентов.",
+        accessibilityLabel: "Включить хуки агентов терминала",
+        updateFailed: "Не удалось обновить хуки агентов терминала",
       },
       terminalProfiles: {
         unavailable: "Подключитесь к этому хосту, чтобы управлять профилями терминала",

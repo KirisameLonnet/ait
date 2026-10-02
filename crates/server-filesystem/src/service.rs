@@ -3,6 +3,7 @@
 pub mod checkout;
 pub mod files;
 pub mod forge;
+pub mod git_fetch;
 pub mod github_projects;
 pub mod transfer;
 pub mod uploads;

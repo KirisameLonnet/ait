@@ -19,8 +19,8 @@ interface StartupSplashScreenProps {
   };
 }
 
-const GITHUB_ISSUE_URL = "https://github.com/necokeine/ait/issues/new";
-const DOCS_URL = "https://github.com/necokeine/ait/blob/main/docs/README.md";
+const GITHUB_ISSUE_URL = "https://github.com/ait-app/ait/issues/new";
+const DOCS_URL = "https://github.com/ait-app/ait/blob/main/docs/README.md";
 
 const LOGO_SIZE = 160;
 

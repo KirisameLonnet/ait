@@ -31,6 +31,21 @@ fn assistant(page: &Value) -> String {
         .collect()
 }
 
+async fn assert_completed_turn(execution: &AgentExecution, id: &str, completed: &Value) {
+    assert_eq!(completed["agent"].get("activeTurn"), Some(&Value::Null));
+    let prepared = execution
+        .execute(
+            "internal.agent.directory.prepare",
+            json!({"scope":"active"}),
+        )
+        .await
+        .unwrap();
+    let directory_agent = &prepared["entries"][0]["agent"];
+    assert_eq!(directory_agent["id"], id);
+    assert_eq!(directory_agent["status"], "idle");
+    assert_eq!(directory_agent.get("activeTurn"), Some(&Value::Null));
+}
+
 #[tokio::test]
 async fn large_generated_image_preserves_execution_and_history_refresh() {
     let fixture = Fixture::new();
@@ -129,8 +144,10 @@ async fn streaming_is_durable_searchable_and_steering_stays_in_one_native_turn()
     assert_eq!(finished["status"], "idle");
     assert_eq!(finished["lastMessage"], "Echo: stream + continue");
     let completed = page(&execution, id).await;
+    assert_completed_turn(&execution, id, &completed).await;
     assert_eq!(assistant(&completed), "Echo: stream + continue");
     assert_eq!(completed["epoch"], partial["epoch"]);
+    assert!(partial["agent"]["activeTurn"]["turnId"].is_string());
     let search = execution
         .execute(
             "agent.timeline.search.request",

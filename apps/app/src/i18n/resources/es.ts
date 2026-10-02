@@ -1191,6 +1191,7 @@ export const es: TranslationResources = {
       appName: "Ait",
     },
     sections: {
+      workspaces: "Espacios de trabajo",
       sessions: "Historial",
       search: "Buscar",
       schedules: "Horarios",
@@ -1340,7 +1341,24 @@ export const es: TranslationResources = {
     },
     daemon: {
       listen: en.desktop.daemon.listen,
-      lifecycle: en.desktop.daemon.lifecycle,
+      lifecycle: {
+        owned: "Iniciado por esta sesión de escritorio",
+        attached: "Conectado a un daemon existente",
+        ownedMessage: "Este daemon fue iniciado por esta sesión de escritorio.",
+        attachedMessage: "Este daemon no fue iniciado por esta sesión de escritorio.",
+        stopTitle: "¿Detener el daemon local?",
+        stopMessage:
+          "{{ownership}}\nDirectorio principal: {{home}}\nPID del supervisor: {{pid}}\nSe interrumpirán las tareas de agentes en curso.",
+        stop: "Detener daemon",
+        stopping: "Deteniendo…",
+        stopFailed: "No se pudo detener el daemon",
+        pauseAttached:
+          "¿Pausar la gestión automática del daemon? El daemon conectado seguirá funcionando.",
+        pause: "Pausar gestión",
+        workerUpdated: "Worker actualizado a {{version}}",
+        supervisorRefresh:
+          "El supervisor en ejecución conserva su código original. El programa que lo inició debe detenerlo y reiniciarlo para actualizarlo.",
+      },
       title: "Daemon",
       status: {
         title: "Estado",
@@ -1657,6 +1675,32 @@ export const es: TranslationResources = {
       workspaceDirectoryNotFound: "DirectorioWorkspaceno encontrado",
       hostDisconnected: "Hostno está conectado",
     },
+  },
+  providerUsage: {
+    error: "Error",
+    unavailable: "No disponible",
+    updated: "Actualizado {{time}}",
+    remaining: "{{amount}} restantes",
+    resettingNow: "restableciendo ahora",
+    resets: "se restablece en {{time}}",
+    runsOutNow: "se agota ahora",
+    runsOut: "se agota en {{time}}",
+    justNow: "ahora mismo",
+    ago: "hace {{time}}",
+    days: "{{count}} d",
+    hours: "{{count}} h",
+    minutes: "{{count}} min",
+    title: "Uso del plan",
+    refresh: "Actualizar",
+    refreshing: "Actualizando...",
+    loading: "Cargando uso...",
+    empty: "Sin datos de uso",
+    errorTitle: "No se puede cargar el uso",
+    hostUnavailable: "Conéctate a este host para ver el uso de los proveedores",
+    hostUpgradeRequired: "Actualiza este host para ver el uso de los proveedores",
+    clientUnavailable: "La conexión con el host no está lista",
+    retry: "Reintentar",
+    tooltipLoading: "Cargando el uso del plan…",
   },
   pairing: {
     connectionMethods: {
@@ -2053,7 +2097,6 @@ export const es: TranslationResources = {
       preferredHint: "Elige el modelo que usa Ait",
       model: "Modelo",
       fallbackHint: "Si no está disponible, Ait usa otro modelo disponible",
-      docs: "Documentación",
       saveError: "No se pudo actualizar la generación de metadatos",
     },
     general: {
@@ -2469,9 +2512,30 @@ export const es: TranslationResources = {
       },
       agents: {
         unavailable: "Connect to this host to manage agents",
+        browserTools: {
+          title: "Herramientas del navegador",
+          hint: "Permite a los agentes acceder y controlar las pestañas del navegador de Ait, incluidas las sesiones iniciadas. Actívalo solo para agentes de confianza.",
+          updating: "Actualizando herramientas del navegador…",
+          accessibilityLabel: "Activar herramientas del navegador",
+        },
       },
       workspaces: {
         unavailable: "Connect to this host to manage workspaces",
+        archiveMergedPr: {
+          title: "Archivar workspaces con PR fusionada",
+          hint: "Archiva automáticamente los workspaces de Ait limpios después de que se fusione su pull request",
+          accessibilityLabel: "Archivar workspaces con PR fusionada",
+          updateFailed: "No se pueden actualizar los workspaces",
+        },
+      },
+      terminalAgents: {
+        title: "Agentes de terminal",
+      },
+      terminalAgentHooks: {
+        title: "Activar hooks de agentes de terminal",
+        hint: "Recibe notificaciones y estado de los agentes de terminal. Esto instala hooks en tus archivos de configuración de agentes.",
+        accessibilityLabel: "Activar hooks de agentes de terminal",
+        updateFailed: "No se pueden actualizar los hooks de agentes de terminal",
       },
       terminalProfiles: {
         unavailable: "Connect to this host to manage terminal profiles",

@@ -8,18 +8,21 @@ publish.workspace = true
 tracing = "0.1.44"
 tokio = { version = "1.53.1", features = ["macros", "rt", "sync", "time"] }
 tokio-util = { version = "0.7.19", features = ["rt"] }
-server-model = { version = "0.0.11", path = "../server-model" }
+server-model = { version = "0.0.13", path = "../server-model" }
 # Project/Workspace registries and consumer-owned provisioning contracts.
-server-metadata = { version = "0.0.11", path = "../server-metadata" }
+server-metadata = { version = "0.0.13", path = "../server-metadata" }
 base64 = "0.22.1"
 chrono = "0.4.42"
 getrandom = "0.4.3"
+# SIMD-backed newline counting for bounded untracked-file sidebar statistics.
+memchr = "2.8.3"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 sha2 = "0.10.9"
 tempfile = "3.27.0"
 thiserror = "2.0.20"
 uuid = { version = "1.22.0", features = ["v4"] }
+two-face = { version = "0.5.2", default-features = false, features = ["syntect-fancy"] }
 
 [target."cfg(unix)".dependencies]
 libc = "0.2"
@@ -28,3 +31,4 @@ libc = "0.2"
 workspace = true
 
 [dev-dependencies]
+tokio = { version = "1.53.1", features = ["test-util"] }

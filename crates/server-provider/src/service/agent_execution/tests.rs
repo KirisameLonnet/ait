@@ -3,6 +3,7 @@ use super::*;
 mod auto_archive;
 mod environment;
 mod placement;
+mod reasoning;
 mod resume;
 mod waits;
 use crate::ports::agent_runtime::AgentRuntimeRegistry;

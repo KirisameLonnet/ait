@@ -3,6 +3,7 @@
 pub mod claude;
 pub mod codex;
 mod configuration;
+pub mod deepseek_harness;
 mod elicitation;
 mod images;
 mod notes;

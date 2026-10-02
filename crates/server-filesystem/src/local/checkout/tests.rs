@@ -3,8 +3,12 @@ use std::process::Command;
 
 use tempfile::TempDir;
 
+mod highlight;
 mod naming;
+mod parser;
 mod paseo;
+
+mod remote_base;
 
 use super::{LocalCheckout, is_below};
 use crate::ports::checkout::{

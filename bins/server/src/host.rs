@@ -11,7 +11,8 @@ use chrono::{SecondsFormat, Utc};
 use server_api::{Api, LifecycleIntent, LocalAddress, Services};
 use server_filesystem::local::{
     checkout::LocalCheckout, forge::LocalForge, github_projects::LocalGithubProjects,
-    provisioning::LocalDirectorySource, worktrees::LocalManagedWorktrees,
+    provisioning::LocalDirectorySource, workspace_runtime::LocalWorkspaceRuntime,
+    worktrees::LocalManagedWorktrees,
 };
 use server_filesystem::service::checkout::Checkout;
 use server_filesystem::service::files::Files;
@@ -226,6 +227,7 @@ fn compose_services(
     )?;
     let github_projects =
         GithubProjects::new(directory.clone(), Box::new(LocalGithubProjects::new()));
+    let (checkout, git_fetch) = compose_git(&config.data_dir);
     Ok(Services {
         metadata_generator: Some(metadata_generator),
         workspace_names: Some(workspace_names),
@@ -237,9 +239,8 @@ fn compose_services(
         terminals: Some(terminals),
         agent_execution: Some(agent_execution),
         agents: Some(agents),
-        checkout: Some(Checkout::new(Box::new(LocalCheckout::new(
-            config.data_dir.join("worktrees"),
-        )))),
+        checkout: Some(checkout),
+        git_fetch: Some(git_fetch),
         agent_runtime: None,
         daemon: Some(daemon),
         directory: Some(directory),
@@ -252,6 +253,17 @@ fn compose_services(
         workspace_state: Some(workspace_state),
         worktrees: Some(worktrees),
     })
+}
+
+fn compose_git(
+    data_dir: &std::path::Path,
+) -> (Checkout, server_filesystem::service::git_fetch::GitFetch) {
+    let root = data_dir.join("worktrees");
+    let checkout = Checkout::new(Box::new(LocalCheckout::new(root.clone())));
+    let fetch = server_filesystem::service::git_fetch::GitFetch::new(Arc::new(
+        server_filesystem::local::git_fetch::LocalGitFetch::new(root),
+    ));
+    (checkout, fetch)
 }
 
 struct WorkspaceServices {
@@ -340,7 +352,11 @@ fn compose_directory(
         )),
         server_id,
     })
-    .with_creations(creations))
+    .with_creations(creations)
+    .with_runtime_source(Arc::new(LocalWorkspaceRuntime::new(
+        LocalCheckout::new(config.data_dir.join("worktrees")),
+        LocalForge::new(),
+    ))))
 }
 
 fn compose_worktrees(
@@ -420,6 +436,13 @@ fn compose_provider(
             std::env::var_os("AIT_SERVER_OPENCODE_BIN")
                 .map_or_else(|| "opencode".into(), Into::into),
         ),
+    ))?;
+    manager.register_client(Box::new(
+        server_provider::local::deepseek_harness::DeepSeekHarnessClient::new(
+            std::env::var_os("AIT_SERVER_DEEPSEEK_HARNESS_BIN")
+                .map_or_else(|| "dsh".into(), Into::into),
+        )
+        .with_image_directory(data_dir.join("agents/provider-images")),
     ))?;
     AgentExecution::spawn(ExecutionDependencies {
         manager,

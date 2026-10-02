@@ -134,10 +134,8 @@ pub fn command(mut value: Value) -> Result<Value, ErrorCode> {
     {
         return Err(ErrorCode::InvalidMessage);
     }
-    for key in ["ref"] {
-        if args.get(key).is_some() && !reference(args, key) {
-            return Err(ErrorCode::InvalidMessage);
-        }
+    if args.get("ref").is_some() && !reference(args, "ref") {
+        return Err(ErrorCode::InvalidMessage);
     }
     command_defaults(&name, args)?;
     Ok(value)

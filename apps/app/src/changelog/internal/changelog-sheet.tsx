@@ -25,7 +25,7 @@ import {
   type ChangelogSection,
 } from "./parse-changelog";
 
-const WEBSITE_CHANGELOG_URL = "https://github.com/necokeine/ait/releases";
+const WEBSITE_CHANGELOG_URL = "https://github.com/ait-app/ait/releases";
 
 const ThemedGift = withUnistyles(Gift);
 const ThemedExternalLink = withUnistyles(ExternalLink);

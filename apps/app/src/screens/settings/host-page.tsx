@@ -797,7 +797,7 @@ function UpdateDaemonCard({ host }: { host: HostProfile }) {
               status: "failed",
               title: t("settings.host.daemon.update.requestFailedTitle"),
               message: t("settings.host.daemon.update.requestFailedMessage", {
-                error: error instanceof Error ? error.message : "Unknown error",
+                error: error instanceof Error ? error.message : t("providerSelection.unknownError"),
               }),
             });
           });
@@ -907,6 +907,7 @@ function InjectPaseoToolsCard({ serverId }: { serverId: string }) {
 }
 
 function AutoArchiveMergedWorkspacesCard({ serverId }: { serverId: string }) {
+  const { t } = useTranslation();
   const isConnected = useHostRuntimeIsConnected(serverId);
   const { config, patchConfig } = useDaemonConfig(serverId);
 
@@ -915,12 +916,12 @@ function AutoArchiveMergedWorkspacesCard({ serverId }: { serverId: string }) {
       void patchConfig({ autoArchiveAfterMerge: next }).catch((error) => {
         console.error("[HostPage] Failed to update auto-archive after merge", error);
         Alert.alert(
-          "Unable to update workspaces",
+          t("settings.host.workspaces.archiveMergedPr.updateFailed"),
           error instanceof Error ? error.message : String(error),
         );
       });
     },
-    [patchConfig],
+    [patchConfig, t],
   );
 
   if (!isConnected) return null;
@@ -929,15 +930,17 @@ function AutoArchiveMergedWorkspacesCard({ serverId }: { serverId: string }) {
     <View style={settingsStyles.card} testID="host-page-auto-archive-merged-workspaces-card">
       <View style={settingsStyles.row}>
         <View style={settingsStyles.rowContent}>
-          <Text style={settingsStyles.rowTitle}>Archive merged PR workspaces</Text>
+          <Text style={settingsStyles.rowTitle}>
+            {t("settings.host.workspaces.archiveMergedPr.title")}
+          </Text>
           <Text style={settingsStyles.rowHint}>
-            Automatically archive clean Ait workspaces after their pull request is merged
+            {t("settings.host.workspaces.archiveMergedPr.hint")}
           </Text>
         </View>
         <Switch
           value={config?.autoArchiveAfterMerge === true}
           onValueChange={handleValueChange}
-          accessibilityLabel="Archive merged PR workspaces"
+          accessibilityLabel={t("settings.host.workspaces.archiveMergedPr.accessibilityLabel")}
           testID="host-page-auto-archive-merged-workspaces-switch"
         />
       </View>
@@ -946,6 +949,7 @@ function AutoArchiveMergedWorkspacesCard({ serverId }: { serverId: string }) {
 }
 
 function EnableTerminalAgentHooksCard({ serverId }: { serverId: string }) {
+  const { t } = useTranslation();
   const isConnected = useHostRuntimeIsConnected(serverId);
   const { config, patchConfig } = useDaemonConfig(serverId);
 
@@ -954,12 +958,12 @@ function EnableTerminalAgentHooksCard({ serverId }: { serverId: string }) {
       void patchConfig({ enableTerminalAgentHooks: next }).catch((error) => {
         console.error("[HostPage] Failed to update terminal agent hooks", error);
         Alert.alert(
-          "Unable to update terminal agent hooks",
+          t("settings.host.terminalAgentHooks.updateFailed"),
           error instanceof Error ? error.message : String(error),
         );
       });
     },
-    [patchConfig],
+    [patchConfig, t],
   );
 
   if (!isConnected) return null;
@@ -968,16 +972,13 @@ function EnableTerminalAgentHooksCard({ serverId }: { serverId: string }) {
     <View style={settingsStyles.card} testID="host-page-terminal-agent-hooks-card">
       <View style={settingsStyles.row}>
         <View style={settingsStyles.rowContent}>
-          <Text style={settingsStyles.rowTitle}>Enable terminal agent hooks</Text>
-          <Text style={settingsStyles.rowHint}>
-            Get notifications and status from terminal agents. This installs hooks in your agent
-            config files.
-          </Text>
+          <Text style={settingsStyles.rowTitle}>{t("settings.host.terminalAgentHooks.title")}</Text>
+          <Text style={settingsStyles.rowHint}>{t("settings.host.terminalAgentHooks.hint")}</Text>
         </View>
         <Switch
           value={config?.enableTerminalAgentHooks === true}
           onValueChange={handleValueChange}
-          accessibilityLabel="Enable terminal agent hooks"
+          accessibilityLabel={t("settings.host.terminalAgentHooks.accessibilityLabel")}
           testID="host-page-terminal-agent-hooks-switch"
         />
       </View>
@@ -1673,6 +1674,7 @@ function TerminalProfilesSection({ serverId }: { serverId: string }) {
 }
 
 export function HostTerminalsPage({ serverId }: { serverId: string }) {
+  const { t } = useTranslation();
   const host = useHostProfile(serverId);
 
   if (!host) {
@@ -1682,7 +1684,7 @@ export function HostTerminalsPage({ serverId }: { serverId: string }) {
   return (
     <View>
       <HostConfigError serverId={serverId} />
-      <SettingsSection title="Terminal agents">
+      <SettingsSection title={t("settings.host.terminalAgents.title")}>
         <EnableTerminalAgentHooksCard serverId={serverId} />
       </SettingsSection>
       <TerminalProfilesSection serverId={serverId} />

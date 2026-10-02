@@ -528,6 +528,8 @@ impl ExecutionState {
         if self.manager.live_snapshot(&record.id).is_some() {
             snapshot["providerUnavailable"] = json!(false);
             snapshot["persistence"] = json!(record.persistence);
+            // Explicitly retire the client's previous turn when the native writer is idle.
+            snapshot["activeTurn"] = Value::Null;
             if let Some(turn) = self.manager.active_turn(&record.id) {
                 snapshot["activeTurn"] =
                     json!({"turnId":turn,"startedAt":record.last_user_message_at});

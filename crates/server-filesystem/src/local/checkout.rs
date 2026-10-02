@@ -1,12 +1,15 @@
 //! Bounded local Git reads for checkout status, diff, and commit history.
 
+mod highlight;
 mod naming;
+pub(crate) mod summary;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::ports::checkout::{
@@ -26,10 +29,11 @@ const BASE_COMMIT_LIMIT: usize = 10;
 const COMMIT_FIELD_SEPARATOR: char = '\0';
 const COMMIT_RECORD_SEPARATOR: char = '\x1e';
 
-/// Stateless bounded Git adapter. Managed ownership is rooted below one server data directory.
+/// Bounded Git adapter with a syntax cache and server-owned managed worktree root.
 #[derive(Debug, Clone)]
 pub struct LocalCheckout {
     managed_worktrees_root: PathBuf,
+    highlighter: Arc<highlight::DiffHighlighter>,
 }
 
 impl LocalCheckout {
@@ -38,6 +42,7 @@ impl LocalCheckout {
     pub fn new(managed_worktrees_root: PathBuf) -> Self {
         Self {
             managed_worktrees_root,
+            highlighter: Arc::new(highlight::DiffHighlighter::default()),
         }
     }
 
@@ -80,7 +85,7 @@ impl LocalCheckout {
             .flatten();
         let base_ref = resolve_default_branch(&cwd, current_branch.as_deref())?;
         let ahead_behind = match (&base_ref, &current_branch) {
-            (Some(base), Some(_)) => compare_refs(&cwd, base, "HEAD")?,
+            (Some(base), Some(_)) => compare_refs(&cwd, &comparison_base(&cwd, base)?, "HEAD")?,
             _ => None,
         };
         let upstream_ref =
@@ -140,10 +145,11 @@ impl CheckoutRuntime for LocalCheckout {
         if compare.ignore_whitespace {
             arguments.push("--ignore-all-space".to_owned());
         }
-        let include_untracked = match compare.mode {
+        let (old_ref, new_ref) = match compare.mode {
             CheckoutDiffMode::Uncommitted => {
-                arguments.push(diff_head(&cwd)?);
-                true
+                let head = diff_head(&cwd)?;
+                arguments.push(head.clone());
+                (head, None)
             }
             CheckoutDiffMode::Base => {
                 let base = compare
@@ -160,12 +166,14 @@ impl CheckoutRuntime for LocalCheckout {
                         )
                     })?;
                 validate_ref(&base)?;
+                let base = comparison_base(&cwd, &base)?;
                 verify_commit(&cwd, &base)?;
                 let merge_base =
                     git_required(&cwd, &["merge-base", &base, "HEAD"], SMALL_OUTPUT_LIMIT)?;
-                arguments.push(merge_base);
-                arguments.push("HEAD".to_owned());
-                false
+                arguments.push(merge_base.clone());
+                let head = diff_head(&cwd)?;
+                arguments.push(head.clone());
+                (merge_base, Some(head))
             }
         };
         let argument_refs = arguments.iter().map(String::as_str).collect::<Vec<_>>();
@@ -180,7 +188,7 @@ impl CheckoutRuntime for LocalCheckout {
             Err(error) => return Err(error),
         };
         let mut text = tracked;
-        if include_untracked {
+        if compare.mode == CheckoutDiffMode::Uncommitted {
             let untracked = run_git(
                 &cwd,
                 &["ls-files", "--others", "--exclude-standard", "-z"],
@@ -217,6 +225,10 @@ impl CheckoutRuntime for LocalCheckout {
             }
         }
         let mut files = parse_diff(&text);
+        for file in &mut files {
+            self.highlighter
+                .highlight(file, &cwd, &old_ref, new_ref.as_deref());
+        }
         files.sort_by(|left, right| left.path.cmp(&right.path));
         Ok(CheckoutDiff {
             files,
@@ -235,7 +247,10 @@ impl CheckoutRuntime for LocalCheckout {
             });
         };
         let default_base = resolve_default_branch(&cwd, Some(&current_branch))?;
-        let comparison_base = default_base.filter(|base| base != &current_branch);
+        let comparison_base = default_base
+            .filter(|base| base != &current_branch)
+            .map(|base| most_ahead_base(&cwd, &base))
+            .transpose()?;
         let (workspace_records, base_revision) = if let Some(base) = &comparison_base {
             verify_commit(&cwd, base)?;
             let merge_base = git_optional(&cwd, &["merge-base", base, "HEAD"])?;
@@ -311,9 +326,14 @@ impl CheckoutRuntime for LocalCheckout {
         if output.trim().is_empty() || output.contains("Binary files") {
             return Ok(None);
         }
-        Ok(parse_diff(&output)
+        let mut file = parse_diff(&output)
             .into_iter()
-            .find(|file| file.path == path && !file.hunks.is_empty()))
+            .find(|file| file.path == path && !file.hunks.is_empty());
+        if let Some(file) = &mut file {
+            self.highlighter
+                .highlight(file, &cwd, &format!("{sha}^"), Some(sha));
+        }
+        Ok(file)
     }
 
     fn validate_branch(
@@ -1212,6 +1232,19 @@ fn most_ahead_base(cwd: &Path, base: &str) -> Result<String, CheckoutRuntimeErro
     }
 }
 
+fn comparison_base(cwd: &Path, base: &str) -> Result<String, CheckoutRuntimeError> {
+    if base.starts_with("refs/heads/") || base.starts_with("refs/remotes/") {
+        return Ok(base.to_owned());
+    }
+    let name = local_base_name(base)?;
+    let origin = format!("origin/{name}");
+    if ref_exists(cwd, &format!("refs/remotes/{origin}"))? {
+        Ok(origin)
+    } else {
+        Ok(name)
+    }
+}
+
 fn abort_merge_on_conflict(
     cwd: &Path,
     result: Result<(), CheckoutRuntimeError>,
@@ -1397,8 +1430,8 @@ fn verify_commit(cwd: &Path, revision: &str) -> Result<(), CheckoutRuntimeError>
 }
 
 fn diff_head(cwd: &Path) -> Result<String, CheckoutRuntimeError> {
-    if git_optional(cwd, &["rev-parse", "--verify", "HEAD^{commit}"])?.is_some() {
-        return Ok("HEAD".to_owned());
+    if let Some(head) = git_optional(cwd, &["rev-parse", "--verify", "HEAD^{commit}"])? {
+        return Ok(head);
     }
     // Git reads empty stdin here. Resolve its empty tree using the repository's object format,
     // so staged and unstaged files remain visible before the first SHA-1 or SHA-256 commit.
@@ -1410,10 +1443,20 @@ fn diff_head(cwd: &Path) -> Result<String, CheckoutRuntimeError> {
 }
 
 fn parse_diff(text: &str) -> Vec<ParsedDiffFile> {
-    text.split("diff --git ")
-        .skip(1)
-        .filter_map(parse_diff_section)
-        .collect()
+    const HEADER_PREFIX: &str = "diff --git ";
+    let mut headers = text
+        .match_indices(HEADER_PREFIX)
+        .filter(|(start, _)| *start == 0 || text.as_bytes()[*start - 1] == b'\n')
+        .map(|(start, _)| start)
+        .peekable();
+    let mut files = Vec::new();
+    while let Some(start) = headers.next() {
+        let end = headers.peek().copied().unwrap_or(text.len());
+        if let Some(file) = parse_diff_section(&text[start + HEADER_PREFIX.len()..end]) {
+            files.push(file);
+        }
+    }
+    files
 }
 
 fn parse_diff_section(section: &str) -> Option<ParsedDiffFile> {
@@ -1466,6 +1509,7 @@ fn parse_diff_section(section: &str) -> Option<ParsedDiffFile> {
                 lines: vec![DiffLine {
                     kind: DiffLineKind::Header,
                     content: header,
+                    tokens: None,
                 }],
             });
             continue;
@@ -1487,6 +1531,7 @@ fn parse_diff_section(section: &str) -> Option<ParsedDiffFile> {
         hunk.lines.push(DiffLine {
             kind,
             content: content.to_owned(),
+            tokens: None,
         });
     }
     if let Some(hunk) = current {

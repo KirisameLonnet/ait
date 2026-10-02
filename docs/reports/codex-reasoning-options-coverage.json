@@ -1,0 +1,147 @@
+{
+  "measurement_date": "2026-10-02T13:36:45.235975+00:00",
+  "base_revision": "45a1998ce38277b500f79e8543a2a8d16bebf682",
+  "revision_note": "Base revision plus the three changed Rust files identified below; documentation changes do not alter measured Rust sources.",
+  "source_fingerprint": "cbd9f20930da70d5b63e9028d0b56fd5f7ee72f9f62d3d60d07699504a8d447e",
+  "source_fingerprint_method": "SHA-256 of sorted Cargo.lock, Cargo.toml, bins/** and crates/** path/hash records, including new source files, serialized as compact JSON with sorted keys.",
+  "source_file_count": 778,
+  "changed_rust_sources": [
+    {
+      "path": "crates/server-provider/src/local/codex.rs",
+      "sha256": "fe4657919665034f4dccf5423000d1033a3d7b49b7c09480a6e8c8f049903944"
+    },
+    {
+      "path": "crates/server-provider/src/service/agent_execution/tests.rs",
+      "sha256": "69811f035b275d8aad7f40e9bd04f2bdb427780c1bc6d952dcd75192cf3002f6"
+    },
+    {
+      "path": "crates/server-provider/src/service/agent_execution/tests/reasoning.rs",
+      "sha256": "6752939a097d72813351f9a06939d0f02e53cc730464589fbd0e25a3f6eb6f12"
+    }
+  ],
+  "scope": "Cargo workspace, default features, macOS arm64, Rust 1.98.1, cargo-llvm-cov 0.8.4",
+  "commands": [
+    "CARGO_TARGET_DIR=/private/tmp/ait-workspace-sidebar-cov-target cargo llvm-cov --workspace --locked --offline --html -- --test-threads=1",
+    "CARGO_TARGET_DIR=/private/tmp/ait-workspace-sidebar-cov-target cargo llvm-cov report --json --summary-only --output-path /private/tmp/ait-codex-reasoning-coverage-summary.json",
+    "CARGO_TARGET_DIR=/private/tmp/ait-workspace-sidebar-cov-target cargo llvm-cov report --lcov --output-path /private/tmp/ait-codex-reasoning-coverage.lcov"
+  ],
+  "workspace_lines": {
+    "count": 47739,
+    "covered": 43991,
+    "percent": 92.14897672762312
+  },
+  "crate_lines": {
+    "server-api": {
+      "covered": 1659,
+      "count": 1736,
+      "percent": 95.56451612903226
+    },
+    "server-bin": {
+      "covered": 890,
+      "count": 943,
+      "percent": 94.3796394485684
+    },
+    "server-browser": {
+      "covered": 706,
+      "count": 725,
+      "percent": 97.37931034482759
+    },
+    "server-domain": {
+      "covered": 121,
+      "count": 121,
+      "percent": 100.0
+    },
+    "server-filesystem": {
+      "covered": 10545,
+      "count": 11697,
+      "percent": 90.15132085150039
+    },
+    "server-metadata": {
+      "covered": 7022,
+      "count": 7735,
+      "percent": 90.78215901745314
+    },
+    "server-model": {
+      "covered": 629,
+      "count": 659,
+      "percent": 95.44764795144158
+    },
+    "server-protocol": {
+      "covered": 57,
+      "count": 57,
+      "percent": 100.0
+    },
+    "server-provider": {
+      "covered": 18356,
+      "count": 19647,
+      "percent": 93.42902224258157
+    },
+    "server-schedule": {
+      "covered": 802,
+      "count": 820,
+      "percent": 97.8048780487805
+    },
+    "server-terminal": {
+      "covered": 1549,
+      "count": 1701,
+      "percent": 91.06407995296884
+    },
+    "server-voice": {
+      "covered": 1655,
+      "count": 1898,
+      "percent": 87.19704952581665
+    }
+  },
+  "changed_production_file": {
+    "path": "crates/server-provider/src/local/codex.rs",
+    "file_lines": {
+      "count": 908,
+      "covered": 823,
+      "percent": 90.6387665198238
+    },
+    "changed_executable_lines": {
+      "covered": 1,
+      "count": 1,
+      "percent": 100.0
+    },
+    "line_hits": {
+      "995": 113
+    }
+  },
+  "changed_line_method": "LCOV DA records intersected with added/changed lines against base_revision; test sources excluded. JSON and LCOV line totals can differ for macro expansions.",
+  "test_execution": {
+    "passed": 1558,
+    "failed": 0,
+    "ignored": 3,
+    "log_sha256": "2fc25bdf5d77e30d042d24810065fac583d2cd16ea3bb18ff9e38d649d7162bf"
+  },
+  "instrumented_test_execution": {
+    "passed": 1558,
+    "failed": 0,
+    "ignored": 3,
+    "log_sha256": "edac619c3deffa589a1be6036a83aafebbaeaa183f690b4112407885c0913dd4"
+  },
+  "excluded_files": "cargo-llvm-cov default filtering; no additional exclusion. TypeScript/UI and doctest instrumentation are outside this measurement.",
+  "comparable_baseline": {
+    "artifact": "docs/reports/workspace-sidebar-diff-base-coverage.json",
+    "baseline_note": "Same workspace scope, platform, features and toolchain. The baseline source fingerprint exactly matches this PR base revision.",
+    "source_fingerprint": "0c29c2ee366b698f52fbd14f714b23a954a501e8973aea6a87cdb380f204da09",
+    "workspace_lines": {
+      "count": 47739,
+      "covered": 43992,
+      "percent": 92.1510714510149
+    },
+    "change_percentage_points": -0.002094723391778075
+  },
+  "native_protocol_probe": {
+    "codex_cli_version": "0.159.0",
+    "result": "Native model/list advertised max and ultra for gpt-6.1-sol; ephemeral thread/start accepted both, with no model turn or persistent thread."
+  },
+  "uncovered_behavior": [
+    "Linux/Windows were not run.",
+    "Real model turns with max or ultra were not executed; native verification only created ephemeral threads.",
+    "Three tests requiring installed and authenticated real Codex/Claude providers remain ignored."
+  ],
+  "raw_report_sha256": "5d17272be1cc469be205ac1f89c8ee55b6aa966f36be37682e7696b95043161d",
+  "lcov_sha256": "7627d0a45d7808ab6aaefbf094de6c9b17881d18c8588cd20d51c39e3e226463"
+}

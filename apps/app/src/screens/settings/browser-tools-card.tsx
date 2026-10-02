@@ -44,11 +44,11 @@ export function BrowserToolsOptInCard({ serverId }: { serverId: string }) {
     <View style={settingsStyles.card} testID="host-page-browser-tools-card">
       <View style={settingsStyles.row}>
         <View style={settingsStyles.rowContent}>
-          <Text style={settingsStyles.rowTitle}>{state.title}</Text>
-          <Text style={settingsStyles.rowHint}>{state.warning}</Text>
-          {mutationView.loadingText ? (
+          <Text style={settingsStyles.rowTitle}>{t(state.titleKey)}</Text>
+          <Text style={settingsStyles.rowHint}>{t(state.warningKey)}</Text>
+          {mutationView.loadingKey ? (
             <Text style={settingsStyles.rowHint} testID="host-page-browser-tools-loading">
-              {mutationView.loadingText}
+              {t(mutationView.loadingKey)}
             </Text>
           ) : null}
           {mutationView.errorText ? (
@@ -61,7 +61,7 @@ export function BrowserToolsOptInCard({ serverId }: { serverId: string }) {
           value={state.isEnabled}
           onValueChange={handleValueChange}
           disabled={mutationView.isSwitchDisabled}
-          accessibilityLabel="Enable browser tools"
+          accessibilityLabel={t("settings.host.agents.browserTools.accessibilityLabel")}
           testID="host-page-browser-tools-switch"
         />
       </View>

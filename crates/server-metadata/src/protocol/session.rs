@@ -26,6 +26,9 @@ pub enum SessionEventKind {
     /// Terminal hook completion or input attention.
     #[serde(rename = "terminal_attention_required")]
     TerminalAttention,
+    /// Observed checkout state changed after a background remote refresh.
+    #[serde(rename = "checkout_status_update")]
+    CheckoutStatus,
     /// Server lifecycle and public metadata changed.
     #[serde(rename = "status.server_info")]
     ServerInfo,
@@ -45,6 +48,7 @@ impl SessionEventKind {
             Self::AgentPermissionResolved => "agent_permission_resolved",
             Self::ProviderSubagents => "agent.provider_subagents.update",
             Self::TerminalAttention => "terminal_attention_required",
+            Self::CheckoutStatus => "checkout.status.update",
             Self::ServerInfo => "status.server_info",
             Self::DaemonConfig => "status.daemon_config_changed",
         }

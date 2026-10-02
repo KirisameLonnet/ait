@@ -1,10 +1,15 @@
 //! Checkout request dispatch and wire projections.
+use std::io::{self, Write};
+
 use serde::Serialize;
 use serde_json::Value;
 
 use crate::protocol::checkout as protocol;
 use crate::rpc::ErrorCode;
 use crate::service::checkout::{self as port, Checkout};
+
+// Reserve room for the response/event envelope and other in-flight output.
+const HIGHLIGHTED_DIFF_BUDGET: usize = server_model::server::MAX_QUEUE_BYTES - 64 * 1024;
 
 /// Decode and execute a checkout request.
 ///
@@ -346,7 +351,7 @@ fn protocol_branch_suggestion(
     }
 }
 
-fn protocol_status(
+pub(crate) fn protocol_status(
     cwd: &str,
     result: Result<port::CheckoutStatus, port::CheckoutRuntimeError>,
 ) -> protocol::CheckoutStatusResult {
@@ -396,12 +401,20 @@ fn protocol_diff_result(
     result: Result<port::CheckoutDiff, port::CheckoutRuntimeError>,
 ) -> protocol::CheckoutDiffResult {
     match result {
-        Ok(result) => protocol::CheckoutDiffResult {
-            cwd: cwd.to_owned(),
-            files: result.files.into_iter().map(protocol_diff_file).collect(),
-            error: None,
-            diff_too_large: result.diff_too_large.then_some(true),
-        },
+        Ok(result) => {
+            let mut files: Vec<_> = result.files.into_iter().map(protocol_diff_file).collect();
+            if !fits_highlighted_diff_budget(&files) {
+                for file in &mut files {
+                    clear_diff_tokens(file);
+                }
+            }
+            protocol::CheckoutDiffResult {
+                cwd: cwd.to_owned(),
+                files,
+                error: None,
+                diff_too_large: result.diff_too_large.then_some(true),
+            }
+        }
         Err(error) => protocol::CheckoutDiffResult {
             cwd: cwd.to_owned(),
             files: Vec::new(),
@@ -412,7 +425,7 @@ fn protocol_diff_result(
 }
 
 fn protocol_diff_file(file: port::ParsedDiffFile) -> protocol::ParsedDiffFile {
-    protocol::ParsedDiffFile {
+    let mut file = protocol::ParsedDiffFile {
         path: file.path,
         old_path: file.old_path,
         is_new: file.is_new,
@@ -438,7 +451,15 @@ fn protocol_diff_file(file: port::ParsedDiffFile) -> protocol::ParsedDiffFile {
                             port::DiffLineKind::Header => protocol::DiffLineKind::Header,
                         },
                         content: line.content,
-                        tokens: None,
+                        tokens: line.tokens.map(|tokens| {
+                            tokens
+                                .into_iter()
+                                .map(|token| protocol::HighlightToken {
+                                    text: token.text,
+                                    style: token.style,
+                                })
+                                .collect()
+                        }),
                     })
                     .collect(),
             })
@@ -448,6 +469,40 @@ fn protocol_diff_file(file: port::ParsedDiffFile) -> protocol::ParsedDiffFile {
             port::ParsedDiffStatus::TooLarge => protocol::ParsedDiffStatus::TooLarge,
             port::ParsedDiffStatus::Binary => protocol::ParsedDiffStatus::Binary,
         }),
+    };
+    if !fits_highlighted_diff_budget(&file) {
+        clear_diff_tokens(&mut file);
+    }
+    file
+}
+
+fn clear_diff_tokens(file: &mut protocol::ParsedDiffFile) {
+    for line in file.hunks.iter_mut().flat_map(|hunk| &mut hunk.lines) {
+        line.tokens = None;
+    }
+}
+
+fn fits_highlighted_diff_budget(value: &impl Serialize) -> bool {
+    let mut size = DiffEncodedSize::default();
+    serde_json::to_writer(&mut size, value).is_ok() && size.0 <= HIGHLIGHTED_DIFF_BUDGET
+}
+
+#[derive(Default)]
+struct DiffEncodedSize(usize);
+
+impl Write for DiffEncodedSize {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        self.0 = self.0.saturating_add(bytes.len());
+        if self.0 > HIGHLIGHTED_DIFF_BUDGET {
+            return Err(io::Error::other(
+                "Highlighted diff exceeds the output budget",
+            ));
+        }
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
     }
 }
 

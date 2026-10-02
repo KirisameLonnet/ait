@@ -255,6 +255,13 @@ export const AGENT_PROVIDER_DEFINITIONS: AgentProviderDefinition[] = [
     defaultModeId: "full",
     modes: OMP_MODES,
   },
+  {
+    id: "deepseek-harness",
+    label: "DeepSeek Harness",
+    description: "DeepSeek Harness via Agent Client Protocol with persistent sessions and tools",
+    defaultModeId: null,
+    modes: [],
+  },
 ];
 
 export const DEV_AGENT_PROVIDER_DEFINITIONS: AgentProviderDefinition[] = [

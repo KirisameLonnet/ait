@@ -96,6 +96,15 @@ pub enum DiffLineKind {
     Header,
 }
 
+/// Theme-independent syntax token produced by a checkout adapter.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HighlightToken {
+    /// Source text without a diff marker.
+    pub text: String,
+    /// Optional syntax role understood by the client palette.
+    pub style: Option<String>,
+}
+
 /// One structured diff line.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DiffLine {
@@ -103,6 +112,8 @@ pub struct DiffLine {
     pub kind: DiffLineKind,
     /// Content without prefix.
     pub content: String,
+    /// Optional syntax tokens; absent for unsupported or oversized content.
+    pub tokens: Option<Vec<HighlightToken>>,
 }
 
 /// One structured hunk.

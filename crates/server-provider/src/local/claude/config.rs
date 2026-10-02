@@ -159,33 +159,4 @@ pub(super) fn text<'a>(value: &'a Value, key: &str) -> Result<&'a str, AgentSess
         .ok_or(AgentSessionError::Failed)
 }
 
-pub(super) fn executable(program: &Path) -> bool {
-    let runnable = |path: &Path| {
-        let Ok(metadata) = path.metadata() else {
-            return false;
-        };
-        if !metadata.is_file() {
-            return false;
-        }
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            metadata.permissions().mode() & 0o111 != 0
-        }
-        #[cfg(not(unix))]
-        {
-            true
-        }
-    };
-    if program.components().count() > 1 {
-        return runnable(program);
-    }
-    std::env::var_os("PATH").is_some_and(|paths| {
-        std::env::split_paths(&paths).any(|path| {
-            let path = path.join(program);
-            #[cfg(windows)]
-            let path = path.with_extension("exe");
-            runnable(&path)
-        })
-    })
-}
+pub(super) use crate::local::configuration::executable;

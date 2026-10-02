@@ -1162,6 +1162,7 @@ export const ko: TranslationResources = {
       appName: "Ait",
     },
     sections: {
+      workspaces: "워크스페이스",
       sessions: "기록",
       search: "검색",
       schedules: "일정",
@@ -1311,7 +1312,23 @@ export const ko: TranslationResources = {
     },
     daemon: {
       listen: en.desktop.daemon.listen,
-      lifecycle: en.desktop.daemon.lifecycle,
+      lifecycle: {
+        owned: "이 데스크톱 세션에서 시작됨",
+        attached: "기존 데몬에 연결됨",
+        ownedMessage: "이 데몬은 이 데스크톱 세션에서 시작되었습니다.",
+        attachedMessage: "이 데몬은 이 데스크톱 세션에서 시작되지 않았습니다.",
+        stopTitle: "로컬 데몬을 중지할까요?",
+        stopMessage:
+          "{{ownership}}\n홈: {{home}}\n감독 프로세스 PID: {{pid}}\n실행 중인 에이전트 작업이 중단됩니다.",
+        stop: "데몬 중지",
+        stopping: "중지 중…",
+        stopFailed: "데몬을 중지할 수 없음",
+        pauseAttached: "데몬 자동 관리를 일시 중지할까요? 연결된 데몬은 계속 실행됩니다.",
+        pause: "관리 일시 중지",
+        workerUpdated: "워커가 {{version}} 버전으로 업데이트됨",
+        supervisorRefresh:
+          "실행 중인 감독 프로세스는 원래 코드를 유지합니다. 업데이트하려면 이를 시작한 프로그램에서 중지한 뒤 다시 시작해야 합니다.",
+      },
       title: "데몬",
       status: {
         title: "상태",
@@ -1621,6 +1638,32 @@ export const ko: TranslationResources = {
       workspaceDirectoryNotFound: "워크스페이스 디렉터리를 찾을 수 없습니다",
       hostDisconnected: "호스트가 연결되어 있지 않습니다",
     },
+  },
+  providerUsage: {
+    error: "오류",
+    unavailable: "사용 불가",
+    updated: "{{time}} 업데이트",
+    remaining: "{{amount}} 남음",
+    resettingNow: "지금 초기화 중",
+    resets: "{{time}} 후 초기화",
+    runsOutNow: "곧 소진",
+    runsOut: "{{time}} 후 소진",
+    justNow: "방금",
+    ago: "{{time}} 전",
+    days: "{{count}}일",
+    hours: "{{count}}시간",
+    minutes: "{{count}}분",
+    title: "요금제 사용량",
+    refresh: "새로고침",
+    refreshing: "새로고치는 중...",
+    loading: "사용량을 불러오는 중...",
+    empty: "사용량 데이터 없음",
+    errorTitle: "사용량을 불러올 수 없음",
+    hostUnavailable: "제공업체 사용량을 보려면 이 호스트에 연결하세요",
+    hostUpgradeRequired: "제공업체 사용량을 보려면 이 호스트를 업데이트하세요",
+    clientUnavailable: "호스트 연결이 준비되지 않았습니다",
+    retry: "다시 시도",
+    tooltipLoading: "요금제 사용량을 불러오는 중…",
   },
   pairing: {
     connectionMethods: {
@@ -2015,7 +2058,6 @@ export const ko: TranslationResources = {
       preferredHint: "Ait에서 사용할 모델을 선택하세요",
       model: "모델",
       fallbackHint: "사용할 수 없으면 Ait가 다른 사용 가능한 모델을 사용합니다",
-      docs: "문서",
       saveError: "메타데이터 생성을 업데이트할 수 없습니다",
     },
     general: {
@@ -2424,9 +2466,30 @@ export const ko: TranslationResources = {
       },
       agents: {
         unavailable: "에이전트를 관리하려면 이 호스트에 연결하세요",
+        browserTools: {
+          title: "브라우저 도구",
+          hint: "에이전트가 로그인 상태를 포함한 Ait 브라우저 탭에 접근하고 제어하도록 허용합니다. 신뢰하는 에이전트에만 활성화하세요.",
+          updating: "브라우저 도구 업데이트 중…",
+          accessibilityLabel: "브라우저 도구 사용",
+        },
       },
       workspaces: {
         unavailable: "워크스페이스를 관리하려면 이 호스트에 연결하세요",
+        archiveMergedPr: {
+          title: "병합된 PR 워크스페이스 보관",
+          hint: "풀 리퀘스트가 병합된 후 깨끗한 Ait 워크스페이스를 자동으로 보관합니다",
+          accessibilityLabel: "병합된 PR 워크스페이스 보관",
+          updateFailed: "워크스페이스를 업데이트할 수 없음",
+        },
+      },
+      terminalAgents: {
+        title: "터미널 에이전트",
+      },
+      terminalAgentHooks: {
+        title: "터미널 에이전트 훅 사용",
+        hint: "터미널 에이전트에서 알림과 상태를 받습니다. 에이전트 설정 파일에 훅이 설치됩니다.",
+        accessibilityLabel: "터미널 에이전트 훅 사용",
+        updateFailed: "터미널 에이전트 훅을 업데이트할 수 없음",
       },
       terminalProfiles: {
         unavailable: "터미널 프로필을 관리하려면 이 호스트에 연결하세요",

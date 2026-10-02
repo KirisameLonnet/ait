@@ -18,6 +18,9 @@ node_modules/
 .env.*
 !.env.example
 
+# Local agent state
+.omo/
+
 # Apple signing credentials and provisioning artifacts
 *.certSigningRequest
 *.cer

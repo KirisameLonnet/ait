@@ -24,6 +24,9 @@ pub(crate) struct Observation {
     request: WorkspaceListRequest,
     previous: BTreeMap<String, Value>,
     empty_projects: BTreeSet<String>,
+    paths: Vec<String>,
+    git_observer: Option<std::sync::Arc<dyn crate::ports::workspace_git::WorkspaceGitObserver>>,
+    git_interest: Option<Box<dyn crate::ports::workspace_git::WorkspaceGitObservation>>,
 }
 
 pub(super) fn list(
@@ -48,6 +51,11 @@ pub(crate) fn prepare(
     request.subscribe = None;
     let snapshot = snapshot(directory, &request)?;
     let previous = wire_entries(&snapshot.entries)?;
+    let paths = snapshot
+        .entries
+        .iter()
+        .map(|entry| entry.workspace_directory.clone())
+        .collect();
     let empty_projects = snapshot
         .empty
         .iter()
@@ -65,16 +73,35 @@ pub(crate) fn prepare(
             request,
             previous,
             empty_projects,
+            paths,
+            git_observer: directory.git_observer(),
+            git_interest: None,
         },
     ))
 }
 
 impl Observation {
+    pub(crate) fn activate(&mut self) {
+        if let Some(observer) = &self.git_observer {
+            let mut observation = observer.observe();
+            observation.set_paths(&self.paths);
+            self.git_interest = Some(observation);
+        }
+    }
+
     pub(crate) fn update(
         &mut self,
         directory: &Directory,
     ) -> Result<Vec<ServerMessage>, ErrorCode> {
         let snapshot = snapshot(directory, &self.request)?;
+        if let Some(observation) = &mut self.git_interest {
+            self.paths = snapshot
+                .entries
+                .iter()
+                .map(|entry| entry.workspace_directory.clone())
+                .collect();
+            observation.set_paths(&self.paths);
+        }
         let next = wire_entries(&snapshot.entries)?;
         let empty: BTreeMap<_, _> = snapshot
             .empty
@@ -197,12 +224,19 @@ fn snapshot(directory: &Directory, request: &WorkspaceListRequest) -> Result<Sna
     let statuses = directory
         .workspace_statuses(&all_active, &timestamp())
         .map_err(directory_error)?;
+    let mut runtimes = BTreeMap::new();
     let entries = all_active
         .iter()
         .filter(|workspace| matches_filter(workspace, request))
         .map(|workspace| {
             let mut descriptor =
                 workspace_descriptor(workspace, projects.get(&workspace.project_id));
+            if let Some(runtime) = runtimes
+                .entry(workspace.cwd.as_str())
+                .or_insert_with(|| directory.runtime_snapshot(&workspace.cwd))
+            {
+                super::runtime::apply(&mut descriptor, runtime);
+            }
             if let Some(status) = statuses.get(&workspace.workspace_id) {
                 descriptor.status = status.bucket;
                 descriptor.status_entered_at = Some(status.entered_at.clone());

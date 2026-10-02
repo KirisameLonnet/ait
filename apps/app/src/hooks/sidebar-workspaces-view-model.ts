@@ -206,7 +206,15 @@ function deriveEffectiveWorkspaceStatus(input: {
   }
 
   const rootAgentActivity = input.workspaceAgentActivity?.get(input.workspace.id);
-  if (rootAgentActivity && rootAgentActivity.status !== "done") {
+  // A newer directory completion supersedes a cached Agent activity signal. A fresh
+  // Agent transition can still bridge the delay before the next Workspace update.
+  if (
+    rootAgentActivity &&
+    rootAgentActivity.status !== "done" &&
+    (!input.workspace.statusEnteredAt ||
+      !rootAgentActivity.enteredAt ||
+      rootAgentActivity.enteredAt > input.workspace.statusEnteredAt)
+  ) {
     return rootAgentActivity;
   }
 

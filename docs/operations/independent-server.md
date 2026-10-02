@@ -439,6 +439,9 @@ live Agent 返回原生 handle 和可选 activeTurn。list 的 `subscribe`/`sync
 自行管理认证。Codex 支持 read-only、auto、full-access 和经原生版本协商的 auto-review；
 Claude 模式见 [使用说明](claude-code.md)。配置、权限及能力边界见 [ADR-052](../decisions/adr-052-native-provider-capabilities.md)。
 
+DeepSeek Harness 使用 `dsh --profile acp`，可通过 `AIT_SERVER_DEEPSEEK_HARNESS_BIN`
+覆盖 CLI 路径。动态模型、审批、取消和恢复方式见 [Harness 使用说明](deepseek-harness.md)。
+
 先用 `workspace.open.request` 打开目录，再在已协商相应 capability 的连接中调用：
 
 | 方法                         | 参数                                                                                                                                                                     | 结果                                                             |
@@ -592,7 +595,8 @@ cargo llvm-cov --workspace --html
 三个配置方法返回 `{agentId, accepted, error, notice}`。省略字段保持原值，null 清除宿主覆盖并
 交给原生 Provider 继承；它不保证回到创建时的模型。修改不打断正在执行的 turn；活动期间成功
 修改会返回下一轮生效的 notice。accepted 只表示保存成功，真实模型可用性仍在执行时验证。
-Codex thinking 支持 none/minimal/low/medium/high/xhigh；模型非空、无控制字符且最多 256 字节。
+Codex thinking 支持 none/minimal/low/medium/high/xhigh/max/ultra；具体模型可选等级以原生
+`model/list` 返回为准。模型非空、无控制字符且最多 256 字节。
 归档 Agent 拒绝修改。批量 config 暂不接受 modeId 或 featureValues；sandbox 仍是只读。
 
 Session 事件支持 `agent_attention_required`、`status.daemon_config_changed`、

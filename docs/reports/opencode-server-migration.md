@@ -12,7 +12,7 @@
 - 历史与 archived resume 只读；原生审批 once，取消经 native acknowledgement，关闭回收进程组。
 - 取消确认后核对完整历史并刷新下一轮基线，支持继续输入；无法证明排空时停止 writer。
 
-参考路径及架构决策见 [ADR-067](../decisions/adr-067-opencode-server-provider.md)。
+参考路径及架构决策见 [ADR-072](../decisions/adr-072-opencode-server-provider.md)。
 旧 [Harness 报告](native-harness-adapters.md) 与覆盖率制品保留为历史记录。
 
 ## 使用与限制
@@ -32,14 +32,14 @@ Claude Code 使用 main 已有生产 adapter。
 
 ## 验证
 
-| 检查 | 结果 |
-| --- | --- |
-| Rust workspace 构建 | 通过 |
-| Rustfmt / workspace 全 targets Clippy（`-D warnings`） | 通过 |
-| 完整 workspace 测试（LLVM runner） | 1507 passed、3 既有在线测试 ignored、0 failed |
-| OpenCode 协议与新会话 port | 22 passed，包含 v1/v2、SSE 最终 key、审批拒绝、取消后继续输入 |
-| 实际 server WebSocket 进程测试 | 通过：模型发现、连续输入、重启恢复、原生提交次数和 helper PID 回收 |
-| `git diff --check origin/main` | 通过；同步范围包含 main 原有的 Swift/patch 空白，不额外改写 |
+| 检查                                                   | 结果                                                               |
+| ------------------------------------------------------ | ------------------------------------------------------------------ |
+| Rust workspace 构建                                    | 通过                                                               |
+| Rustfmt / workspace 全 targets Clippy（`-D warnings`） | 通过                                                               |
+| 完整 workspace 测试（LLVM runner）                     | 1507 passed、3 既有在线测试 ignored、0 failed                      |
+| OpenCode 协议与新会话 port                             | 22 passed，包含 v1/v2、SSE 最终 key、审批拒绝、取消后继续输入      |
+| 实际 server WebSocket 进程测试                         | 通过：模型发现、连续输入、重启恢复、原生提交次数和 helper PID 回收 |
+| `git diff --check origin/main`                         | 通过；同步范围包含 main 原有的 Swift/patch 空白，不额外改写        |
 
 检查中发现并修正创建入口的固定 Codex/Claude 白名单、客户端消息身份字段兼容、
 旧诊断测试的 Provider 数量断言，以及取消后的历史核对和续执行。
@@ -48,10 +48,10 @@ Claude Code 使用 main 已有生产 adapter。
 ## Test coverage
 
 | 测量范围（LLVM summary） | 行覆盖率 | 已覆盖 / 总行数 |
-| --- | ---: | ---: |
-| Rust workspace | 91.47% | 43982 / 48082 |
-| server-provider | 92.11% | 19675 / 21360 |
-| OpenCode 生产插件 | 84.28% | 2316 / 2748 |
+| ------------------------ | -------: | --------------: |
+| Rust workspace           |   91.47% |   43982 / 48082 |
+| server-provider          |   92.11% |   19675 / 21360 |
+| OpenCode 生产插件        |   84.28% |     2316 / 2748 |
 
 测量版本为上述两个基线合并后的代码，精确源码 SHA-256、逐文件指标、LCOV 未覆盖行、
 命令及日志指纹见 [共享覆盖率制品](opencode-server-coverage.json)。测量后只更新报告和该 JSON。

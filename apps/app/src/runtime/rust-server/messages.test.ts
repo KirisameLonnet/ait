@@ -34,6 +34,23 @@ function info(methods: string[]) {
   return parseServerInfoStatusPayload(object(object(message.message).payload));
 }
 
+describe("Rust server software version", () => {
+  it.each(["0.0.10", "v0.0.11"])("preserves the connected server's version %s", (version) => {
+    const envelope = serverInfo({ server_id: "ait", version }, new Set());
+    const value = parseServerInfoStatusPayload(object(object(envelope.message).payload));
+    expect(value?.version).toBe(version);
+  });
+
+  it.each([undefined, null, 11, { major: 1, minor: 0 }])(
+    "keeps an unknown software version when the server sends %j",
+    (version) => {
+      const envelope = serverInfo({ server_id: "ait", version }, new Set());
+      const value = parseServerInfoStatusPayload(object(object(envelope.message).payload));
+      expect(value?.version).toBeNull();
+    },
+  );
+});
+
 it("preserves Rust timeline search counts in the SDK response envelope", () => {
   const result = {
     agentId: "agent",
@@ -50,6 +67,19 @@ it("preserves Rust timeline search counts in the SDK response envelope", () => {
 });
 
 describe("Ait host capabilities", () => {
+  it("advertises checkout status events only with the Git producer and checkout method", () => {
+    const read = (features: string[], methods: string[]) =>
+      parseServerInfoStatusPayload(
+        object(
+          object(serverInfo({ server_id: "ait", features }, new Set(methods)).message).payload,
+        ),
+      )?.sessionEventTypes;
+    const method = "checkout.status.get.request";
+    expect(read(["checkout-git-events-v1"], [method])).toContain("checkout_status_update");
+    expect(read([], [method])).not.toContain("checkout_status_update");
+    expect(read(["checkout-git-events-v1"], [])).not.toContain("checkout_status_update");
+  });
+
   it("enables composite creation only with the lifecycle producer and its methods", () => {
     const methods = new Set([
       "agent.create.request",
@@ -176,6 +206,33 @@ describe("Ait host capabilities", () => {
       importSessionWorkspaceTarget: false,
       importSessionSearch: false,
     });
+  });
+});
+
+it("adapts post-fetch checkout status events into the SDK schema", () => {
+  const payload = {
+    cwd: "/repo",
+    isGit: true,
+    repoRoot: "/repo",
+    mainRepoRoot: "/repo",
+    currentBranch: "feature",
+    isDirty: false,
+    baseRef: "main",
+    aheadBehind: { ahead: 1, behind: 2 },
+    upstreamRef: "origin/feature",
+    aheadOfOrigin: 0,
+    behindOfOrigin: 1,
+    hasRemote: true,
+    remoteUrl: "https://example.test/repo.git",
+    isPaseoOwnedWorktree: false,
+    error: null,
+    subscriptionId: "checkout-events",
+  };
+  const envelope = eventMessage("checkout.status.update", payload);
+  const parsed = WSOutboundMessageSchema.parse(envelope);
+  expect(parsed).toMatchObject({
+    type: "session",
+    message: { type: "checkout_status_update", payload: { ...payload, requestId: "" } },
   });
 });
 

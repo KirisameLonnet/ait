@@ -316,7 +316,11 @@ const AgentModelDefinitionSchema = z.object({
   aliases: z.array(z.string()).optional(),
   isSelectable: z.boolean().optional(),
   label: z.string(),
-  description: z.string().optional(),
+  description: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? undefined)
+    .optional(),
   isDefault: z.boolean().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   contextWindowMaxTokens: z.number().optional(),

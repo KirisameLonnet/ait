@@ -2,6 +2,7 @@ use super::*;
 
 mod browser_auth;
 mod paseo;
+mod server_info;
 mod session;
 mod voice;
 

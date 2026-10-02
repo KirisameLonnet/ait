@@ -1169,6 +1169,7 @@ export const ja: TranslationResources = {
       appName: "Ait",
     },
     sections: {
+      workspaces: "ワークスペース",
       sessions: "履歴",
       search: "検索",
       schedules: "スケジュール",
@@ -1318,7 +1319,23 @@ export const ja: TranslationResources = {
     },
     daemon: {
       listen: en.desktop.daemon.listen,
-      lifecycle: en.desktop.daemon.lifecycle,
+      lifecycle: {
+        owned: "このデスクトップセッションが起動",
+        attached: "既存のデーモンに接続中",
+        ownedMessage: "このデーモンは、このデスクトップセッションが起動しました。",
+        attachedMessage: "このデーモンは、このデスクトップセッションが起動したものではありません。",
+        stopTitle: "ローカルデーモンを停止しますか？",
+        stopMessage:
+          "{{ownership}}\nホーム：{{home}}\nスーパーバイザー PID：{{pid}}\n実行中のエージェントのタスクは中断されます。",
+        stop: "デーモンを停止",
+        stopping: "停止中…",
+        stopFailed: "デーモンを停止できません",
+        pauseAttached: "デーモンの自動管理を一時停止しますか？接続中のデーモンは実行を継続します。",
+        pause: "管理を一時停止",
+        workerUpdated: "ワーカーを {{version}} に更新しました",
+        supervisorRefresh:
+          "実行中のスーパーバイザーは元のコードを保持しています。更新するには、起動元のプログラムで停止して再起動する必要があります。",
+      },
       title: "デーモン",
       status: {
         title: "ステータス",
@@ -1628,6 +1645,32 @@ export const ja: TranslationResources = {
       workspaceDirectoryNotFound: "ワークスペースディレクトリが見つかりません",
       hostDisconnected: "ホストが接続されていません",
     },
+  },
+  providerUsage: {
+    error: "エラー",
+    unavailable: "利用不可",
+    updated: "{{time}}に更新",
+    remaining: "残り {{amount}}",
+    resettingNow: "リセット中",
+    resets: "{{time}}後にリセット",
+    runsOutNow: "まもなく枯渇",
+    runsOut: "{{time}}後に枯渇",
+    justNow: "たった今",
+    ago: "{{time}}前",
+    days: "{{count}}日",
+    hours: "{{count}}時間",
+    minutes: "{{count}}分",
+    title: "プラン使用量",
+    refresh: "更新",
+    refreshing: "更新中...",
+    loading: "使用量を読み込み中...",
+    empty: "使用量データがありません",
+    errorTitle: "使用量を読み込めませんでした",
+    hostUnavailable: "プロバイダーの使用量を表示するには、このホストに接続してください",
+    hostUpgradeRequired: "プロバイダーの使用量を表示するには、このホストを更新してください",
+    clientUnavailable: "ホストへの接続が準備中です",
+    retry: "再試行",
+    tooltipLoading: "プラン使用量を読み込み中…",
   },
   pairing: {
     connectionMethods: {
@@ -2025,7 +2068,6 @@ export const ja: TranslationResources = {
       preferredHint: "Ait が使用するモデルを選択します",
       model: "モデル",
       fallbackHint: "利用できない場合、Ait は別の利用可能なモデルを使用します",
-      docs: "ドキュメント",
       saveError: "メタデータ生成を更新できません",
     },
     general: {
@@ -2436,9 +2478,30 @@ export const ja: TranslationResources = {
       },
       agents: {
         unavailable: "エージェントを管理するにはこのホストに接続してください",
+        browserTools: {
+          title: "ブラウザーツール",
+          hint: "エージェントによる Ait ブラウザータブへのアクセスと操作を許可します。ログイン済みの状態も含まれます。信頼できるエージェントにのみ有効にしてください。",
+          updating: "ブラウザーツールを更新中…",
+          accessibilityLabel: "ブラウザツールを有効にする",
+        },
       },
       workspaces: {
         unavailable: "ワークスペースを管理するにはこのホストに接続してください",
+        archiveMergedPr: {
+          title: "マージ済みの PR のワークスペースをアーカイブ",
+          hint: "プルリクエストがマージされた後、クリーンな Ait ワークスペースを自動的にアーカイブします",
+          accessibilityLabel: "マージ済みの PR のワークスペースをアーカイブ",
+          updateFailed: "ワークスペースを更新できません",
+        },
+      },
+      terminalAgents: {
+        title: "ターミナルエージェント",
+      },
+      terminalAgentHooks: {
+        title: "ターミナルエージェントのフックを有効にする",
+        hint: "ターミナルエージェントから通知とステータスを取得します。エージェントの設定ファイルにフックがインストールされます。",
+        accessibilityLabel: "ターミナルエージェントのフックを有効にする",
+        updateFailed: "ターミナルエージェントのフックを更新できません",
       },
       terminalProfiles: {
         unavailable: "ターミナルプロファイルを管理するにはこのホストに接続してください",

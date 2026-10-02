@@ -17,8 +17,10 @@ use crate::ports::registry::{
 
 use super::{Directory, DirectoryDependencies, DirectoryError, derive_project_key};
 
+mod git_observation;
 mod paseo;
 mod paseo_api;
+mod runtime;
 mod synchronization;
 
 #[derive(Debug, Default)]
