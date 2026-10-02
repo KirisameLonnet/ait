@@ -57,6 +57,10 @@
   },
   "submit": {
     "ait": {
+      "android": {
+        "track": "internal",
+        "releaseStatus": "completed"
+      },
       "ios": {
         "ascAppId": "6817043477",
         "appleTeamId": "SVS7GV79T9",
