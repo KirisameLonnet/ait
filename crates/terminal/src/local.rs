@@ -131,6 +131,11 @@ impl Process for LocalProcess {
         match input {
             Input::Resize(resize) => {
                 let size = resize.size.validate()?;
+                // Same-size ownership claims must not invalidate the output cursor:
+                // a full screen restore would clear the client's active selection.
+                if lock(&self.screen).size() == size {
+                    return Ok(());
+                }
                 self.master.resize(pty_size(size)).map_err(|_| Error::Io)?;
                 lock(&self.screen).resize(size);
                 Ok(())

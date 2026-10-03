@@ -1,0 +1,84 @@
+{
+  "date": "2026-10-04",
+  "base_revision": "4e8188b2e65aac569a2c7826bccba279c6923113",
+  "measurement_revision": "Base revision plus the changed source files identified below.",
+  "source_fingerprint": "ba888cbb4b942b7840f10fad8a4f0fddc2691866c1732f9be2b30f97a14c9d24",
+  "fingerprint_algorithm": "SHA-256 of sorted relative path + NUL + content SHA-256 + newline for every Rust source in bins/ and crates/.",
+  "changed_source_sha256": {
+    "crates/terminal/src/local.rs": "414ca6b1ce0d694aa4016532a551b1e9b4a24615f90c6be6ecf60598c2048045",
+    "crates/terminal/src/screen.rs": "9f61831c169c1407b5e06623df175779a4560463a3caca93e4f0091c079fdd8e",
+    "crates/terminal/src/local/tests.rs": "387fc1bdaad4be0ead5f4db4a991123fcf44c4754853599b8eaf3a42f79a132e",
+    "apps/mobile/e2e/browser/terminal-selection.spec.ts": "fe4ba704f621b3d1028c66fcb97ef23ac09d5fc81fd08e250825165383a6eb35"
+  },
+  "scope": "All 13 Cargo workspace members; default features; macOS arm64; Rust 1.98.1; cargo-llvm-cov 0.8.4; default filename filtering; no custom exclusions.",
+  "environment": "SHERPA_ONNX_LIB_DIR points to cached sherpa-onnx 1.13.8 macOS arm64 static libraries.",
+  "commands": [
+    "cargo test --workspace",
+    "cargo build --workspace",
+    "cargo clippy --workspace --all-targets -- -D warnings",
+    "cargo fmt --all --check",
+    "cargo llvm-cov --workspace --html",
+    "cargo llvm-cov report --json --summary-only --output-path /private/tmp/ait-terminal-selection-coverage-summary.json",
+    "npm run typecheck --workspace=@ait/mobile",
+    "E2E_AIT_SERVER_BIN=target/debug/daemon npm run test:e2e --workspace=@ait/mobile -- e2e/browser/terminal-selection.spec.ts",
+    "node_modules/.bin/oxfmt --check apps/mobile/e2e/browser/terminal-selection.spec.ts",
+    "node_modules/.bin/oxlint apps/mobile/e2e/browser/terminal-selection.spec.ts"
+  ],
+  "test_execution": {
+    "workspace": {
+      "passed": 1758,
+      "failed": 0,
+      "ignored": 3
+    },
+    "coverage_run": {
+      "passed": 1758,
+      "failed": 0,
+      "ignored": 3
+    },
+    "browser_regression": {
+      "passed": 1,
+      "failed": 0,
+      "behavior": "Double-click word selection and held mouse-drag selection survive resize synchronization and copy via ControlOrMeta+C."
+    },
+    "build_format_lint_typecheck": "passed"
+  },
+  "workspace_lines": {
+    "count": 51404,
+    "covered": 48602,
+    "percent": 94.54906232977979
+  },
+  "terminal_lines": {
+    "covered": 1458,
+    "count": 1515,
+    "percent": 96.23762376237623
+  },
+  "changed_implementation_files": {
+    "crates/terminal/src/local.rs": {
+      "count": 223,
+      "covered": 197,
+      "percent": 88.34080717488789
+    },
+    "crates/terminal/src/screen.rs": {
+      "count": 263,
+      "covered": 263,
+      "percent": 100.0
+    }
+  },
+  "baseline": {
+    "artifact": "docs/reports/daemon/crate-coverage-95.json",
+    "terminal_lines": {
+      "covered": 1451,
+      "count": 1508,
+      "percent": 96.22015915119363
+    },
+    "terminal_delta_percentage_points": 0.017464611182603562,
+    "workspace_comparison": "Not comparable: the older artifact covered 12 workspace members; the current workspace has 13 members and additional provider behavior."
+  },
+  "review": {
+    "new_behavior": "All seven added executable lines are covered; same-size claims preserve the output revision and subsequent deltas; changed dimensions still resize; same-size ownership transfer remains covered by the service regression.",
+    "uncovered_behavior": "Existing native PTY failure and cleanup paths account for the uncovered lines in local.rs; screen.rs has complete line coverage.",
+    "limitations": "Branch coverage is not instrumented. Three pre-existing ignored tests remain ignored. Linux and Windows platform-specific branches were not measured locally; Linux validation runs in PR CI.",
+    "follow_up": "Review PR CI for Linux validation; no new uncovered executable lines."
+  },
+  "html_report": "target/llvm-cov/html/index.html"
+}

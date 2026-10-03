@@ -77,6 +77,46 @@ fn native_pty_supports_tty_input_resize_capture_and_drop_cleanup() {
 
 #[cfg(unix)]
 #[test]
+fn same_size_claim_preserves_the_terminal_output_stream() {
+    let temp = tempfile::tempdir().unwrap();
+    let config = launch(
+        temp.path(),
+        "printf 'READY\\n'; while read line; do printf 'RESULT:%s\\n' \"$line\"; done",
+    );
+    let mut process = LocalRuntime.spawn(&config).unwrap();
+    until(process.as_ref(), |output| output.contains("READY"));
+    let initial = process.observe(None, None).unwrap();
+
+    process
+        .send(&Input::Resize(crate::protocol::Resize {
+            size: config.size,
+            intent: crate::protocol::ResizeIntent::Claim,
+        }))
+        .unwrap();
+
+    let unchanged = process.observe(Some(initial.revision), None).unwrap();
+    assert_eq!(unchanged.size, config.size);
+    assert_eq!(unchanged.revision, initial.revision);
+    assert!(unchanged.frames.is_empty());
+
+    process
+        .send(&Input::Input {
+            data: "next\r".to_owned(),
+        })
+        .unwrap();
+    until(process.as_ref(), |output| output.contains("RESULT:next"));
+    let output = process.observe(Some(initial.revision), None).unwrap();
+    assert!(!output.frames.is_empty());
+    assert!(
+        output
+            .frames
+            .iter()
+            .all(|(opcode, _)| *opcode == crate::protocol::Opcode::Output)
+    );
+}
+
+#[cfg(unix)]
+#[test]
 fn spawn_failure_natural_exit_and_environment_are_explicit() {
     let temp = tempfile::tempdir().unwrap();
     let mut config = launch(temp.path(), "printf 'DONE:%s' \"$PASEO_WORKSPACE_ID\"");
