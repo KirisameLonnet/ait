@@ -30,12 +30,17 @@ Diff 画布已经根据 line `tokens` 和客户端语法主题着色，但 Rust 
   一次；Git 内容按仓库、路径和不可变 commit SHA 缓存，避免每次轮询重复 `git show`；
   工作树按内容摘要失效，缓存不依赖客户端主题。解析仍在既有 blocking-job 边界执行。
 - RPC 按实际 JSON 编码字节检查单文件和完整订阅快照，接近既有 4 MiB 输出队列预算时
-  去掉可选 token，保留 Diff 文本，避免高亮字段膨胀使原本可发送的 Diff 断开连接。
+  去掉可选 token，优先保留 Diff 文本。纯文本单文件仍超预算时，保留文件名、增删统计，
+  清空 hunks 并返回既有 `too_large` 状态；完整快照仍超预算时，清空文件内容并返回既有
+  `diffTooLarge` 提示。完整快照检查包含 cwd，预留 64 KiB 给协议信封和其他在途消息。
+  初次请求、订阅更新和提交文件 Diff 复用同一投影，避免超限消息进入输出队列并断开连接。
 
 ## 后果
 
 已有 Desktop、Web 和 Native Diff 画布直接获得语法颜色，无需前端补做解析或改变协议。
 具体 token 边界和语言范围可能与 Lezer 不同；无法读取完整文件时，重建内容不能恢复 hunk
-以外的多行语法上下文。超预算 Diff 仍可展示普通文本。
+以外的多行语法上下文。去掉高亮后能满足预算的 Diff 继续展示普通文本；仍超限时显示
+既有的大文件或大快照提示，连接和订阅保持可用，缩小 Diff 后恢复内容。
 
 验证结果与 Test coverage 见[修复报告](../../reports/workspace/diff-syntax-highlighting.md)。
+2026-10-03 的纯文本输出预算补充见[大 Diff 加载报告](../../reports/workspace/large-diff-loading.md)。

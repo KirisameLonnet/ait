@@ -9,7 +9,7 @@ use crate::rpc::ErrorCode;
 use crate::service::checkout::{self as port, Checkout};
 
 // Reserve room for the response/event envelope and other in-flight output.
-const HIGHLIGHTED_DIFF_BUDGET: usize = model::server::MAX_QUEUE_BYTES - 64 * 1024;
+const DIFF_OUTPUT_BUDGET: usize = model::server::MAX_QUEUE_BYTES - 64 * 1024;
 
 /// Decode and execute a checkout request.
 ///
@@ -402,18 +402,22 @@ fn protocol_diff_result(
 ) -> protocol::CheckoutDiffResult {
     match result {
         Ok(result) => {
-            let mut files: Vec<_> = result.files.into_iter().map(protocol_diff_file).collect();
-            if !fits_highlighted_diff_budget(&files) {
-                for file in &mut files {
-                    clear_diff_tokens(file);
-                }
-            }
-            protocol::CheckoutDiffResult {
+            let mut result = protocol::CheckoutDiffResult {
                 cwd: cwd.to_owned(),
-                files,
+                files: result.files.into_iter().map(protocol_diff_file).collect(),
                 error: None,
                 diff_too_large: result.diff_too_large.then_some(true),
+            };
+            if !fits_diff_output_budget(&result) {
+                for file in &mut result.files {
+                    clear_diff_tokens(file);
+                }
+                if !fits_diff_output_budget(&result) {
+                    result.files.clear();
+                    result.diff_too_large = Some(true);
+                }
             }
+            result
         }
         Err(error) => protocol::CheckoutDiffResult {
             cwd: cwd.to_owned(),
@@ -470,8 +474,12 @@ fn protocol_diff_file(file: port::ParsedDiffFile) -> protocol::ParsedDiffFile {
             port::ParsedDiffStatus::Binary => protocol::ParsedDiffStatus::Binary,
         }),
     };
-    if !fits_highlighted_diff_budget(&file) {
+    if !fits_diff_output_budget(&file) {
         clear_diff_tokens(&mut file);
+        if !fits_diff_output_budget(&file) {
+            file.hunks.clear();
+            file.status = Some(protocol::ParsedDiffStatus::TooLarge);
+        }
     }
     file
 }
@@ -482,9 +490,9 @@ fn clear_diff_tokens(file: &mut protocol::ParsedDiffFile) {
     }
 }
 
-fn fits_highlighted_diff_budget(value: &impl Serialize) -> bool {
+fn fits_diff_output_budget(value: &impl Serialize) -> bool {
     let mut size = DiffEncodedSize::default();
-    serde_json::to_writer(&mut size, value).is_ok() && size.0 <= HIGHLIGHTED_DIFF_BUDGET
+    serde_json::to_writer(&mut size, value).is_ok() && size.0 <= DIFF_OUTPUT_BUDGET
 }
 
 #[derive(Default)]
@@ -493,10 +501,8 @@ struct DiffEncodedSize(usize);
 impl Write for DiffEncodedSize {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
         self.0 = self.0.saturating_add(bytes.len());
-        if self.0 > HIGHLIGHTED_DIFF_BUDGET {
-            return Err(io::Error::other(
-                "Highlighted diff exceeds the output budget",
-            ));
+        if self.0 > DIFF_OUTPUT_BUDGET {
+            return Err(io::Error::other("Diff exceeds the output budget"));
         }
         Ok(bytes.len())
     }
