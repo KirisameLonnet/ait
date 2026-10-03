@@ -902,6 +902,14 @@ impl AgentSession for CodexSession {
             if self.active_turn.is_none() || turn_id != self.active_turn.as_deref() {
                 continue;
             }
+            if method == "error" {
+                if let Some(entry) =
+                    streaming::capacity_error(params, turn_id.expect("active turn"))
+                {
+                    return Ok(Some(AgentTurnEvent::Timeline(entry)));
+                }
+                continue;
+            }
             if let Some(event) = self.stream.progress(method, params)? {
                 return Ok(Some(event));
             }

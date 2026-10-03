@@ -80,6 +80,9 @@ async fn native_discovery_and_read_only_history_use_real_stdio_without_model_cal
         .await
         .unwrap();
     assert_eq!(details.models[0]["id"], "offline-model");
+    assert!(fixture.requests().iter().any(|request| {
+        request["method"] == "model/list" && request["params"]["includeHidden"] == false
+    }));
     assert_eq!(
         details
             .modes

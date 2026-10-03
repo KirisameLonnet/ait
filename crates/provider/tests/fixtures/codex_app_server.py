@@ -216,6 +216,15 @@ for line in sys.stdin:
         save_turn(pending, None, "inProgress")
         emit({"method": "item/completed", "params": {"threadId": thread_id, "turnId": pending,
             "item": {"type": "userMessage", "id": pending + "-user", "content": [{"type": "text", "text": text}]}}})
+        if text == "capacity":
+            emit({"method":"error","params":{"threadId":thread_id,"turnId":pending,
+                "error":{"message":"Selected model is at capacity. Please try a different model."},
+                "willRetry":False}})
+            save_turn(pending, None, "failed")
+            emit({"method":"turn/completed","params":{"threadId":thread_id,
+                "turn":{"id":pending,"status":"failed"}}})
+            pending = None
+            continue
         if text == "exit":
             sys.exit(0)
         if text == "large-generated-image":

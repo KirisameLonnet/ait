@@ -96,7 +96,8 @@ fn model(native: &Value) -> Result<Value, AgentSessionError> {
         })
         .collect::<Result<Vec<_>, AgentSessionError>>()?;
     let mut value = json!({"provider":"codex","id":id,"label":label,
-        "isSelectable":native["hidden"].as_bool()!=Some(true),"isDefault":native["isDefault"].as_bool().unwrap_or(false),"thinkingOptions":options});
+        "isSelectable":native["hidden"].as_bool()!=Some(true),
+        "isDefault":native["isDefault"].as_bool().unwrap_or(false),"thinkingOptions":options});
     value["supportsFastMode"] = json!(
         native["serviceTiers"]
             .as_array()
