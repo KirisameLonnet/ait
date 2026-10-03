@@ -257,6 +257,37 @@ async fn failed_turn_exit_and_permission_requests_have_explicit_terminal_outcome
 }
 
 #[tokio::test]
+async fn capacity_failure_is_visible_before_the_failed_terminal() {
+    let fixture = Fixture::new();
+    let client = fixture.client();
+    let mut session = client.create_session(&fixture.spec()).await.unwrap();
+    session
+        .start_turn("capacity", &fixture.spec().config)
+        .await
+        .unwrap();
+    let mut errors = Vec::new();
+    tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            match session.poll_turn().unwrap() {
+                Some(AgentTurnEvent::Timeline(entry)) if entry.item["type"] == "error" => {
+                    errors.push(entry);
+                }
+                Some(AgentTurnEvent::Failed) => break,
+                _ => tokio::time::sleep(Duration::from_millis(5)).await,
+            }
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].item["message"],
+        "Selected model is at capacity. Please try a different model."
+    );
+    session.close().await.unwrap();
+}
+
+#[tokio::test]
 async fn rejects_unsupported_options_missing_executable_and_mismatched_resume_identity() {
     let fixture = Fixture::new();
     let missing = CodexClient::new(fixture.root.path().join("absent"));

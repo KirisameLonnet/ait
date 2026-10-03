@@ -1,0 +1,48 @@
+{
+  "base_revision": "3badcc9ddc8edab10287728ded94dce2896e8fa5",
+  "measurement_note": "Latest main revision plus the modified Codex Rust sources identified by SHA-256 below.",
+  "platform": "aarch64-apple-darwin",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "cargo_llvm_cov": "0.8.4",
+  "features": "default workspace features",
+  "excluded_files": "cargo-llvm-cov defaults; no additional filters",
+  "doctest_instrumentation": false,
+  "commands": [
+    "cargo llvm-cov --workspace --html",
+    "cargo llvm-cov report --json --summary-only --output-path /private/tmp/ait-pr-rebased-coverage-summary.json"
+  ],
+  "modified_rust_source_sha256": {
+    "crates/provider/src/local/codex.rs": "841ae6181566418645435bcbcd57d0846ba0979ce5680dc5a82fb4cef405a6ca",
+    "crates/provider/src/local/codex/discovery.rs": "7b67f606a233022ec334affbfe9e45c5707b3c5c32df9aa32bba7b803ad29858",
+    "crates/provider/src/local/codex/discovery/tests.rs": "4666d76a1b257b3dde56151b10b45ff03c93ad13c16dc15f65f382bf9bc3f89d",
+    "crates/provider/src/local/codex/streaming.rs": "fc5e988f1b9a679f018989bf839a9bd8c684486a691cd225aa247a7af7978b8f",
+    "crates/provider/src/local/codex/streaming/tests/paseo.rs": "679d0fb74630a6de22d3fe05e29afe5d1956acf70102ccf47c8da991cbfeffaa",
+    "crates/provider/src/local/codex/tests.rs": "f611c4d09ead0966333dac9b1b5d42ac352a7e036159487045a62b112d4b38a0",
+    "crates/provider/src/local/codex/transport.rs": "49152da5e1c78afa858d41e96f18a5fb04f1baaee704c430b04c5c18b379cf25"
+  },
+  "scope_line_coverage": {
+    "workspace": {
+      "covered": 48622,
+      "total": 51430,
+      "percent": 94.5402
+    },
+    "provider": {
+      "covered": 21246,
+      "total": 22618,
+      "percent": 93.934
+    }
+  },
+  "comparable_baseline": {
+    "artifact": "docs/reports/providers/agent-creation-resource-contention-coverage.json",
+    "covered": 48593,
+    "total": 51397,
+    "percent": 94.5444,
+    "workspace_change_percentage_points": -0.0043,
+    "note": "Same platform, toolchain and measurement settings; delta also includes terminal changes merged into main before this rebase."
+  },
+  "test_execution": "Full instrumented workspace suite: 1,761 passed, 0 failed, 3 existing installed/authenticated provider tests ignored.",
+  "uncovered_behavior": [
+    "Real authenticated Codex model turns and model capacity responses were not exercised; offline fixture regression covers the error notification.",
+    "Linux and Windows were not run."
+  ]
+}

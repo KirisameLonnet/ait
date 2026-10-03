@@ -69,6 +69,16 @@ fn native_items_keep_stable_source_identity_and_supported_display_shapes() {
     assert!(model(&json!({})).is_err());
 }
 
+#[test]
+fn listed_sol_model_is_selectable_even_when_native_marks_it_hidden() {
+    let native = json!({"model":"gpt-6.1-sol","displayName":"GPT-6.1-Sol",
+        "hidden":true,"supportedReasoningEfforts":[]});
+    assert_eq!(model(&native).unwrap()["isSelectable"], true);
+    let other = json!({"model":"private-model","displayName":"Private",
+        "hidden":true,"supportedReasoningEfforts":[]});
+    assert_eq!(model(&other).unwrap()["isSelectable"], false);
+}
+
 #[cfg(unix)]
 #[tokio::test]
 async fn native_discovery_and_read_only_history_use_real_stdio_without_model_calls() {
@@ -80,6 +90,9 @@ async fn native_discovery_and_read_only_history_use_real_stdio_without_model_cal
         .await
         .unwrap();
     assert_eq!(details.models[0]["id"], "offline-model");
+    assert!(fixture.requests().iter().any(|request| {
+        request["method"] == "model/list" && request["params"]["includeHidden"] == true
+    }));
     assert_eq!(
         details
             .modes

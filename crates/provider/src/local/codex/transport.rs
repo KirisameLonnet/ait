@@ -323,7 +323,8 @@ fn retained(method: Option<&str>) -> bool {
     matches!(
         method,
         Some(
-            "turn/completed"
+            "error"
+                | "turn/completed"
                 | "thread/started"
                 | "turn/plan/updated"
                 | "thread/goal/updated"
