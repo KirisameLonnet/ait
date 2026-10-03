@@ -2,7 +2,7 @@
 
 安装并配置[官方 DeepSeek Harness CLI](https://github.com/deepseek-ai/deepseek-harness)，
 确认 `dsh --profile acp` 可启动 ACP stdio 服务。模型路由、凭据和 profile 配置由 Harness 管理。
-Ait server 注册 `deepseek-harness`；客户端模型选择器显示 **DeepSeek Harness**，
+Ait daemon 注册 `deepseek-harness`；客户端模型选择器显示 **DeepSeek Harness**，
 模型和推理等级从本机 Harness 的实际配置目录发现。
 
 默认从 PATH 启动 `dsh`。桌面启动环境找不到它时，在启动 server/desktop 前设置：
@@ -38,4 +38,4 @@ export AIT_SERVER_DEEPSEEK_HARNESS_BIN=/absolute/path/to/dsh
 模型发现会创建并关闭一个 Harness probe session；Harness 没有会话删除接口，
 因此 probe 的原生持久化记录由 Harness 的保留策略管理。
 
-实现边界见 [ADR-067](../decisions/adr-067-deepseek-harness-acp.md)。
+实现边界见 [ADR-067](../decisions/providers/adr-067-deepseek-harness-acp.md)。

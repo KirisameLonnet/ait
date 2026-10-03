@@ -61,7 +61,7 @@ jobs:
         run: |
           node <<'NODE'
           const { readFileSync, appendFileSync } = require('node:fs');
-          const config = JSON.parse(readFileSync('apps/app/eas.json', 'utf8'));
+          const config = JSON.parse(readFileSync('apps/mobile/eas.json', 'utf8'));
           const publicIdentity = config.build.ait.env;
           for (const key of ['EXPO_OWNER', 'EXPO_SLUG', 'EAS_PROJECT_ID', 'IOS_BUNDLE_IDENTIFIER', 'APPLE_TEAM_ID']) {
             const value = publicIdentity[key];
@@ -81,11 +81,11 @@ jobs:
 
       - name: Plan TestFlight release
         id: plan
-        run: node .tmp/release-tools/scripts/ios-testflight-release.mjs plan --tag "$TAG" --package-json apps/app/package.json
+        run: node .tmp/release-tools/scripts/ios-testflight-release.mjs plan --tag "$TAG" --package-json apps/mobile/package.json
 
       - name: Check for duplicate EAS build
         if: env.BUILD_ID_INPUT == ''
-        working-directory: apps/app
+        working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           BUILD_NUMBER: ${{ steps.plan.outputs.ios_build_number }}
@@ -99,7 +99,7 @@ jobs:
       - name: Start EAS build
         id: build
         if: env.BUILD_ID_INPUT == ''
-        working-directory: apps/app
+        working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           BUILD_NUMBER: ${{ steps.plan.outputs.ios_build_number }}
@@ -124,7 +124,7 @@ jobs:
       - name: Select existing EAS build
         id: existing
         if: env.BUILD_ID_INPUT != ''
-        working-directory: apps/app
+        working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           BUILD_ID_INPUT: ${{ inputs.build_id }}
@@ -139,7 +139,7 @@ jobs:
 
       - name: Wait for EAS build
         if: env.BUILD_ID_INPUT == ''
-        working-directory: apps/app
+        working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           BUILD_ID: ${{ steps.build.outputs.build_id }}
@@ -168,7 +168,7 @@ jobs:
           exit 1
 
       - name: Submit build to TestFlight
-        working-directory: apps/app
+        working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           BUILD_ID: ${{ steps.build.outputs.build_id || steps.existing.outputs.build_id }}

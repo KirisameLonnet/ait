@@ -12,33 +12,33 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 # Keep changed-line evidence reproducible after the audit itself has been committed.
 BASE_REVISION = "b797e0d2f83ae57f62892c288a5d81776f8afa6a"
-REPORT = ROOT / "docs/reports/paseo-server-coverage-2026-09-29"
+REPORT = ROOT / "docs/reports/daemon/paseo-server-coverage-2026-09-29"
 TEMP = ROOT / "target/paseo-focused-coverage"
 SCOPES = [
-    ("server-provider", ["--lib"], [
+    ("provider", ["--lib"], [
         "service::agent_execution::", "service::agent_manager::", "service::agent_runtime::",
         "service::provider_catalog::", "service::workspace_attention::", "rpc::timeline::",
         "rpc::fork_context::", "rpc::agent_execution::", "rpc::agent_runtime::", "connection::",
         "local::codex::", "local::claude::", "storage::timeline::", "ports::environment::",
         "ports::agent_session::", "protocol::tests::",
     ]),
-    ("server-model", ["--lib"], ["pagination::", "directory_sync::", "polling::", "runtime::", "events::"]),
-    ("server-metadata", ["--lib"], [
+    ("model", ["--lib"], ["pagination::", "directory_sync::", "polling::", "runtime::", "events::"]),
+    ("metadata", ["--lib"], [
         "service::directory::", "service::session::", "service::creation::",
         "workspace_automation::", "protocol::worktree_source::", "rpc::directory::",
         "protocol::directory::", "protocol::workspace::",
     ]),
-    ("server-filesystem", ["--lib"], ["worktrees::", "worktree_checkout::"]),
-    ("server-terminal", ["--lib"], ["service::", "activity::"]),
-    ("server-api", ["--lib"], [
+    ("filesystem", ["--lib"], ["worktrees::", "worktree_checkout::"]),
+    ("terminal", ["--lib"], ["service::", "activity::"]),
+    ("api", ["--lib"], [
         "terminal_activity::", "listener::", "capabilities::", "auth::", "browser_auth::",
         "tests::session::", "tests::paseo::",
     ]),
-    ("server-bin", ["--test", "process"], [
+    ("daemon", ["--test", "process"], [
         "agent_execution::", "agent_controls::", "agent_history::", "terminal::", "worktrees::",
         "workspace_automation::", "directory::", "native_sessions::", "schedule::", "session::",
     ]),
-    ("server-protocol", ["--lib"], ["methods::"]),
+    ("protocol", ["--lib"], ["methods::"]),
 ]
 IGNORE = r"/(tests|test_support)(/|\.rs$)"
 
@@ -122,7 +122,7 @@ def report():
     files = []
     for path, execution in sorted(lines.items()):
         parts = Path(path).parts
-        crate = "server-bin" if parts[:2] == ("bins", "server") else parts[1]
+        crate = "daemon" if parts[:2] == ("bins", "daemon") else parts[1]
         if crate not in selected or re.search(IGNORE, "/" + path):
             continue
         changed_execution = {line: count for line, count in execution.items()
@@ -209,7 +209,7 @@ def report():
                    "## 重要未覆盖行为", "",
                    "部分持久化/队列故障分支，以及操作系统拒绝终止进程后保留清理责任的分支，仍需故障注入验证。",
                    "真实 Codex/Claude 认证推理、GitHub/GHES 网络和 push、Linux/Windows 需在相应环境另行验证。",
-                   "全局 session event 生产者和普通 Agent 失败重试等剩余兼容差异见[主报告](../paseo-server-api-audit-2026-09-29.md)。",
+                   "全局 session event 生产者和普通 Agent 失败重试等剩余兼容差异见[主报告](../paseo-api-audit-2026-09-29.md)。",
                    "定向测试只覆盖改动及直接相关行为，未为提高比例运行其他未改动模块；因此所选 crate 的完整文件分母仍包含未执行的旧路径。", "",
                    "## 精确命令", "", "```sh", "cargo llvm-cov clean --workspace"]
     paragraphs += [" ".join(result["command"]) for result in results]
@@ -218,7 +218,7 @@ def report():
                    "## 改动文件", "", "| 文件 | 已覆盖 / 总行数 | 新增修改行：已覆盖 / 总行数 |", "| --- | ---: | ---: |"]
     for file in changed_files:
         diff = file["changed_lines"]
-        paragraphs.append(f"| [{file['path']}](../../../{file['path']}) | {file['covered']} / {file['total']} | {diff['covered']} / {diff['total']} |")
+        paragraphs.append(f"| [{file['path']}](../../../../{file['path']}) | {file['covered']} / {file['total']} | {diff['covered']} / {diff['total']} |")
     (REPORT / "README.md").write_text("\n".join(paragraphs) + "\n")
     print(json.dumps(summary, ensure_ascii=False), flush=True)
 

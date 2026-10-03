@@ -1,0 +1,44 @@
+[package]
+name = "daemon"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "daemon"
+path = "src/main.rs"
+
+[dependencies]
+schedule = { version = "0.0.14", path = "../../crates/schedule" }
+browser = { version = "0.0.14", path = "../../crates/browser" }
+voice = { version = "0.0.14", path = "../../crates/voice" }
+serde_json = "1.0.151"
+tokio-util = { version = "0.7.19", features = ["rt"] }
+terminal = { version = "0.0.14", path = "../../crates/terminal" }
+provider = { version = "0.0.14", path = "../../crates/provider" }
+filesystem = { version = "0.0.14", path = "../../crates/filesystem" }
+metadata = { version = "0.0.14", path = "../../crates/metadata" }
+anyhow = "1.0.104"
+axum = "0.8.9"
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
+clap = { version = "4.6.6", features = ["derive"] }
+secrecy = "0.10.3"
+serde = { version = "1.0.229", features = ["derive"] }
+api = { path = "../../crates/api" }
+domain = { version = "0.0.14", path = "../../crates/domain" }
+tempfile = "3.27.0"
+tokio = { version = "1.53.1", features = ["macros", "net", "rt-multi-thread", "sync", "time", "signal"] }
+toml = "1.1.6"
+tracing = "0.1.44"
+tracing-subscriber = "0.3.23"
+uuid = { version = "1.26.0", features = ["v4"] }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+futures-util = "0.3.34"
+reqwest = { version = "0.12", default-features = false, features = ["json"] }
+serde_json = "1.0.151"
+protocol = { path = "../../crates/protocol" }
+tokio-tungstenite = "0.29"

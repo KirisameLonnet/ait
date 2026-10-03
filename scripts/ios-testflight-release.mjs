@@ -1,4 +1,4 @@
-import nativeRelease from "../apps/app/native-release-version.js";
+import nativeRelease from "../apps/mobile/native-release-version.js";
 import { readFile, appendFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 

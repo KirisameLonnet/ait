@@ -1,0 +1,68 @@
+npmRebuild: false
+appId: dev.ait.desktop
+productName: Ait
+copyright: "Copyright © 2026 Necokeine"
+executableName: Ait
+extraMetadata:
+  name: "@ait/desktop"
+protocols:
+  - name: Ait agent link
+    schemes:
+      - ait
+afterPack: ./scripts/after-pack.js
+afterSign: ./scripts/after-sign.js
+directories:
+  output: release
+files:
+  - dist/**/*
+  - "!**/*.map"
+  - "!node_modules/@ait/*/src/**"
+  - "!node_modules/@ait/**/*.test.*"
+  - "!node_modules/@ait/**/*.spec.*"
+  # Workspace packages are symlinked, so anything a dev generates inside them
+  # lands in the asar. CI never has these; a local .debug run adds gigabytes.
+  - "!node_modules/@ait/*/.debug/**"
+  - "!node_modules/@ait/*/.tasks/**"
+  - "!node_modules/@ait/*/conversations/**"
+  - "!node_modules/@ait/*/test-results/**"
+extraResources:
+  - from: assets/icon.png
+    to: icon.png
+  - from: release-resources/daemon/daemon
+    to: bin/daemon
+  - from: ../mobile/dist
+    to: app-dist
+  - from: assets/editor-targets
+    to: editor-target-icons
+publish:
+  provider: github
+  owner: ait-app
+  repo: ait
+mac:
+  artifactName: "Ait-${version}-macos-${arch}.${ext}"
+  minimumSystemVersion: "13.0.0"
+  category: public.app-category.developer-tools
+  icon: assets/icon.icns
+  hardenedRuntime: true
+  notarize: true
+  binaries:
+    - Contents/Resources/bin/daemon
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.inherit.plist
+  target:
+    - dmg
+    - zip
+linux:
+  category: Development
+  icon: assets
+  artifactName: "Ait-${version}-linux-${arch}.${ext}"
+  maintainer: "Necokeine"
+  vendor: "Ait"
+  target:
+    - AppImage
+    - tar.gz
+appImage:
+  # A nonempty argument list replaces builder's hardcoded --no-sandbox default.
+  executableArgs: ["--class=Ait"]
+  # Stable filenames let electron-updater replace the installed AppImage in place.
+  artifactName: "Ait-linux-${arch}.${ext}"

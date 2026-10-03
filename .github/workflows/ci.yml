@@ -55,6 +55,18 @@ jobs:
               - '.github/workflows/release.yml'
               - '.github/workflows/release-ios-testflight.yml'
 
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # Source moves can break documentation links even without Markdown edits.
+      # These scripts use only Node built-ins and do not need npm ci.
+      - run: node --test scripts/check-docs.test.mjs
+      - run: node scripts/check-docs.mjs
+
   rust:
     needs: changes
     if: needs.changes.outputs.rust == 'true'
@@ -87,6 +99,6 @@ jobs:
       - run: npm run test:mobile-release
       - run: npm run build:desktop-main
       - run: npm run test --workspace=@ait/protocol
-      - run: npm run typecheck --workspace=@ait/desktop --workspace=@ait/app
+      - run: npm run typecheck --workspace=@ait/desktop --workspace=@ait/mobile
       - run: npm test --workspace=@ait/desktop
-      - run: npm run test --workspace=@ait/app -- src/i18n/resources.test.ts src/runtime/rust-server maestro/support native-release-version.test.ts
+      - run: npm run test --workspace=@ait/mobile -- src/i18n/resources.test.ts src/runtime/rust-daemon maestro/support native-release-version.test.ts

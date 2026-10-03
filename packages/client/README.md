@@ -25,14 +25,14 @@ JavaScript and TypeScript declarations under each package's `dist/`.
 
 The library retains the compatibility client API and wire types. Ait uses its
 Rust v1 protocol, so App and native test consumers must supply the production
-[transport adapter](../../apps/app/src/runtime/rust-server/transport.ts),
+[transport adapter](../../apps/mobile/src/runtime/rust-daemon/transport.ts),
 connect to `/v1/ws`, and provide the server's Bearer token. Browser connections
 use the production ticket transport. Package renaming alone does not replace
 this adapter.
 
-[Maestro's connection helper](../../apps/app/maestro/support/ait-client.ts) shows
+[Maestro's connection helper](../../apps/mobile/maestro/support/ait-client.ts) shows
 a Node connection using the local `@ait/client/internal/*` modules and the same
-Rust adapter. [App E2E](../../apps/app/e2e/README.md) starts an isolated Ait server.
+Rust adapter. [App E2E](../../apps/mobile/e2e/README.md) starts an isolated Ait server.
 
 The high-level client API and examples inherited from Paseo still use compatibility
 names such as `createPaseoClient`; those names are not independent Ait transport

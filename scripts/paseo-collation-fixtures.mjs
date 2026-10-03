@@ -82,7 +82,7 @@ if (process.argv.includes("--child")) {
     values,
     cases,
   };
-  const destination = "crates/server-model/tests/fixtures/paseo-collation.json";
+  const destination = "crates/model/tests/fixtures/paseo-collation.json";
   const content = `${JSON.stringify(fixture, null, 2)}\n`;
   if (process.argv.includes("--check")) {
     assert.equal(fs.readFileSync(destination, "utf8"), content, `${destination} drifted`);
