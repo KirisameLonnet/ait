@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Require at least 95% line coverage in every Cargo workspace member."""
+"""Manually check the 95% line coverage target for each Cargo workspace member."""
 
 import argparse
 import json

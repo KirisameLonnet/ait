@@ -69,7 +69,7 @@ HTML 位于 `/private/tmp/ait-workspace-sidebar-cov-target/llvm-cov/html/index.h
 共享证据为仓库中的 JSON 摘要：包含全部生产文件行计数、每个 crate、可比基线、测试数量
 及 Rust 源码哈希。源码指纹为 `ecd4ff81476ad5d2feb4391a5144b561071525191512a8f13c1b622071b4d83a`。
 
-## 验证与持续门槛
+## 验证与本地检查
 
 测试数量与覆盖率分别统计：普通全量和插桩全量均为 **1,682 passed、0 failed、3 ignored**；
 基线为 1,564 passed，新增 118 项。
@@ -79,17 +79,21 @@ HTML 位于 `/private/tmp/ait-workspace-sidebar-cov-target/llvm-cov/html/index.h
 
 - `cargo test --workspace`、`cargo build --workspace`。
 - `cargo clippy --workspace --all-targets -- -D warnings`、`cargo fmt --all --check`。
-- 覆盖率门槛脚本与 2 项 Python 回归测试。
+- 本地覆盖率检查脚本与 2 项 Python 回归测试。
 - 文档检查器测试、文档链接检查、修改文档与 CI YAML 格式检查、`git diff --check`。
 
 普通构建使用 `CARGO_TARGET_DIR=/private/tmp/ait-git-fetch-target`，
 `SHERPA_ONNX_LIB_DIR` 与覆盖率命令相同。
 
-[CI](../../../.github/workflows/ci.yml) 固定 cargo-llvm-cov 版本，执行完整测试并导出 JSON/HTML；
-[门槛脚本](../../../scripts/check-crate-coverage.py) 从 Cargo metadata 枚举所有成员，按精确
-covered/count 判断 95%，缺失成员或零行报告也失败，不用四舍五入后的百分比判断。
-CI 上传 `rust-coverage` artifact，供后续提交审阅。
+[CI](../../../.github/workflows/ci.yml) 保持原有格式、Clippy 和全量测试检查，
+不运行覆盖率检查，也不将 95% 覆盖率作为 PR 合并条件。
+[本地检查脚本](../../../scripts/check-crate-coverage.py) 可按需手动执行：从 Cargo metadata
+枚举所有成员，按精确 covered/count 检查本次 95% 目标，缺失成员或零行报告也会报错。
+JSON/HTML 报告由本地测量生成，仓库中的 JSON 证据保留本次验证结果。
 
 尚未在本地执行 Linux CI、Windows 或原生客户端测试。未覆盖区域主要是 native 语音模型执行、
 锁中毒、罕见文件系统/进程故障及平台清理分支；真实模型与已认证 Provider 需在具备环境时验证。
-目前部分 crate 接近门槛，后续行为新增必须同时提供相应测试，CI 会阻止低于 95% 的改动。
+本次测量中部分 crate 接近 95%；后续改动可使用本地报告检查覆盖情况。
+
+撤回 CI 覆盖率检查时仅修改了工作流和说明，Rust 源码与上述测量一致。
+本次未重跑 Rust 测试或覆盖率；工作流格式、文档链接与本地检查脚本测试通过。
