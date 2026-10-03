@@ -12,6 +12,84 @@ use metadata::ports::registry::{
 
 use super::*;
 use crate::ports::workspace_recovery::{ArchivedWorktreeRestore, WorkspaceRecoveryRuntimeError};
+
+#[test]
+fn recovery_rpc_exposes_restore_intent_and_failed_restores_never_publish_an_update() {
+    let (service, workspaces, _, recovery) = service();
+    let request = serde_json::json!({"workspaceId":"archived"});
+    let rejected = crate::rpc::workspace_recovery::execute(
+        &service,
+        "workspace.recovery.restore.request",
+        request.clone(),
+    )
+    .unwrap();
+    assert_eq!(rejected.value["accepted"], false);
+    assert!(rejected.value["error"].is_string());
+    assert!(rejected.event.is_none());
+    assert!(
+        workspaces
+            .get("archived")
+            .unwrap()
+            .unwrap()
+            .archived_at
+            .is_some()
+    );
+    assert!(recovery.restores.lock().unwrap().is_empty());
+
+    recovery
+        .directories
+        .lock()
+        .unwrap()
+        .insert("/repo".to_owned());
+    let inspection = crate::rpc::workspace_recovery::execute(
+        &service,
+        "workspace.recovery.inspect.request",
+        request,
+    )
+    .unwrap();
+    assert_eq!(inspection.value["state"]["action"], "restore");
+    assert!(inspection.event.is_none());
+}
+
+#[test]
+fn unavailable_recovery_explains_missing_placement_and_does_not_unarchive_records() {
+    for reason in [
+        WorkspaceRecoveryUnavailableReason::ProjectNotFound,
+        WorkspaceRecoveryUnavailableReason::WorktreeBranchMissing,
+        WorkspaceRecoveryUnavailableReason::ProjectDirectoryMissing,
+    ] {
+        let (service, workspaces, projects, recovery) = service();
+        match reason {
+            WorkspaceRecoveryUnavailableReason::ProjectNotFound => {
+                projects.0.lock().unwrap().clear();
+            }
+            WorkspaceRecoveryUnavailableReason::WorktreeBranchMissing => workspaces
+                .0
+                .lock()
+                .unwrap()
+                .iter_mut()
+                .for_each(|workspace| workspace.branch = None),
+            WorkspaceRecoveryUnavailableReason::ProjectDirectoryMissing => {}
+            _ => unreachable!(),
+        }
+        assert!(
+            matches!(service.inspect_recovery("archived").unwrap(), WorkspaceRecoveryState::Unavailable { reason: actual, .. } if actual == reason)
+        );
+        assert!(matches!(
+            service.restore("archived", "later"),
+            Err(WorkspaceRecoveryError::RecoveryUnavailable(_))
+        ));
+        assert!(
+            workspaces
+                .get("archived")
+                .unwrap()
+                .unwrap()
+                .archived_at
+                .is_some()
+        );
+        assert!(recovery.restores.lock().unwrap().is_empty());
+    }
+}
 #[derive(Debug, Clone, Default)]
 struct Workspaces(Arc<Mutex<Vec<PersistedWorkspaceRecord>>>);
 

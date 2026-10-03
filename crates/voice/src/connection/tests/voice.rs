@@ -1,4 +1,76 @@
 use super::*;
+use crate::audio::MAX_AUDIO_BYTES;
+
+#[tokio::test]
+async fn malformed_voice_events_preserve_accepted_audio_and_report_errors() {
+    let mut fixture = Fixture::new();
+    for (method, params) in [
+        ("unknown.voice.event", json!({})),
+        ("voice.audio.played", json!({"id":""})),
+        (
+            "voice.audio.chunk",
+            json!({"audio":STANDARD.encode([1]),"format":"pcm","isLast":false}),
+        ),
+    ] {
+        fixture.event(method, params);
+        assert_eq!(
+            fixture.until("voice.error").await["reasonCode"],
+            "invalid_audio_or_stream"
+        );
+    }
+    let mut chunk = vec![0; 64 * 1024];
+    chunk[1] = 8;
+    for _ in 0..MAX_AUDIO_BYTES / chunk.len() {
+        fixture.event(
+            "voice.audio.chunk",
+            json!({"audio":STANDARD.encode(&chunk),"format":"pcm;rate=16000","isLast":false}),
+        );
+    }
+    fixture.event(
+        "voice.audio.chunk",
+        json!({"audio":STANDARD.encode([0,8]),"format":"pcm;rate=16000","isLast":false}),
+    );
+    assert_eq!(
+        fixture.until("voice.error").await["reasonCode"],
+        "speech_resource_exhausted"
+    );
+    assert_eq!(fixture.engine.calls.load(Ordering::SeqCst), 0);
+    fixture.event(
+        "voice.audio.chunk",
+        json!({"audio":"","format":"pcm;rate=16000","isLast":true}),
+    );
+    fixture.until("voice.transcription.result").await;
+    assert_eq!(
+        fixture.engine.samples.lock().unwrap()[0].len(),
+        MAX_AUDIO_BYTES
+    );
+    fixture.service.stt = None;
+    fixture.event(
+        "voice.audio.chunk",
+        json!({"audio":STANDARD.encode([0,8]),"format":"pcm","isLast":true}),
+    );
+    assert_eq!(
+        fixture.until("voice.error").await["reasonCode"],
+        "speech_backend_unavailable"
+    );
+}
+
+#[tokio::test]
+async fn wav_voice_input_is_forwarded_without_pcm_silence_detection() {
+    let mut fixture = Fixture::new();
+    let wav = Audio {
+        bytes: vec![0; 320],
+        format: Format::Pcm(16000),
+    }
+    .wav()
+    .unwrap();
+    fixture.event(
+        "voice.audio.chunk",
+        json!({"audio":STANDARD.encode(&wav),"format":"audio/wav","isLast":true}),
+    );
+    fixture.until("voice.transcription.result").await;
+    assert_eq!(fixture.engine.samples.lock().unwrap()[0], wav);
+}
 
 #[tokio::test]
 async fn voice_roundtrip_outputs_transcript_and_acknowledgment_gated_audio() {

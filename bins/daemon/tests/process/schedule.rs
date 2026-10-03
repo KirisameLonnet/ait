@@ -110,7 +110,7 @@ async fn production_schedule_runs_real_provider_turn_and_preserves_state_across_
 }
 
 async fn assert_automatic_existing_run(socket: &mut Socket, agent: &Value) {
-    let existing=success(socket,"schedule.create.request",json!({"prompt":"existing scheduled hello","cadence":{"type":"every","everyMs":3_600_000},"target":{"type":"agent","agentId":agent},"maxRuns":1})).await;
+    let existing=success(socket,"schedule.create.request",json!({"name":"Named existing agent job","prompt":"existing scheduled hello","cadence":{"type":"every","everyMs":3_600_000},"target":{"type":"agent","agentId":agent},"maxRuns":1})).await;
     let existing_id = existing["schedule"]["id"].clone();
     let record = tokio::time::timeout(std::time::Duration::from_secs(10), async {
         loop {
@@ -132,6 +132,53 @@ async fn assert_automatic_existing_run(socket: &mut Socket, agent: &Value) {
         record["schedule"]["runs"][0]["status"], "succeeded",
         "{record}"
     );
+}
+
+#[tokio::test]
+async fn vanished_schedule_targets_settle_without_creating_agents() {
+    let fixture = super::native::NativeFixture::new();
+    let state = fixture.root.path().join("state");
+    let log = fixture.root.path().join("server.log");
+    let mut process = start_with_path(&state, &log, Some(&fixture.path));
+    let address = ready(&mut process, &log).await;
+    let mut socket = connect(&address, METHODS).await;
+    let removed = fixture.root.path().join("removed-workspace");
+    std::fs::create_dir(&removed).unwrap();
+    for (target, expected) in [
+        (
+            json!({"type":"agent","agentId":"11111111-1111-4111-8111-111111111111"}),
+            "Scheduled agent is missing or archived",
+        ),
+        (
+            json!({"type":"new-agent","config":{"provider":"codex","cwd":removed}}),
+            "Scheduled directory no longer exists",
+        ),
+    ] {
+        let created = success(
+            &mut socket,
+            "schedule.create.request",
+            json!({
+                "prompt":"must not execute", "cadence":{"type":"every","everyMs":3_600_000},
+                "target":target, "runOnCreate":false
+            }),
+        )
+        .await;
+        if removed.exists() {
+            std::fs::remove_dir(&removed).unwrap();
+        }
+        let ran = success(
+            &mut socket,
+            "schedule.run_once.request",
+            json!({"scheduleId":created["schedule"]["id"]}),
+        )
+        .await;
+        assert_eq!(ran["schedule"]["runs"][0]["status"], "failed", "{ran}");
+        assert_eq!(ran["schedule"]["runs"][0]["error"], expected, "{ran}");
+        assert!(ran["schedule"]["runs"][0]["agentId"].is_null());
+        assert!(ran["schedule"]["runs"][0]["workspaceId"].is_null());
+        assert_eq!(ran["schedule"]["status"], "completed");
+    }
+    terminate(&mut process).await;
 }
 
 #[tokio::test]

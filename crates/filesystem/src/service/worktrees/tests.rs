@@ -10,6 +10,93 @@ use super::*;
 mod archive;
 mod provisioning;
 
+#[test]
+fn rollback_failures_preserve_the_original_transport_error_category() {
+    for (error, kind) in [
+        (
+            WorktreeError::NotGitRepository,
+            WorktreeFailureKind::NotGitRepository,
+        ),
+        (WorktreeError::NotAllowed, WorktreeFailureKind::NotAllowed),
+        (
+            WorktreeError::BranchAlreadyCheckedOut("feature".to_owned()),
+            WorktreeFailureKind::BranchAlreadyCheckedOut,
+        ),
+        (
+            WorktreeError::MissingCheckoutTarget,
+            WorktreeFailureKind::MissingCheckoutTarget,
+        ),
+        (
+            WorktreeError::UnknownBranch("missing".to_owned()),
+            WorktreeFailureKind::UnknownBranch,
+        ),
+        (
+            WorktreeError::Invalid("invalid name".to_owned()),
+            WorktreeFailureKind::Other,
+        ),
+        (WorktreeError::ForgeUnavailable, WorktreeFailureKind::Other),
+        (
+            WorktreeError::Io("disk failure".to_owned()),
+            WorktreeFailureKind::Other,
+        ),
+    ] {
+        let original = WorktreesError::Worktree(error);
+        assert_eq!(original.kind(), kind);
+        let failed_cleanup = WorktreesError::Rollback {
+            cause: Box::new(original),
+            rollback: WorktreeError::Io("cleanup failed".to_owned()),
+        };
+        assert_eq!(failed_cleanup.kind(), kind);
+        assert!(failed_cleanup.to_string().contains("cleanup failed"));
+    }
+    for error in [
+        WorktreesError::Registry,
+        WorktreesError::UnknownProject("missing".to_owned()),
+        WorktreesError::ArchivedProject("archived".to_owned()),
+    ] {
+        assert_eq!(error.kind(), WorktreeFailureKind::Other);
+    }
+}
+
+#[test]
+fn git_creation_upgrades_a_plain_project_but_rolls_back_for_an_archived_project() {
+    let projects = Projects::default();
+    let mut plain = project("plain");
+    plain.kind = PersistedProjectKind::NonGit;
+    plain.custom_name = Some("My project".to_owned());
+    projects.upsert(&plain).unwrap();
+    let managed = Managed::default();
+    let workspaces = Workspaces::default();
+    let service = service(&projects, &workspaces, &managed);
+    service
+        .create(&create_input(Some("plain")), "created")
+        .unwrap();
+    let upgraded = projects.get("plain").unwrap().unwrap();
+    assert_eq!(upgraded.kind, PersistedProjectKind::Git);
+    assert_eq!(upgraded.custom_name, plain.custom_name);
+    assert_eq!(upgraded.updated_at, "created");
+    projects.archive("plain", "archived").unwrap();
+    assert!(matches!(
+        service.create(&create_input(Some("plain")), "retry"),
+        Err(WorktreesError::ArchivedProject(_))
+    ));
+    assert_eq!(workspaces.list().unwrap().len(), 1);
+    assert_eq!(managed.state.lock().unwrap().removed.len(), 1);
+}
+
+#[test]
+fn prompt_branch_names_are_bounded_at_a_word_boundary_when_possible() {
+    for (input, expected) in [
+        ("a".repeat(80), "a".repeat(50)),
+        (
+            format!("{} {} {}", "a".repeat(30), "b".repeat(8), "c".repeat(30)),
+            format!("{}-{}", "a".repeat(30), "b".repeat(8)),
+        ),
+    ] {
+        assert_eq!(slugify(&input), expected);
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 struct Projects(Arc<Mutex<Vec<PersistedProjectRecord>>>);
 
@@ -226,6 +313,7 @@ struct Managed {
 
 #[derive(Debug)]
 struct ManagedState {
+    fail_remove: bool,
     directory_inputs: Vec<(String, metadata::ports::worktrees::DirectoryGit)>,
     listed: Vec<ManagedWorktreeInfo>,
     created_inputs: Vec<ManagedWorktreeCreate>,
@@ -237,6 +325,7 @@ impl Default for Managed {
     fn default() -> Self {
         Self {
             state: Arc::new(Mutex::new(ManagedState {
+                fail_remove: false,
                 directory_inputs: Vec::new(),
                 listed: vec![ManagedWorktreeInfo {
                     path: "/managed/hash/topic".to_owned(),
@@ -307,6 +396,9 @@ impl ManagedWorktrees for Managed {
     }
 
     fn remove(&self, worktree: &OwnedWorktree) -> Result<(), WorktreeError> {
+        if self.state.lock().unwrap().fail_remove {
+            return Err(WorktreeError::Io("cleanup denied".into()));
+        }
         self.state
             .lock()
             .expect("managed")

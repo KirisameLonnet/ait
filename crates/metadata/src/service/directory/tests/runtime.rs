@@ -74,6 +74,50 @@ fn populated() -> WorkspaceRuntimeSnapshot {
 }
 
 #[test]
+fn runtime_projection_preserves_failed_checks_and_unknown_forge_states() {
+    let source = Arc::new(Runtime::default());
+    let mut directory = directory().with_runtime_source(source.clone());
+    for (mergeable, check, review) in [
+        ("CONFLICTING", "failure", "changes_requested"),
+        ("UNKNOWN", "pending", "review_required"),
+        ("UNKNOWN", "skipped", "unknown"),
+        ("UNKNOWN", "cancelled", "approved"),
+    ] {
+        let mut snapshot = populated();
+        let forge = snapshot.forge.as_mut().unwrap();
+        forge.error = Some("refresh failed".to_owned());
+        let pr = forge.pull_request.as_mut().unwrap();
+        pr.mergeable = mergeable.to_owned();
+        pr.checks[0].status = check.to_owned();
+        pr.checks_status = check.to_owned();
+        pr.review_decision = Some(review.to_owned());
+        *source.snapshot.lock().unwrap() = snapshot;
+        let list = execute(&mut directory, "workspace.list.request", json!({})).unwrap();
+        let runtime = &list["entries"][0]["githubRuntime"];
+        assert_eq!(runtime["error"]["message"], "refresh failed");
+        assert_eq!(runtime["pullRequest"]["checks"][0]["status"], check);
+        assert_eq!(runtime["pullRequest"]["number"], 136);
+        assert_eq!(runtime["pullRequest"]["mergeable"], mergeable);
+        assert_eq!(
+            runtime["pullRequest"]["checksStatus"],
+            match check {
+                "failure" => "failure",
+                "pending" => "pending",
+                _ => "none",
+            }
+        );
+        assert_eq!(
+            runtime["pullRequest"]["reviewDecision"],
+            match review {
+                "changes_requested" => "changes_requested",
+                "approved" => "approved",
+                _ => "pending",
+            }
+        );
+    }
+}
+
+#[test]
 fn workspace_runtime_projects_sidebar_and_hover_card_facts_once_per_directory() {
     let source = Arc::new(Runtime::default());
     *source.snapshot.lock().unwrap() = populated();
@@ -155,6 +199,26 @@ fn workspace_runtime_updates_use_existing_sync_sequences_and_explicit_nulls() {
             Some(&serde_json::Value::Null)
         );
     }
+}
+
+#[test]
+fn synced_workspace_subscription_emits_one_removal_with_a_monotonic_sequence() {
+    let directory = directory();
+    let request = serde_json::from_value(json!({"subscribe":{},"sync":{}})).unwrap();
+    let (initial, mut observer) =
+        listing::prepare(&directory, request, "remove-sub".to_owned()).unwrap();
+    let id = initial["entries"][0]["id"].as_str().unwrap();
+    directory.workspaces.remove(id).unwrap();
+    let updates = observer.update(&directory).unwrap();
+    let [ServerMessage::Event { method, params }] = updates.as_slice() else {
+        panic!("one removal expected: {updates:?}");
+    };
+    assert_eq!(method, "workspace.update");
+    assert_eq!(params["kind"], "remove");
+    assert_eq!(params["id"], id);
+    assert_eq!(params["generation"], initial["sync"]["generation"]);
+    assert!(params["seq"].as_u64().unwrap() > initial["sync"]["headSeq"].as_u64().unwrap());
+    assert!(observer.update(&directory).unwrap().is_empty());
 }
 
 #[test]

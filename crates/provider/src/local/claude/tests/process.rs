@@ -5,6 +5,66 @@ mod environment;
 mod parity;
 
 #[tokio::test]
+async fn withdrawn_native_permissions_disappear_once_and_reject_late_approval() {
+    let (_root, client, spec) = fixture();
+    let mut session = client.create_session(&spec).await.unwrap();
+    session
+        .start_turn("withdraw-permission", &spec.config)
+        .await
+        .unwrap();
+    let mut requested = Vec::new();
+    let mut resolved = Vec::new();
+    loop {
+        match next(session.as_mut()).await.unwrap() {
+            AgentTurnEvent::PermissionRequested(request) => {
+                requested.push(request["id"].as_str().unwrap().to_owned());
+            }
+            AgentTurnEvent::PermissionResolved(id) => resolved.push(id),
+            AgentTurnEvent::Completed(text) => {
+                assert_eq!(text.as_deref(), Some("Permission withdrawn"));
+                break;
+            }
+            AgentTurnEvent::Failed => panic!("withdrawal failed"),
+            _ => {}
+        }
+    }
+    assert_eq!(requested.len(), 1);
+    assert_eq!(resolved, requested);
+    assert!(session.pending_permissions().is_empty());
+    assert_eq!(
+        session
+            .respond_permission(&requested[0], &json!({"behavior":"allow"}))
+            .await,
+        Err(AgentSessionError::Rejected)
+    );
+    session.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn native_usage_survives_session_recreation() {
+    let (_root, client, spec) = fixture();
+    let mut session = client.create_session(&spec).await.unwrap();
+    session.start_turn("usage", &spec.config).await.unwrap();
+    finish(session.as_mut()).await;
+    let handle = session.persistence().unwrap();
+    let usage = handle.metadata.as_ref().unwrap()["lastUsage"].clone();
+    session.close().await.unwrap();
+    let mut restored = client
+        .resume_session(&handle, &spec, AgentResumePurpose::Interactive)
+        .await
+        .unwrap();
+    assert_eq!(
+        restored.runtime_info().await.unwrap().extra.unwrap()["lastUsage"],
+        usage
+    );
+    assert_eq!(
+        restored.persistence().unwrap().metadata.unwrap()["lastUsage"],
+        usage
+    );
+    restored.close().await.unwrap();
+}
+
+#[tokio::test]
 async fn steering_drains_prior_result_and_preserves_the_active_turn_and_input_identity() {
     let (_root, client, spec) = fixture();
     let mut session = client.create_session(&spec).await.unwrap();

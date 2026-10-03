@@ -7,7 +7,7 @@ use model::{Lifecycle, Limits, Runtime, ServerInfo, VERSION};
 use tokio::sync::mpsc;
 
 use super::*;
-use crate::test_support::{Calls, fixture, request};
+use crate::tests::support::{Calls, fixture, request};
 
 mod delivery;
 mod ownership;

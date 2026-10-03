@@ -16,6 +16,87 @@ use crate::service::workspace_labels::WorkspaceLabels;
 
 use super::{Delivery, live_update, map_error};
 
+#[test]
+fn all_palette_colors_roundtrip_and_incremental_sync_reports_deletion() {
+    let labels = labels();
+    let sink: super::EventSink = Arc::new(|_| Ok(()));
+    for color in [
+        "violet", "sky", "emerald", "orange", "pink", "indigo", "teal", "red", "amber", "blue",
+    ] {
+        let result = super::execute(
+            &labels,
+            "workspace.label.update.request",
+            json!({"name":"Urgent","color":color}),
+            sink.clone(),
+        )
+        .unwrap();
+        assert_eq!(result.value["label"]["color"], color);
+        assert_eq!(result.value["label"]["name"], "Urgent");
+    }
+    let snapshot = super::execute(
+        &labels,
+        "workspace.label.list.request",
+        json!({}),
+        sink.clone(),
+    )
+    .unwrap()
+    .value;
+    super::execute(
+        &labels,
+        "workspace.label.delete.request",
+        json!({"name":"Urgent"}),
+        sink.clone(),
+    )
+    .unwrap();
+    let delta = super::execute(&labels, "workspace.label.list.request", json!({"sync":{"generation":snapshot["sync"]["generation"],"afterSeq":snapshot["sync"]["headSeq"]}}), sink.clone()).unwrap().value;
+    assert_eq!(delta["sync"]["mode"], "changes");
+    assert_eq!(delta["labels"], json!([]));
+    assert_eq!(delta["sync"]["removals"][0]["name"], "Urgent");
+    assert!(matches!(
+        super::execute(&labels, "unknown", json!({}), sink.clone()),
+        Err(ErrorCode::MethodNotFound)
+    ));
+    assert!(matches!(
+        super::execute(
+            &labels,
+            "workspace.label.assignment.set.request",
+            json!({"workspaceId":"missing","label":{"name":"Urgent","color":"red"},"assigned":true}),
+            sink
+        ),
+        Err(ErrorCode::WorkspaceNotFound)
+    ));
+}
+
+#[test]
+fn deleting_a_label_before_subscription_activation_replaces_its_buffered_upsert() {
+    let labels = labels();
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let received = events.clone();
+    let sink: super::EventSink = Arc::new(move |event| {
+        received.lock().unwrap().push(event);
+        Ok(())
+    });
+    let subscription = super::execute(
+        &labels,
+        "workspace.label.list.request",
+        json!({"subscribe":{}}),
+        sink,
+    )
+    .unwrap()
+    .subscription
+    .unwrap();
+    labels
+        .update("Urgent", None, Some(WorkspaceLabelColor::Blue), "updated")
+        .unwrap();
+    labels.delete("Urgent", "deleted").unwrap();
+    let (_, _listener) = subscription.activate().unwrap();
+    let events = events.lock().unwrap();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0]["kind"], "remove");
+    assert!(events[0].get("label").is_none());
+    assert_eq!(events[0]["name"], "Urgent");
+}
+
 fn change(name: &str, seq: u64) -> SequencedWorkspaceLabelChange {
     SequencedWorkspaceLabelChange {
         generation: "generation-one".to_owned(),

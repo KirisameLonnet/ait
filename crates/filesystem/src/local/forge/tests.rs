@@ -172,6 +172,39 @@ fn parses_supported_remote_spellings() {
         "github.example"
     );
     assert!(parse_remote("/tmp/repo.git").is_none());
+    for remote in [
+        "ssh://git@github.com/acme/app.git",
+        "http://github.com/acme/app.git",
+        "https://github.com/acme/app/",
+    ] {
+        assert_eq!(parse_remote(remote).unwrap().project_path, "acme/app");
+    }
+    for remote in [
+        "ssh://github.com",
+        "http://github.com",
+        "https://github.com/",
+    ] {
+        assert!(parse_remote(remote).is_none());
+    }
+}
+
+#[test]
+fn forge_directory_aliases_and_git_diagnostics_keep_their_failure_categories() {
+    let home = std::env::var("HOME").unwrap();
+    assert_eq!(require_git_directory("~"), require_git_directory(&home));
+    assert_eq!(require_git_directory("~/."), require_git_directory(&home));
+    for (message, expected) in [
+        (
+            "fatal: not a git repository",
+            ForgeFailureKind::NotGitRepository,
+        ),
+        ("unmerged files remain", ForgeFailureKind::MergeConflict),
+    ] {
+        assert_eq!(
+            classify_command_error(CommandFamily::Git, message),
+            expected
+        );
+    }
 }
 
 fn create_repository(path: &Path, remote: bool) {

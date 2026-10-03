@@ -2,6 +2,87 @@
 use super::*;
 use tokio::sync::oneshot;
 
+#[tokio::test]
+async fn replayed_start_and_pending_chunks_are_idempotent_and_bad_audio_preserves_the_stream() {
+    let mut fixture = Fixture::new();
+    fixture.start("replay");
+    fixture.start("replay");
+    fixture.chunk("replay", 1, &[2, 0]);
+    fixture.chunk("replay", 1, &[2, 0]);
+    fixture.chunk("replay", 0, &[1]);
+    assert_eq!(
+        fixture.until("dictation.stream.error").await["reasonCode"],
+        "invalid_audio_or_stream"
+    );
+    fixture.event("dictation.stream.chunk", json!({"dictationId":""}));
+    assert!(
+        fixture
+            .events
+            .iter()
+            .any(|event| event["code"] == "invalid_message")
+    );
+    fixture.chunk("replay", 0, &[1, 0]);
+    finish(&mut fixture, "replay", 1);
+    fixture.until("dictation.stream.final").await;
+    assert_eq!(fixture.engine.calls.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn dictation_audio_budget_rejects_only_the_extra_chunk() {
+    let mut fixture = Fixture::new();
+    fixture.start("limit");
+    let chunk = vec![1; 64 * 1024];
+    for seq in 0..256 {
+        fixture.chunk("limit", seq, &chunk);
+    }
+    fixture.chunk("limit", 256, &[1, 0]);
+    assert_eq!(
+        fixture.until("dictation.stream.error").await["reasonCode"],
+        "speech_resource_exhausted"
+    );
+    finish(&mut fixture, "limit", 255);
+    fixture.until("dictation.stream.final").await;
+    assert_eq!(
+        fixture.engine.samples.lock().unwrap()[0].len(),
+        crate::audio::MAX_AUDIO_BYTES
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn successful_partial_is_emitted_and_the_same_audio_is_retained_for_finalization() {
+    let mut fixture = Fixture::new();
+    let mut calls = gated(&mut fixture);
+    fixture.start("partial");
+    fixture.chunk("partial", 0, &vec![1; 32_000]);
+    tokio::time::advance(Duration::from_secs(2)).await;
+    let partial = next_call(&mut fixture, &mut calls).await;
+    partial
+        .reply
+        .send(Ok(Transcript {
+            text: "preview".to_owned(),
+            language: None,
+        }))
+        .unwrap();
+    assert_eq!(
+        fixture.until("dictation.stream.partial").await["text"],
+        "preview"
+    );
+    finish(&mut fixture, "partial", 0);
+    let final_call = next_call(&mut fixture, &mut calls).await;
+    assert_eq!(final_call.audio.bytes, partial.audio.bytes);
+    final_call
+        .reply
+        .send(Ok(Transcript {
+            text: "final".to_owned(),
+            language: None,
+        }))
+        .unwrap();
+    assert_eq!(
+        fixture.until("dictation.stream.final").await["text"],
+        "final"
+    );
+}
+
 struct Call {
     audio: Audio,
     reply: oneshot::Sender<Result<Transcript, Error>>,

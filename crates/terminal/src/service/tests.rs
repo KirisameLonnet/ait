@@ -1,6 +1,6 @@
 use super::*;
 use crate::protocol::{Resize, Size};
-use crate::test_support::{fixture, request};
+use crate::tests::support::{fixture, request};
 
 mod archive;
 mod paseo;
@@ -138,7 +138,7 @@ fn deepest_workspace_legacy_placement_and_explicit_scope_are_checked() {
     assert_eq!(service.create(&request), Err(Error::WorkspaceNotFound));
     registry.projects.lock().unwrap()[0].archived_at = Some("now".to_owned());
     assert_eq!(
-        service.create(&crate::test_support::request()),
+        service.create(&crate::tests::support::request()),
         Err(Error::WorkspaceNotFound)
     );
 }

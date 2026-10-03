@@ -20,11 +20,15 @@ use super::{Directory, DirectoryDependencies, DirectoryError, derive_project_key
 mod git_observation;
 mod paseo;
 mod paseo_api;
+mod rpc_failures;
 mod runtime;
 mod synchronization;
 
 #[derive(Debug, Default)]
-struct Projects(Mutex<Vec<PersistedProjectRecord>>);
+struct Projects {
+    records: Mutex<Vec<PersistedProjectRecord>>,
+    unavailable: bool,
+}
 
 impl ProjectRegistry for Projects {
     fn initialize(&self) -> Result<(), RegistryError> {
@@ -36,12 +40,18 @@ impl ProjectRegistry for Projects {
     }
 
     fn list(&self) -> Result<Vec<PersistedProjectRecord>, RegistryError> {
-        Ok(self.0.lock().unwrap().clone())
+        if self.unavailable {
+            return Err(RegistryError::Io);
+        }
+        Ok(self.records.lock().unwrap().clone())
     }
 
     fn get(&self, id: &str) -> Result<Option<PersistedProjectRecord>, RegistryError> {
+        if self.unavailable {
+            return Err(RegistryError::Io);
+        }
         Ok(self
-            .0
+            .records
             .lock()
             .unwrap()
             .iter()
@@ -53,7 +63,10 @@ impl ProjectRegistry for Projects {
         &self,
         input: &ActiveProjectInput,
     ) -> Result<PersistedProjectRecord, RegistryError> {
-        let mut records = self.0.lock().unwrap();
+        if self.unavailable {
+            return Err(RegistryError::Io);
+        }
+        let mut records = self.records.lock().unwrap();
         if let Some(project) = records
             .iter_mut()
             .find(|project| project.root_path == input.root_path && project.archived_at.is_none())
@@ -79,7 +92,7 @@ impl ProjectRegistry for Projects {
     }
 
     fn upsert(&self, record: &PersistedProjectRecord) -> Result<(), RegistryError> {
-        let mut records = self.0.lock().unwrap();
+        let mut records = self.records.lock().unwrap();
         if let Some(existing) = records
             .iter_mut()
             .find(|project| project.project_id == record.project_id)
@@ -96,7 +109,10 @@ impl ProjectRegistry for Projects {
         id: &str,
         update: &dyn Fn(&PersistedProjectRecord) -> PersistedProjectRecord,
     ) -> Result<Option<PersistedProjectRecord>, RegistryError> {
-        let mut records = self.0.lock().unwrap();
+        if self.unavailable {
+            return Err(RegistryError::Io);
+        }
+        let mut records = self.records.lock().unwrap();
         let Some(record) = records.iter_mut().find(|project| project.project_id == id) else {
             return Ok(None);
         };
@@ -114,7 +130,7 @@ impl ProjectRegistry for Projects {
     }
 
     fn remove(&self, id: &str) -> Result<(), RegistryError> {
-        self.0
+        self.records
             .lock()
             .unwrap()
             .retain(|project| project.project_id != id);
@@ -386,7 +402,10 @@ fn workspace() -> PersistedWorkspaceRecord {
 
 fn directory() -> Directory {
     Directory::new(DirectoryDependencies {
-        projects: Box::new(Projects(Mutex::new(vec![project()]))),
+        projects: Box::new(Projects {
+            records: Mutex::new(vec![project()]),
+            unavailable: false,
+        }),
         workspaces: Box::new(Workspaces(Mutex::new(vec![workspace()]))),
         source: Box::<Source>::default(),
         config_store: Box::<ConfigStore>::default(),
@@ -559,6 +578,22 @@ fn project_key_parser_matches_paseo_remote_and_host_forms() {
         derive_project_key(&checkout, "server"),
         "host:server:/tmp/alpha/nested"
     );
+}
+
+#[test]
+fn escaped_remote_paths_share_identity_and_invalid_percent_sequences_are_rejected() {
+    use super::parse_remote;
+    let expected = parse_remote("https://github.com/owner/repo.git").unwrap();
+    for remote in [
+        "https://github.com/%6fwner/%72epo.git",
+        "https://github.com/owner%2Frepo.git",
+        "https://github.com/owner%2frepo.git",
+    ] {
+        assert_eq!(parse_remote(remote), Some(expected.clone()));
+    }
+    for path in ["%", "%2", "%GG", "%ff"] {
+        assert!(parse_remote(&format!("https://github.com/owner/{path}")).is_none());
+    }
 }
 
 #[test]

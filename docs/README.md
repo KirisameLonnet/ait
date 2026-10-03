@@ -36,6 +36,7 @@
 ## 工程规范与验证
 
 - [Rust style guide](policy/rust.md)：Rust 代码、测试、lint 与覆盖率规范。
+- [Daemon 每 crate 95% 行覆盖率](reports/daemon/crate-coverage-95.md)：测试扩展、修复、逐 crate 证据与 CI 门槛。
 - [文档规范](policy/documentation.md)：分类、维护和历史资料清理规则。
 - [Provider 能力清单](plans/provider-parity.md)：当前能力与后续工作。
 - [大 Diff 加载与超限降级](reports/workspace/large-diff-loading.md)：输出预算、连接保持与验证结果。

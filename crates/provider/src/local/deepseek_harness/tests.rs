@@ -19,7 +19,9 @@ fn fixture() -> (TempDir, DeepSeekHarnessClient, AgentSessionSpec) {
     std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o700)).unwrap();
     let mut client =
         DeepSeekHarnessClient::new(program).with_image_directory(directory.path().join("images"));
-    client.deadline = Duration::from_secs(2);
+    // Successful Node handshakes must tolerate instrumented builds competing for CPU.
+    // Timeout behavior is exercised separately with an explicit 300 ms deadline.
+    client.deadline = Duration::from_secs(10);
     client.environment = AgentEnvironment::try_from(BTreeMap::from([(
         "ACP_FIXTURE_LOG".to_owned(),
         directory

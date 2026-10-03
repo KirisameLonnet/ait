@@ -4,6 +4,30 @@ use serde_json::json;
 
 use super::*;
 
+#[test]
+fn checkout_targets_expand_home_and_relative_directories_and_reject_invalid_names() {
+    let runtime = LocalGithubProjects::default();
+    let home = std::env::var("HOME").unwrap();
+    assert_eq!(
+        runtime.checkout_path("~", "repo").unwrap(),
+        format!("{home}/repo")
+    );
+    assert_eq!(
+        runtime.checkout_path("~/projects", "repo").unwrap(),
+        format!("{home}/projects/repo")
+    );
+    assert_eq!(
+        PathBuf::from(runtime.checkout_path("projects", "repo").unwrap()),
+        std::env::current_dir().unwrap().join("projects/repo")
+    );
+    for (parent, name) in [("", "repo"), ("/tmp", ".."), ("/tmp", "nested/repo")] {
+        assert_eq!(
+            runtime.checkout_path(parent, name),
+            Err(GithubProjectsError::InvalidTarget)
+        );
+    }
+}
+
 #[cfg(unix)]
 mod paseo;
 

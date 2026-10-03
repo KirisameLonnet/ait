@@ -4,6 +4,7 @@
 
 ## Daemon 与协议
 
+- [Daemon 每 crate 95% 行覆盖率](daemon/crate-coverage-95.md)
 - [2026-10-03 仓库审计与修复](daemon/repository-audit-2026-10-03.md)
 - [Workspace 重命名与文档整理](daemon/workspace-rename.md)
 

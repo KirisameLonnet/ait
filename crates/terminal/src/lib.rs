@@ -37,7 +37,7 @@ pub enum Error {
 }
 
 #[cfg(test)]
-mod test_support;
+mod tests;
 
 impl From<crate::Error> for model::ErrorCode {
     fn from(error: crate::Error) -> Self {

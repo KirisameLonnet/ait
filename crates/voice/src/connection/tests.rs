@@ -24,6 +24,77 @@ use crate::{
 
 use super::*;
 
+#[test]
+fn unavailable_and_draining_servers_reject_speech_events_without_allocating_streams() {
+    for (available, expected) in [(false, "unsupported_capability"), (true, "server_draining")] {
+        let mut fixture = Fixture::new();
+        let state = crate::dispatch::State {
+            runtime: fixture.runtime.clone(),
+            speech: available.then(|| fixture.service.clone()),
+        };
+        if available {
+            state.runtime.cancellation.cancel();
+        }
+        fixture
+            .connection
+            .event(
+                "dictation.stream.start",
+                serde_json::json!({"id":"stream","format":"pcm;rate=16000"}),
+                &state,
+                &fixture.outbound,
+            )
+            .unwrap();
+        let queued = fixture.receiver.try_recv().unwrap();
+        let Frame::Text(text) = queued.message else {
+            panic!("expected error response")
+        };
+        let error: Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(error["type"], "error");
+        assert_eq!(error["code"], expected);
+        assert!(fixture.connection.is_empty());
+        assert_eq!(fixture.engine.calls.load(Ordering::SeqCst), 0);
+    }
+}
+
+#[tokio::test]
+async fn unavailable_speech_requests_keep_correlation_and_do_not_emit_success_events() {
+    for (available, expected) in [(false, "unsupported_capability"), (true, "server_draining")] {
+        let mut fixture = Fixture::new();
+        let state = crate::dispatch::State {
+            runtime: fixture.runtime.clone(),
+            speech: available.then(|| fixture.service.clone()),
+        };
+        if available {
+            state.runtime.cancellation.cancel();
+        }
+        crate::dispatch::dispatch(
+            crate::capabilities::Group::Voice,
+            model::Context {
+                request: model::Request {
+                    id: "speech-request".to_owned(),
+                    method: "voice.abort.request".to_owned(),
+                    params: json!({}),
+                },
+                runtime: &fixture.runtime,
+                outbound: &fixture.outbound,
+                available_subscriptions: 0,
+            },
+            &state,
+            &mut fixture.connection,
+        )
+        .await
+        .unwrap();
+        let Frame::Text(text) = fixture.receiver.try_recv().unwrap().message else {
+            panic!("expected correlated error");
+        };
+        let response: Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(response["request_id"], "speech-request");
+        assert_eq!(response["code"], expected);
+        assert!(fixture.receiver.try_recv().is_err());
+        assert!(fixture.connection.is_empty());
+    }
+}
+
 #[derive(Debug, Default)]
 struct Engine {
     calls: AtomicUsize,

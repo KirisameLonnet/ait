@@ -70,3 +70,35 @@ fn malformed_audio_is_rejected_before_provider_io() {
     assert!(decode_chunk(&"A".repeat(MAX_CHUNK_BYTES * 2)).is_err());
     assert_eq!(decode_chunk("AAE=").unwrap(), [0, 1]);
 }
+
+#[test]
+fn wav_rejects_inconsistent_container_lengths_and_empty_sample_chunks() {
+    assert_eq!(Format::Wav.mime(), "audio/wav");
+    let wav = Audio {
+        bytes: vec![0, 0],
+        format: Format::Pcm(16000),
+    }
+    .wav()
+    .unwrap();
+    let mut wrong_size = wav.clone();
+    wrong_size[4..8].copy_from_slice(&0_u32.to_le_bytes());
+    assert!(
+        Audio {
+            bytes: wrong_size,
+            format: Format::Wav
+        }
+        .pcm()
+        .is_err()
+    );
+    let mut empty = wav[..44].to_vec();
+    empty[4..8].copy_from_slice(&36_u32.to_le_bytes());
+    empty[40..44].copy_from_slice(&0_u32.to_le_bytes());
+    assert!(
+        Audio {
+            bytes: empty,
+            format: Format::Wav
+        }
+        .pcm()
+        .is_err()
+    );
+}

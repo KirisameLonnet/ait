@@ -111,3 +111,39 @@ fn missing_and_non_directory_paths_are_rejected() {
         Err(DirectorySourceError::NotFound)
     );
 }
+
+#[test]
+fn path_aliases_are_normalized_before_inspection_and_file_parents_are_rejected() {
+    let source = LocalDirectorySource;
+    let cwd = std::env::current_dir().unwrap();
+    assert_eq!(
+        source.canonical(".").unwrap(),
+        cwd.canonicalize().unwrap().to_str().unwrap()
+    );
+    let home = std::env::var("HOME").unwrap();
+    assert_eq!(
+        source.canonical("~").unwrap(),
+        source.canonical(&home).unwrap()
+    );
+    assert_eq!(
+        source.canonical("~/.").unwrap(),
+        source.canonical(&home).unwrap()
+    );
+    assert!(source.equivalent("missing/../future", "./future"));
+    let root = tempfile::tempdir().unwrap();
+    let file = root.path().join("file");
+    std::fs::write(&file, "occupied").unwrap();
+    assert_eq!(
+        source.create_child(file.to_str().unwrap(), "child"),
+        Err(DirectorySourceError::NotFound)
+    );
+    assert_eq!(
+        source.canonical(file.to_str().unwrap()),
+        Err(DirectorySourceError::NotFound)
+    );
+    assert_eq!(
+        source.remove_empty(file.to_str().unwrap()),
+        Err(DirectorySourceError::NotFound)
+    );
+    assert_eq!(std::fs::read_to_string(file).unwrap(), "occupied");
+}

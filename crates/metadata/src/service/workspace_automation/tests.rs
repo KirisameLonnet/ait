@@ -21,7 +21,7 @@ fn archive_cleanup_delegates_identities_even_after_workspace_records_are_archive
 }
 
 #[derive(Debug, Clone)]
-struct Workspaces(Arc<Mutex<Vec<PersistedWorkspaceRecord>>>);
+struct Workspaces(Arc<Mutex<Vec<PersistedWorkspaceRecord>>>, Arc<Mutex<bool>>);
 
 impl WorkspaceRegistry for Workspaces {
     fn initialize(&self) -> Result<(), RegistryError> {
@@ -34,6 +34,9 @@ impl WorkspaceRegistry for Workspaces {
         Ok(self.0.lock().expect("workspaces").clone())
     }
     fn get(&self, id: &str) -> Result<Option<PersistedWorkspaceRecord>, RegistryError> {
+        if *self.1.lock().unwrap() {
+            return Err(RegistryError::Io);
+        }
         Ok(self
             .0
             .lock()
@@ -159,6 +162,46 @@ fn status_prefers_runtime_and_derives_persisted_block() {
 }
 
 #[test]
+fn rpc_reports_missing_workspaces_inline_and_keeps_absent_setup_distinct() {
+    use crate::rpc::workspace_automation::execute;
+    use serde_json::json;
+    let (service, _, runtime) = service();
+    let status = execute(
+        &service,
+        "workspace.setup.status.request",
+        json!({"workspaceId":"missing"}),
+    )
+    .unwrap();
+    assert!(status["snapshot"].is_null());
+    for method in [
+        "workspace.setup.run.request",
+        "workspace.script.list.request",
+        "workspace.script.start.request",
+        "workspace.script.stop.request",
+    ] {
+        let result = execute(
+            &service,
+            method,
+            json!({"workspaceId":"missing", "scriptName":"web"}),
+        )
+        .unwrap();
+        assert_eq!(result["workspaceId"], "missing");
+        assert!(
+            result["error"]
+                .as_str()
+                .is_some_and(|error| error.contains("not found")),
+            "{method}: {result}"
+        );
+    }
+    assert!(runtime.setups.lock().unwrap().is_empty());
+    assert!(runtime.scripts.lock().unwrap().is_empty());
+    assert_eq!(
+        execute(&service, "unknown", json!({})),
+        Err(crate::rpc::ErrorCode::MethodNotFound)
+    );
+}
+
+#[test]
 fn setup_approval_is_idempotent_and_clears_provenance_before_start() {
     let (service, workspaces, runtime) = service();
     assert_eq!(
@@ -196,12 +239,15 @@ fn scripts_require_active_trusted_workspace_and_forward_exact_name() {
 }
 
 fn service() -> (WorkspaceAutomation, Workspaces, Runtime) {
-    let workspaces = Workspaces(Arc::new(Mutex::new(vec![
-        workspace("trusted", false, false),
-        workspace("blocked", true, false),
-        workspace("snapshot", false, false),
-        workspace("archived", false, true),
-    ])));
+    let workspaces = Workspaces(
+        Arc::new(Mutex::new(vec![
+            workspace("trusted", false, false),
+            workspace("blocked", true, false),
+            workspace("snapshot", false, false),
+            workspace("archived", false, true),
+        ])),
+        Arc::new(Mutex::new(false)),
+    );
     let runtime = Runtime::default();
     (
         WorkspaceAutomation::new(Box::new(workspaces.clone()), Box::new(runtime.clone())),
@@ -248,4 +294,30 @@ fn script(name: &str, running: bool) -> ScriptSnapshot {
         exit_code: None,
         terminal_id: running.then(|| "terminal-1".to_owned()),
     }
+}
+
+#[test]
+fn setup_status_reports_registry_failure_as_a_failed_snapshot_and_recovers_on_retry() {
+    use crate::rpc::workspace_automation::execute;
+    use serde_json::json;
+    let (service, workspaces, runtime) = service();
+    *workspaces.1.lock().unwrap() = true;
+    let result = execute(
+        &service,
+        "workspace.setup.status.request",
+        json!({"workspaceId":"trusted"}),
+    )
+    .unwrap();
+    assert_eq!(result["snapshot"]["status"], "failed");
+    assert!(result["snapshot"]["error"].is_string());
+    assert_eq!(result["snapshot"]["detail"]["commands"], json!([]));
+    assert!(runtime.setups.lock().unwrap().is_empty());
+    *workspaces.1.lock().unwrap() = false;
+    let retry = execute(
+        &service,
+        "workspace.setup.status.request",
+        json!({"workspaceId":"trusted"}),
+    )
+    .unwrap();
+    assert!(retry["snapshot"].is_null());
 }

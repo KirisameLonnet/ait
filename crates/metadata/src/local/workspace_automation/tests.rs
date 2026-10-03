@@ -6,6 +6,121 @@ use super::*;
 #[cfg(unix)]
 mod paseo;
 
+#[cfg(unix)]
+#[test]
+fn setup_output_limit_applies_to_fast_commands_that_exit_between_polls() {
+    let root = tempfile::tempdir().unwrap();
+    let runtime = LocalWorkspaceAutomation::default();
+    let workspace = placement(root.path(), "output-limit");
+    let result = run_setup_command(
+        &Arc::downgrade(&runtime.inner),
+        &workspace,
+        "head -c 8388609 /dev/zero",
+        3000,
+    );
+    assert!(
+        matches!(result, Err(WorkspaceAutomationError::Io(ref message)) if message == "Setup command output exceeded 8 MiB")
+    );
+}
+
+#[test]
+fn invalid_setup_configuration_is_recorded_without_launching_commands() {
+    let root = tempfile::tempdir().unwrap();
+    let runtime = LocalWorkspaceAutomation::default();
+    let workspace = placement(root.path(), "invalid");
+    for content in ["[]".to_owned(), " ".repeat(CONFIG_BYTES + 1)] {
+        fs::write(root.path().join("ait.json"), content).unwrap();
+        assert!(matches!(
+            runtime.start_setup(&workspace),
+            Err(WorkspaceAutomationError::InvalidConfig(_))
+        ));
+        let snapshot = runtime.setup_snapshot(&workspace.workspace_id).unwrap();
+        assert_eq!(snapshot.lifecycle, SetupLifecycle::Failed);
+        assert!(snapshot.commands.is_empty());
+        assert!(snapshot.error.is_some());
+    }
+    fs::remove_file(root.path().join("ait.json")).unwrap();
+    fs::create_dir(root.path().join("ait.json")).unwrap();
+    assert!(runtime.start_setup(&workspace).is_err());
+    assert!(parse_setup(Some(&serde_json::json!({"setup":false}))).is_empty());
+}
+
+#[cfg(unix)]
+#[test]
+fn removed_configuration_does_not_hide_running_scripts_and_drop_reaps_them() {
+    let root = tempfile::tempdir().unwrap();
+    let workspace = placement(root.path(), "service");
+    let config = root.path().join("ait.json");
+    fs::write(
+        &config,
+        r#"{"scripts":{"web":{"type":"service","command":"while :; do sleep 1; done"}}}"#,
+    )
+    .unwrap();
+    let runtime = LocalWorkspaceAutomation::default();
+    let started = runtime.start_script(&workspace, "web").unwrap();
+    let pid = lock(&runtime.inner.state)
+        .scripts
+        .values()
+        .next()
+        .unwrap()
+        .child
+        .as_ref()
+        .unwrap()
+        .id();
+    fs::write(&config, "{}").unwrap();
+    assert_eq!(runtime.list_scripts(&workspace).unwrap(), [started]);
+    assert!(matches!(
+        runtime.start_script(&workspace, "absent"),
+        Err(WorkspaceAutomationError::UnknownScript(_))
+    ));
+    assert!(matches!(
+        runtime.stop_script(&workspace, "absent"),
+        Err(WorkspaceAutomationError::NotRunning(_))
+    ));
+    drop(runtime);
+    let output = Command::new("ps")
+        .args(["-p", &pid.to_string(), "-o", "pid="])
+        .output()
+        .unwrap();
+    assert!(
+        output.stdout.is_empty(),
+        "script remained alive after runtime drop"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn setup_spawn_failure_finishes_the_attempt_and_releases_running_state() {
+    let root = tempfile::tempdir().unwrap();
+    let workspace = placement(&root.path().join("removed"), "removed");
+    let runtime = LocalWorkspaceAutomation::default();
+    lock(&runtime.inner.state)
+        .setup_running
+        .insert(workspace.workspace_id.clone());
+    run_setup(
+        &Arc::downgrade(&runtime.inner),
+        &workspace,
+        vec!["printf never".into()],
+        3000,
+    );
+    let result = runtime.setup_snapshot(&workspace.workspace_id).unwrap();
+    assert_eq!(result.lifecycle, SetupLifecycle::Failed);
+    assert_eq!(result.commands.len(), 1);
+    assert!(!result.commands[0].running);
+    assert!(result.commands[0].exit_code.is_none());
+    assert!(
+        result
+            .error
+            .unwrap()
+            .contains("Workspace setup process failed")
+    );
+    assert!(
+        !lock(&runtime.inner.state)
+            .setup_running
+            .contains(&workspace.workspace_id)
+    );
+}
+
 fn placement(root: &Path, id: &str) -> WorkspacePlacement {
     WorkspacePlacement {
         workspace_id: id.to_owned(),

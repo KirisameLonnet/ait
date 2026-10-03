@@ -1,5 +1,7 @@
 use serde_json::{Value, json};
 
+mod failures;
+
 use super::execute;
 use crate::service::forge::{
     CheckDetails, Forge, ForgeAuthState, ForgeRuntime, ForgeRuntimeError, ForgeSearch,
@@ -7,6 +9,50 @@ use crate::service::forge::{
     PullRequestMergeable, PullRequestStatus, PullRequestStatusRead, PullRequestTimeline,
     PullRequestTimelineItem, TimelineReviewState,
 };
+
+#[test]
+fn timeline_projection_preserves_failure_categories_and_inline_comment_locations() {
+    use crate::ports::forge::{TimelineCommentLocation, TimelineError, TimelineErrorKind};
+    for (kind, expected) in [
+        (TimelineErrorKind::NotFound, "not_found"),
+        (TimelineErrorKind::Forbidden, "forbidden"),
+        (TimelineErrorKind::Unknown, "unknown"),
+    ] {
+        let error = super::protocol_timeline_error(TimelineError {
+            kind,
+            message: "request failed".to_owned(),
+        });
+        assert_eq!(
+            serde_json::to_value(error).unwrap(),
+            json!({"kind":expected,"message":"request failed"})
+        );
+    }
+    let comment = PullRequestTimelineItem::Comment {
+        id: "comment".to_owned(),
+        author: "reviewer".to_owned(),
+        author_url: None,
+        avatar_url: None,
+        body: "Fix this".to_owned(),
+        created_at: 1,
+        url: "https://example/comment".to_owned(),
+        review_id: Some("review".to_owned()),
+        thread_id: Some("thread".to_owned()),
+        thread_is_resolved: Some(false),
+        location: Some(TimelineCommentLocation {
+            path: "src/lib.rs".to_owned(),
+            line: Some(12),
+            start_line: Some(10),
+            thread_id: Some("thread".to_owned()),
+            is_resolved: Some(false),
+            is_outdated: Some(true),
+        }),
+    };
+    let value = serde_json::to_value(super::protocol_timeline_item(comment)).unwrap();
+    assert_eq!(
+        value["location"],
+        json!({"path":"src/lib.rs","line":12,"startLine":10,"threadId":"thread","isResolved":false,"isOutdated":true})
+    );
+}
 
 #[derive(Debug)]
 struct FakeForge;
@@ -136,9 +182,21 @@ impl ForgeRuntime for FakeForge {
             conclusion: Some("success".to_owned()),
             url: None,
             details_url: None,
-            output: None,
+            output: Some(crate::ports::forge::CheckOutput {
+                title: Some("Failure".to_owned()),
+                summary: Some("One job failed".to_owned()),
+                text: Some("Details".to_owned()),
+            }),
             annotations: Vec::new(),
-            failed_jobs: Vec::new(),
+            failed_jobs: vec![crate::ports::forge::CheckFailedJob {
+                job_id: 70,
+                name: "linux".to_owned(),
+                status: Some("completed".to_owned()),
+                conclusion: Some("failure".to_owned()),
+                url: Some("https://example/job/70".to_owned()),
+                log_tail: Some("assertion failed".to_owned()),
+                log_truncated: Some(true),
+            }],
             truncated: false,
             pipeline: None,
         })
@@ -215,6 +273,14 @@ fn serves_pr_mutations_status_timeline_and_check_details() {
     )
     .unwrap();
     assert_eq!(details["details"]["checkRunId"], 9);
+    assert_eq!(
+        details["details"]["output"],
+        json!({"title":"Failure","summary":"One job failed","text":"Details"})
+    );
+    assert_eq!(
+        details["details"]["failedJobs"][0],
+        json!({"jobId":70,"name":"linux","status":"completed","conclusion":"failure","url":"https://example/job/70","logTail":"assertion failed","logTruncated":true})
+    );
 }
 
 #[test]

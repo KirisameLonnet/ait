@@ -14,6 +14,50 @@ use super::{
 
 mod admission;
 
+#[test]
+fn expired_journal_cursors_receive_a_snapshot_and_recent_deletions_remain_incremental() {
+    let labels =
+        WorkspaceLabels::new(Box::new(MemoryStore::new(vec![workspace("wks_one")]))).unwrap();
+    labels
+        .set_assignment(
+            "wks_one",
+            &label("Changing", WorkspaceLabelColor::Red),
+            true,
+            "created",
+        )
+        .unwrap();
+    let initial = labels.list(None).unwrap();
+    for index in 0..=super::JOURNAL_LIMIT {
+        let color = if index % 2 == 0 {
+            WorkspaceLabelColor::Sky
+        } else {
+            WorkspaceLabelColor::Red
+        };
+        labels
+            .update("Changing", None, Some(color), "updated")
+            .unwrap();
+    }
+    let caught_up = labels
+        .list(Some(&WorkspaceLabelCursor {
+            generation: initial.sync.generation,
+            after_seq: initial.sync.head_seq,
+        }))
+        .unwrap();
+    assert_eq!(caught_up.sync.mode, WorkspaceLabelSyncMode::Snapshot);
+    assert_eq!(caught_up.labels.len(), 1);
+    labels.delete("Changing", "deleted").unwrap();
+    let removed = labels
+        .list(Some(&WorkspaceLabelCursor {
+            generation: caught_up.sync.generation,
+            after_seq: caught_up.sync.head_seq,
+        }))
+        .unwrap();
+    assert_eq!(removed.sync.mode, WorkspaceLabelSyncMode::Changes);
+    assert!(removed.labels.is_empty());
+    assert_eq!(removed.sync.removals.len(), 1);
+    assert_eq!(removed.sync.removals[0].name, "Changing");
+}
+
 #[derive(Debug)]
 struct MemoryStore(Mutex<WorkspaceLabelStoreSnapshot>);
 

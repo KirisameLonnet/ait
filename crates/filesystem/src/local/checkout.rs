@@ -238,6 +238,12 @@ impl CheckoutRuntime for LocalCheckout {
 
     fn commits(&self, cwd: &str) -> Result<CheckoutCommits, CheckoutRuntimeError> {
         let cwd = require_git_directory(cwd)?;
+        if git_optional(&cwd, &["rev-parse", "--verify", "HEAD^{commit}"])?.is_none() {
+            return Ok(CheckoutCommits {
+                base_ref: None,
+                commits: Vec::new(),
+            });
+        }
         let Some(current_branch) =
             git_optional(&cwd, &["symbolic-ref", "--quiet", "--short", "HEAD"])?
         else {

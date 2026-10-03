@@ -102,6 +102,21 @@ pub(super) fn transcribe(
     recognizer: &OfflineRecognizer,
     audio: Audio,
 ) -> Result<Transcript, Error> {
+    transcribe_with(audio, |rate, samples| {
+        let stream = recognizer.create_stream();
+        stream.accept_waveform(rate, samples);
+        recognizer.decode(&stream);
+        stream
+            .get_result()
+            .map(|result| result.text)
+            .ok_or(Error::Provider)
+    })
+}
+
+fn transcribe_with(
+    audio: Audio,
+    recognize: impl FnOnce(i32, &[f32]) -> Result<String, Error>,
+) -> Result<Transcript, Error> {
     let audio = audio.pcm()?;
     let Format::Pcm(rate) = audio.format else {
         return Err(Error::Invalid);
@@ -113,42 +128,48 @@ pub(super) fn transcribe(
         .iter()
         .map(|sample| f32::from(i16::from_le_bytes([sample[0], sample[1]])) / 32768.0)
         .collect();
-    let stream = recognizer.create_stream();
-    stream.accept_waveform(i32::try_from(rate).map_err(|_| Error::Invalid)?, &samples);
-    recognizer.decode(&stream);
-    let result = stream.get_result().ok_or(Error::Provider)?;
-    if result.text.len() > MAX_TEXT_BYTES {
+    let text = recognize(i32::try_from(rate).map_err(|_| Error::Invalid)?, &samples)?;
+    if text.len() > MAX_TEXT_BYTES {
         return Err(Error::Capacity);
     }
     Ok(Transcript {
-        text: result.text.trim().to_owned(),
+        text: text.trim().to_owned(),
         language: None,
     })
 }
 
 pub(super) fn synthesize(tts: &OfflineTts, speaker: i32, text: &str) -> Result<Audio, Error> {
+    synthesize_with(text, |total| {
+        let generated = tts
+            .generate_with_config(
+                text,
+                &GenerationConfig {
+                    sid: speaker,
+                    ..Default::default()
+                },
+                Some(move |samples: &[f32], _: f32| {
+                    total.set(total.get().saturating_add(samples.len()));
+                    total.get() <= MAX_AUDIO_BYTES / 2
+                }),
+            )
+            .ok_or(Error::Provider)?;
+        samples_to_audio(generated.samples(), generated.sample_rate())
+    })
+}
+
+fn synthesize_with(
+    text: &str,
+    generate: impl FnOnce(Rc<Cell<usize>>) -> Result<Audio, Error>,
+) -> Result<Audio, Error> {
     if text.trim().is_empty() || text.len() > MAX_TEXT_BYTES || text.contains('\0') {
         return Err(Error::Invalid);
     }
     let total = Rc::new(Cell::new(0_usize));
-    let callback_total = total.clone();
-    let generated = tts
-        .generate_with_config(
-            text,
-            &GenerationConfig {
-                sid: speaker,
-                ..Default::default()
-            },
-            Some(move |samples: &[f32], _: f32| {
-                callback_total.set(callback_total.get().saturating_add(samples.len()));
-                callback_total.get() <= MAX_AUDIO_BYTES / 2
-            }),
-        )
-        .ok_or(Error::Provider)?;
+    let result = generate(total.clone());
     if total.get() > MAX_AUDIO_BYTES / 2 {
         return Err(Error::Capacity);
     }
-    samples_to_audio(generated.samples(), generated.sample_rate())
+    result
 }
 
 fn samples_to_audio(samples: &[f32], rate: i32) -> Result<Audio, Error> {

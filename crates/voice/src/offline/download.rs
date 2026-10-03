@@ -44,6 +44,10 @@ impl Preparation {
     }
 
     pub(super) fn readiness(&self) -> Result<(), Error> {
+        self.readiness_for_url(&self.model.url())
+    }
+
+    fn readiness_for_url(&self, url: &str) -> Result<(), Error> {
         let mut state = self.state.lock().map_err(|_| Error::Provider)?;
         match *state {
             Status::Ready => return Ok(()),
@@ -61,11 +65,12 @@ impl Preparation {
         let mut task = self.task.lock().map_err(|_| Error::Provider)?;
         *state = Status::Preparing;
         let (root, model, state) = (self.root.clone(), self.model, self.state.clone());
+        let url = url.to_owned();
         *task = Some(
             runtime
                 .spawn(async move {
                     tracing::info!(model = model.directory(), "preparing offline speech model");
-                    let result = install(&root, model, &model.url()).await;
+                    let result = install(&root, model, &url).await;
                     if let Ok(mut state) = state.lock() {
                         *state = if result.is_ok() {
                             Status::Ready

@@ -6,6 +6,45 @@ use super::{
 };
 
 #[test]
+fn attachment_normalization_keeps_supported_shapes_and_filters_invalid_neighbors() {
+    let mut valid = Vec::new();
+    for (kind, mime) in [
+        (
+            "forge_change_request",
+            "application/paseo-forge-change-request",
+        ),
+        ("forge_issue", "application/paseo-forge-issue"),
+        ("github_pr", "application/github-pr"),
+        ("github_issue", "application/github-issue"),
+    ] {
+        valid.push(json!({"type":kind,"mimeType":mime,"number":1,"title":"Change","url":"https://example.test/1"}));
+    }
+    valid.push(json!({"type":"review","mimeType":"application/paseo-review","cwd":"/repo","mode":"base","comments":[]}));
+    valid.push(json!({"type":"uploaded_file","id":"file","fileName":"image.png","mimeType":"image/png","path":"/file","size":0}));
+    let mut mixed = valid.clone();
+    mixed.extend([json!(false), json!({}), json!({"type":5}),
+        json!({"type":"github_pr","mimeType":"application/github-pr","number":0,"title":"invalid","url":"https://example.test"}),
+        json!({"type":"review","mimeType":"application/paseo-review","cwd":"/repo","mode":"unknown","comments":[]}),
+        json!({"type":"uploaded_file","id":"file","fileName":"a","mimeType":"text/plain","path":"/file","size":-1})]);
+    let request: WorktreeCreateRequest =
+        serde_json::from_value(json!({"cwd":"/repo","firstAgentContext":{"attachments":mixed}}))
+            .unwrap();
+    assert_eq!(
+        request
+            .normalized_first_agent_context()
+            .unwrap()
+            .attachments,
+        valid
+    );
+    assert!(
+        serde_json::from_value::<WorktreeCreateRequest>(
+            json!({"cwd":"/repo","githubPrNumber":9_007_199_254_740_992_u64})
+        )
+        .is_err()
+    );
+}
+
+#[test]
 fn methods_use_only_canonical_names() {
     assert_eq!(
         CAPABILITIES,
