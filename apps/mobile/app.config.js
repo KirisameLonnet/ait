@@ -1,8 +1,10 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const pkg = require("./package.json");
+const easProjectIdentity = require("./eas.json").build.ait.env;
 const { colors: brandColors } = require("./src/branding/ait-mark.json");
 const withAndroidAsyncStorageSize = require("./plugins/with-android-async-storage-size");
+const withAndroidHermesO0 = require("./plugins/with-android-hermes-o0");
 const withAndroidProfileable = require("./plugins/with-android-profileable");
 const withAccountRelayWebSocket = require("./plugins/with-account-relay-websocket");
 const withFdroidAutolinking = require("./plugins/with-fdroid-autolinking");
@@ -88,7 +90,7 @@ const nativeReleaseVersion = getNativeReleaseVersion(pkg.version);
 export default {
   expo: {
     name: variant.name,
-    slug: process.env.EXPO_SLUG || "voice-mobile",
+    slug: process.env.EXPO_SLUG || easProjectIdentity.EXPO_SLUG,
     version: nativeReleaseVersion.appVersion,
     orientation: "portrait",
     icon: "./assets/images/icon.png",
@@ -137,6 +139,7 @@ export default {
       withAccountRelayWebSocket,
       "expo-secure-store",
       [withAndroidAsyncStorageSize, 64],
+      ...(process.env.AIT_ANDROID_HERMES_O0 === "1" ? [withAndroidHermesO0] : []),
       [
         "expo-splash-screen",
         {
@@ -187,8 +190,8 @@ export default {
       fdroidBuild: isFdroidBuild,
       profileBuild: isProfileBuild,
       router: {},
-      ...(process.env.EAS_PROJECT_ID ? { eas: { projectId: process.env.EAS_PROJECT_ID } } : {}),
+      eas: { projectId: process.env.EAS_PROJECT_ID || easProjectIdentity.EAS_PROJECT_ID },
     },
-    ...(process.env.EXPO_OWNER ? { owner: process.env.EXPO_OWNER } : {}),
+    owner: process.env.EXPO_OWNER || easProjectIdentity.EXPO_OWNER,
   },
 };
