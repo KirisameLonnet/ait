@@ -11,7 +11,7 @@ import { collectReleaseAssets, releaseAssetNames, verifyReleaseAssets } from "./
 
 async function builderAssetNames(platform, version) {
   const config = parse(
-    await readFile(new URL("../apps/paseo/electron-builder.yml", import.meta.url), "utf8"),
+    await readFile(new URL("../apps/desktop/electron-builder.yml", import.meta.url), "utf8"),
   );
   const arch = platform === "linux" ? Arch.x64 : Arch.arm64;
   const installers = config[platform].target.map((ext) => {
@@ -101,7 +101,7 @@ test("rejects incomplete releases and unintended platform assets", async (t) => 
   );
 });
 
-test("release workflow builds only server and packages apps/paseo on the supported runners", async () => {
+test("release workflow builds only the daemon and packages the resolved desktop workspace", async () => {
   const workflow = parse(
     await readFile(new URL("../.github/workflows/release.yml", import.meta.url), "utf8"),
   );
@@ -109,17 +109,22 @@ test("release workflow builds only server and packages apps/paseo on the support
     workflow.jobs.build.strategy.matrix.include.map((entry) => entry.platform).sort(),
     ["linux", "mac"],
   );
-  const build = workflow.jobs.build.steps.find((step) => step.name === "Build release server only");
-  assert.match(build.run, /--locked --release -p server-bin --bin server --target/);
+  const build = workflow.jobs.build.steps.find((step) => step.name === "Build release daemon only");
+  assert.match(build.run, /--locked --release -p "\$\{\{ steps.layout.outputs.package \}\}"/);
+  assert.match(build.run, /--bin "\$\{\{ steps.layout.outputs.binary \}\}" --target/);
+  const collect = workflow.jobs.build.steps.find(
+    (step) => step.name === "Collect installers and updater assets",
+  );
+  assert.match(collect.run, /steps.layout.outputs.desktop/);
   const config = parse(
-    await readFile(new URL("../apps/paseo/electron-builder.yml", import.meta.url), "utf8"),
+    await readFile(new URL("../apps/desktop/electron-builder.yml", import.meta.url), "utf8"),
   );
   assert.equal(config.appId, "dev.ait.desktop");
   assert.deepEqual(
     config.extraResources.filter((entry) => entry.to.startsWith("bin")),
-    [{ from: "release-resources/server/server", to: "bin/server" }],
+    [{ from: "release-resources/daemon/daemon", to: "bin/daemon" }],
   );
-  assert.deepEqual(config.mac.binaries, ["Contents/Resources/bin/server"]);
+  assert.deepEqual(config.mac.binaries, ["Contents/Resources/bin/daemon"]);
   assert.equal(config.win, undefined);
   assert.deepEqual(config.linux.target, ["AppImage", "tar.gz"]);
 });

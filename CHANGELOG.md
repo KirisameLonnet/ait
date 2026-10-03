@@ -1,5 +1,13 @@
 # Ait changelog
 
+## 0.0.14 - 2026-10-03
+
+- Add theme-aware syntax highlighting to workspace, base, and commit diffs, including multi-line syntax and renamed files.
+- Fix diff parsing when source code contains a `diff --git` string, avoiding phantom file entries.
+- Align workspace sidebar change counts with the fetched origin base and clear stale counts after merge.
+- Accept Codex max and ultra reasoning levels for new and resumed sessions.
+- Show the running server version and update release, documentation, feedback, and community links to ait-app/ait.
+
 ## 0.0.13 - 2026-10-02
 
 - Fix DeepSeek model discovery when optional descriptions or default reasoning metadata are absent, and accept null descriptions from older servers.
@@ -50,7 +58,7 @@
 - Protect Paseo skills and Git stashes with independent Ait ownership and naming.
 - Connect Remote SSH to the authenticated Rust server and separate mobile application IDs.
 - Add persistent desktop server listen settings and update the copyright name to Necokeine.
-- Switch Linux and macOS desktop releases to the new Ait app in apps/paseo.
+- Switch Linux and macOS desktop releases to the new Ait app in apps/desktop.
 - Bundle only the independent Rust server; remove legacy daemon, worker and CLI sidecars.
 - Include automatic update metadata and verify packaged server startup and lifecycle.
 - Repair settings navigation and the bundled release-notes page; remove unsupported plugin settings.

@@ -1,7 +1,5 @@
 /target/
 .direnv/
-# Local artifacts from the retired desktop, retained across branch switches.
-apps/desktop/dist/
 /output/imagegen/
 *.profraw
 *.profdata
@@ -30,13 +28,13 @@ node_modules/
 *.provisionprofile
 
 # Paseo workspace build outputs
-apps/paseo/dist/
-apps/paseo/release/
-apps/app/dist/
-apps/app/.expo/
+apps/desktop/dist/
+apps/desktop/release/
+apps/mobile/dist/
+apps/mobile/.expo/
 packages/*/dist/
 packages/expo-two-way-audio/build/
 *.tsbuildinfo
 .tmp/
-apps/paseo/release-resources/
+apps/desktop/release-resources/
 packages/protocol/src/generated/validation/*.ts

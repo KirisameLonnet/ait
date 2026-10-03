@@ -1244,13 +1244,14 @@ export class DaemonClient {
     }
 
     this.shouldReconnect = true;
-    this.connectPromise = new Promise((resolve, reject) => {
+    const connecting = new Promise<void>((resolve, reject) => {
       this.connectResolve = resolve;
       this.connectReject = reject;
-      this.attemptConnect();
     });
-
-    return this.connectPromise;
+    // Publish the pending attempt before the factory can synchronously settle it.
+    this.connectPromise = connecting;
+    this.attemptConnect();
+    return connecting;
   }
 
   private attemptConnect(): void {

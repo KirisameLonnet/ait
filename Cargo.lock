@@ -94,6 +94,36 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
+name = "api"
+version = "0.0.14"
+dependencies = [
+ "axum",
+ "browser",
+ "chrono",
+ "filesystem",
+ "futures-util",
+ "metadata",
+ "model",
+ "protocol",
+ "provider",
+ "reqwest",
+ "schedule",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "subtle",
+ "terminal",
+ "thiserror 2.0.20",
+ "tokio",
+ "tokio-tungstenite",
+ "tokio-util",
+ "tower-http",
+ "tracing",
+ "uuid",
+ "voice",
+]
+
+[[package]]
 name = "arbitrary"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -235,6 +265,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71"
 dependencies = [
  "generic-array",
+]
+
+[[package]]
+name = "browser"
+version = "0.0.14"
+dependencies = [
+ "futures-util",
+ "model",
+ "serde",
+ "serde_json",
+ "tokio",
+ "url",
+ "uuid",
 ]
 
 [[package]]
@@ -485,6 +528,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "daemon"
+version = "0.0.14"
+dependencies = [
+ "anyhow",
+ "api",
+ "axum",
+ "browser",
+ "chrono",
+ "clap",
+ "domain",
+ "filesystem",
+ "futures-util",
+ "metadata",
+ "protocol",
+ "provider",
+ "reqwest",
+ "schedule",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "terminal",
+ "tokio",
+ "tokio-tungstenite",
+ "tokio-util",
+ "toml",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "voice",
+]
+
+[[package]]
 name = "data-encoding"
 version = "2.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -533,6 +609,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.4",
+]
+
+[[package]]
+name = "domain"
+version = "0.0.14"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "uuid",
 ]
 
 [[package]]
@@ -595,6 +681,29 @@ dependencies = [
  "libc",
  "thiserror 1.0.69",
  "winapi",
+]
+
+[[package]]
+name = "filesystem"
+version = "0.0.14"
+dependencies = [
+ "base64",
+ "chrono",
+ "getrandom 0.4.3",
+ "libc",
+ "memchr",
+ "metadata",
+ "model",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.20",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "two-face",
+ "uuid",
 ]
 
 [[package]]
@@ -1224,6 +1333,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
+name = "metadata"
+version = "0.0.14"
+dependencies = [
+ "base64",
+ "chrono",
+ "getrandom 0.4.3",
+ "indexmap",
+ "libc",
+ "model",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.20",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "mime"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1258,6 +1388,20 @@ dependencies = [
  "libc",
  "wasi",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "model"
+version = "0.0.14"
+dependencies = [
+ "base64",
+ "icu_collator",
+ "icu_locale_core",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tokio",
+ "tokio-util",
 ]
 
 [[package]]
@@ -1420,6 +1564,44 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "protocol"
+version = "0.0.14"
+dependencies = [
+ "model",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "provider"
+version = "0.0.14"
+dependencies = [
+ "async-trait",
+ "axum",
+ "base64",
+ "chrono",
+ "domain",
+ "futures-util",
+ "metadata",
+ "model",
+ "pulldown-cmark",
+ "regex",
+ "reqwest",
+ "rusqlite",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.20",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "unicode-normalization",
+ "uuid",
 ]
 
 [[package]]
@@ -1741,6 +1923,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "schedule"
+version = "0.0.14"
+dependencies = [
+ "chrono",
+ "chrono-tz",
+ "model",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.20",
+ "tokio",
+ "tokio-util",
+ "uuid",
+]
+
+[[package]]
 name = "secrecy"
 version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1833,248 +2031,6 @@ dependencies = [
  "cfg-if",
  "libc",
  "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "server-api"
-version = "0.0.13"
-dependencies = [
- "axum",
- "chrono",
- "futures-util",
- "reqwest",
- "secrecy",
- "serde",
- "serde_json",
- "server-browser",
- "server-filesystem",
- "server-metadata",
- "server-model",
- "server-protocol",
- "server-provider",
- "server-schedule",
- "server-terminal",
- "server-voice",
- "subtle",
- "thiserror 2.0.20",
- "tokio",
- "tokio-tungstenite",
- "tokio-util",
- "tower-http",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "server-bin"
-version = "0.0.13"
-dependencies = [
- "anyhow",
- "axum",
- "chrono",
- "clap",
- "futures-util",
- "reqwest",
- "secrecy",
- "serde",
- "serde_json",
- "server-api",
- "server-browser",
- "server-domain",
- "server-filesystem",
- "server-metadata",
- "server-protocol",
- "server-provider",
- "server-schedule",
- "server-terminal",
- "server-voice",
- "tempfile",
- "tokio",
- "tokio-tungstenite",
- "tokio-util",
- "toml",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
-name = "server-browser"
-version = "0.0.13"
-dependencies = [
- "futures-util",
- "serde",
- "serde_json",
- "server-model",
- "tokio",
- "url",
- "uuid",
-]
-
-[[package]]
-name = "server-domain"
-version = "0.0.13"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.20",
- "uuid",
-]
-
-[[package]]
-name = "server-filesystem"
-version = "0.0.13"
-dependencies = [
- "base64",
- "chrono",
- "getrandom 0.4.3",
- "libc",
- "memchr",
- "serde",
- "serde_json",
- "server-metadata",
- "server-model",
- "sha2",
- "tempfile",
- "thiserror 2.0.20",
- "tokio",
- "tokio-util",
- "tracing",
- "two-face",
- "uuid",
-]
-
-[[package]]
-name = "server-metadata"
-version = "0.0.13"
-dependencies = [
- "base64",
- "chrono",
- "getrandom 0.4.3",
- "indexmap",
- "libc",
- "serde",
- "serde_json",
- "server-model",
- "sha2",
- "tempfile",
- "thiserror 2.0.20",
- "tokio",
- "tokio-util",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "server-model"
-version = "0.0.13"
-dependencies = [
- "base64",
- "icu_collator",
- "icu_locale_core",
- "serde",
- "serde_json",
- "thiserror 2.0.20",
- "tokio",
- "tokio-util",
-]
-
-[[package]]
-name = "server-protocol"
-version = "0.0.13"
-dependencies = [
- "serde",
- "serde_json",
- "server-model",
-]
-
-[[package]]
-name = "server-provider"
-version = "0.0.13"
-dependencies = [
- "async-trait",
- "axum",
- "base64",
- "chrono",
- "futures-util",
- "pulldown-cmark",
- "regex",
- "reqwest",
- "rusqlite",
- "secrecy",
- "serde",
- "serde_json",
- "server-domain",
- "server-metadata",
- "server-model",
- "sha2",
- "tempfile",
- "thiserror 2.0.20",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "unicode-normalization",
- "uuid",
-]
-
-[[package]]
-name = "server-schedule"
-version = "0.0.13"
-dependencies = [
- "chrono",
- "chrono-tz",
- "serde",
- "serde_json",
- "server-model",
- "tempfile",
- "thiserror 2.0.20",
- "tokio",
- "tokio-util",
- "uuid",
-]
-
-[[package]]
-name = "server-terminal"
-version = "0.0.13"
-dependencies = [
- "chrono",
- "nix 0.31.3",
- "portable-pty",
- "secrecy",
- "serde",
- "serde_json",
- "server-metadata",
- "server-model",
- "subtle",
- "tempfile",
- "thiserror 2.0.20",
- "tokio",
- "tokio-util",
- "tracing",
- "uuid",
- "vt100",
-]
-
-[[package]]
-name = "server-voice"
-version = "0.0.13"
-dependencies = [
- "axum",
- "base64",
- "bzip2 0.6.1",
- "reqwest",
- "secrecy",
- "serde",
- "serde_json",
- "server-model",
- "sherpa-onnx",
- "tar",
- "tempfile",
- "thiserror 2.0.20",
- "tokio",
- "tokio-util",
- "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -2297,6 +2253,28 @@ dependencies = [
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "terminal"
+version = "0.0.14"
+dependencies = [
+ "chrono",
+ "metadata",
+ "model",
+ "nix 0.31.3",
+ "portable-pty",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "subtle",
+ "tempfile",
+ "thiserror 2.0.20",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "uuid",
+ "vt100",
 ]
 
 [[package]]
@@ -2758,6 +2736,28 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "voice"
+version = "0.0.14"
+dependencies = [
+ "axum",
+ "base64",
+ "bzip2 0.6.1",
+ "model",
+ "reqwest",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "sherpa-onnx",
+ "tar",
+ "tempfile",
+ "thiserror 2.0.20",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "uuid",
+]
 
 [[package]]
 name = "vt100"

@@ -1,14 +1,14 @@
 # Ait 发布操作指南
 
-从 0.0.7 起，GitHub Release 构建 `apps/paseo` Electron 桌面、`apps/app` 的 Web 导出和
-Rust `server`。发布边界见 [ADR-053](../decisions/adr-053-paseo-desktop-release.md)，
-旧桌面源码的移除见 [ADR-057](../decisions/adr-057-remove-legacy-desktop.md)。
+从 0.0.7 起，GitHub Release 构建 `apps/desktop` Electron 桌面、`apps/mobile` 的 Web 导出和
+Rust `daemon`。发布边界见 [ADR-053](../decisions/clients/adr-053-paseo-desktop-release.md)，
+旧桌面源码的移除见 [当前架构](../architecture/README.md)。
 
-`apps/app` 的 Google Play Android Internal Testing 发布流程见下方
+`apps/mobile` 的 Google Play Android Internal Testing 发布流程见下方
 [Google Play Android Internal Testing](#google-play-android-internal-testing) 一节，
-与桌面 GitHub Release 相互独立。`apps/app` 的 Apple TestFlight 发布流程见下方
+与桌面 GitHub Release 相互独立。`apps/mobile` 的 Apple TestFlight 发布流程见下方
 [Apple TestFlight iOS 手动发布](#apple-testflight-ios-手动发布)一节，
-同样与桌面 GitHub Release 相互独立。见 [ADR-070](../decisions/adr-070-ios-testflight-release.md)。
+同样与桌面 GitHub Release 相互独立。见 [ADR-070](../decisions/clients/adr-070-ios-testflight-release.md)。
 
 ## 发布产物
 
@@ -22,7 +22,7 @@ Rust `server`。发布边界见 [ADR-053](../decisions/adr-053-paseo-desktop-rel
 | 校验     | 全部资产            | `SHA256SUMS`                                             |
 
 AppImage 文件名保持稳定，版本体现在 Release 标签和应用内部。Windows、deb/rpm、其他架构
-和独立 CLI 不属于本次发布。安装包 `resources/bin/` 中只有 `server`；Electron 主程序与
+和独立 CLI 不属于本次发布。安装包 `resources/bin/` 中只有 `daemon`；Electron 主程序与
 Helper 是必需运行时。GitHub 仍自动提供标签对应的源码归档。
 
 ## 准备版本
@@ -32,10 +32,10 @@ Cargo.lock、根 package.json、所有活跃 npm workspace 及其 lockfile。然
 
 ```bash
 npm ci
-npm run verify:release -- v0.0.13
+npm run verify:release -- v0.0.14
 npm run test:release
 npm run build:desktop-main
-npm run typecheck --workspace=@ait/desktop --workspace=@ait/app
+npm run typecheck --workspace=@ait/desktop --workspace=@ait/mobile
 ```
 
 更新根 CHANGELOG.md：该文件
@@ -46,17 +46,17 @@ npm run typecheck --workspace=@ait/desktop --workspace=@ait/app
 ```bash
 git switch main
 git pull --ff-only
-npm run verify:release -- v0.0.13
-git tag -a v0.0.13 -m "Ait v0.0.13"
-git push origin v0.0.13
+npm run verify:release -- v0.0.14
+git tag -a v0.0.14 -m "Ait v0.0.14"
+git push origin v0.0.14
 ```
 
 `.github/workflows/release.yml` 在 Linux x86_64 和 macOS arm64 原生 runner 上执行：
 
 1. 校验标签和全部活跃版本，安装根 npm workspace，验证发布脚本。
-2. 用锁定依赖只构建 `server-bin` 的 `server`。
-3. 导出界面、编译 Electron 主进程，验证 server 版本并暂存单个可执行文件。
-4. 检查打包内容；macOS 签名、公证；隔离启动成品应用并验证真实 server 生命周期。
+2. 用锁定依赖只构建 `daemon` 的 `daemon`。
+3. 导出界面、编译 Electron 主进程，验证 daemon 版本并暂存单个可执行文件。
+4. 检查打包内容；macOS 签名、公证；隔离启动成品应用并验证真实 daemon 生命周期。
 5. 收集两种平台的安装包和自动更新资产，核对更新摘要。
 6. 两个平台都成功后生成 SHA256SUMS，再创建或修复 GitHub Release。
 
@@ -94,8 +94,8 @@ Linux x86_64：
 
 ```bash
 npm ci
-cargo build --locked --release -p server-bin --bin server --target x86_64-unknown-linux-gnu
-AIT_SERVER_BIN="$PWD/target/x86_64-unknown-linux-gnu/release/server" \
+cargo build --locked --release -p daemon --bin daemon --target x86_64-unknown-linux-gnu
+AIT_SERVER_BIN="$PWD/target/x86_64-unknown-linux-gnu/release/daemon" \
   AIT_DESKTOP_SMOKE=1 npm run package:linux
 ```
 
@@ -110,18 +110,18 @@ AIT_DESKTOP_SMOKE=1 npm run package:mac
 ```
 
 `package:mac` 生成 DMG 与 ZIP；`package:linux` 生成 AppImage 与 tar.gz。省略 `AIT_SERVER_BIN`
-会从当前源码构建 release server；提供该变量时仍检查二进制版本。只允许原生目标平台、架构。
+会从当前源码构建 release daemon；提供该变量时仍检查二进制版本。只允许原生目标平台、架构。
 
 无签名凭据时，本机开发验证使用 `AIT_DESKTOP_SMOKE=1 npm run build:dmg`。它生成
 `Ait-VERSION-local-arm64.dmg`，不属于正式发布文件，不能通过正式资产收集门禁。
 
-输出位于 `apps/paseo/release/`，暂存输入位于 `apps/paseo/release-resources/server/`，均不提交。
+输出位于 `apps/desktop/release/`，暂存输入位于 `apps/desktop/release-resources/daemon/`，均不提交。
 下载后用 Linux `sha256sum -c SHA256SUMS` 或 macOS `shasum -a 256 -c SHA256SUMS` 校验。
 
 ## 兼容性与失败恢复
 
-新应用沿用 Ait 正式应用 ID `dev.ait.desktop`。独立 server 默认使用
-`~/.ait-server-desktop`；旧桌面的 SQLite 数据保留，但本次不自动迁移到新 server。
+新应用沿用 Ait 正式应用 ID `dev.ait.desktop`。独立 daemon 默认使用
+`~/.ait-server-desktop`；旧桌面的 SQLite 数据保留，但本次不自动迁移到新 daemon。
 
 - 版本或包内容验证失败：修复 manifest、锁文件或暂存输入，重新运行门禁。
 - 任一平台构建、签名或启动失败：Release job 不会运行。
@@ -130,7 +130,7 @@ AIT_DESKTOP_SMOKE=1 npm run package:mac
 
 ## Google Play Android Internal Testing
 
-`apps/app` 的 Android 构建通过 EAS Build/Submit 发布到 Google Play 的 **Internal testing**
+`apps/mobile` 的 Android 构建通过 EAS Build/Submit 发布到 Google Play 的 **Internal testing**
 渠道，用于真机验证，与上文桌面 GitHub Release 完全独立，不经过 `.github/workflows/release.yml`。
 本节只覆盖 Internal testing；正式商店发布不在本节范围内，流程和门禁仍需另行确认。
 
@@ -139,7 +139,7 @@ AIT_DESKTOP_SMOKE=1 npm run package:mac
 在第一次运行任何命令前，需要先在 Google Play Console 确认或完成：
 
 - 一个可用的 Google Play 开发者账号，并已创建对应 app，package name 为 `dev.ait.mobile`
-  （见 `apps/app/app.config.js` 的 `production` variant；`development` variant 用的是
+  （见 `apps/mobile/app.config.js` 的 `production` variant；`development` variant 用的是
   `dev.ait.mobile.debug`，不用于 Play 发布）。仓库里不记录这个 app 是否已经在 Play Console
   创建，执行前需要自己去 Play Console 确认。
 - app 的签名方式。首次创建 app 时 Play Console 会要求选择 **Choose signing key**，官方推荐
@@ -159,16 +159,16 @@ Google Play Console 和 EAS 的账号系统里维护。
 
 ### app 身份与版本号
 
-- Android package：`dev.ait.mobile`（`apps/app/app.config.js` 的 `variants.production.packageId`）。
-- 版本号来自根 `package.json`/`apps/app/package.json` 的 `version` 字段，由
-  `apps/app/native-release-version.js` 的 `getNativeReleaseVersion()` 派生：`appVersion` 原样用作
+- Android package：`dev.ait.mobile`（`apps/mobile/app.config.js` 的 `variants.production.packageId`）。
+- 版本号来自根 `package.json`/`apps/mobile/package.json` 的 `version` 字段，由
+  `apps/mobile/native-release-version.js` 的 `getNativeReleaseVersion()` 派生：`appVersion` 原样用作
   Android `versionName`，`androidVersionCode` 由 `major*1_000_000 + minor*1_000 + patch` 计算。
   例如当前 `package.json` 的 `0.0.11` 会派生出 `versionCode = 11`。构建前确认两处 `package.json`
   版本一致，发布准备流程与桌面发布共用同一份[准备版本](#准备版本)步骤。
 
 ### EAS 构建与提交 profile
 
-`apps/app/eas.json` 里和 Internal testing 相关的 profile 只有这两个：
+`apps/mobile/eas.json` 里和 Internal testing 相关的 profile 只有这两个：
 
 - `build.ait`：`extends: "production"`，`distribution: "store"`，用于生成可提交 Play Store 的
   `.aab`；同时带着 iOS 的 `EXPO_OWNER`/`EXPO_SLUG`/`EAS_PROJECT_ID`/`APPLE_TEAM_ID` 等公开标识，
@@ -178,10 +178,10 @@ Google Play Console 和 EAS 的账号系统里维护。
 
 ### 安全的构建 / 提交命令
 
-全部命令从 `apps/app` 目录运行：
+全部命令从 `apps/mobile` 目录运行：
 
 ```bash
-cd apps/app
+cd apps/mobile
 eas build --platform android --profile ait
 ```
 
@@ -221,23 +221,23 @@ eas submit --platform android --profile ait --latest
 选哪条路径取决于个人偏好，仓库里没有记录哪条路径已经执行过，发布前需要自己去 Play Console
 确认当前状态。
 
-### 真机冒烟测试（连接 Rust server）
+### 真机冒烟测试（连接 Rust daemon）
 
 当前仓库 README 和 [Apple 构建说明](apple-builds.md) 都明确没有做过真机网络访问验证：
-独立 Rust server 默认只监听 loopback，真机访问电脑上的 server 需要额外的网络入口或隧道，这一步
+独立 Rust daemon 默认只监听 loopback，真机访问电脑上的 daemon 需要额外的网络入口或隧道，这一步
 在本仓库里还没有被验证过，执行 Internal testing 发布时需要自己完成，不能假定已经打通。
 
 建议的手动验证步骤：
 
-1. 在一台可被测试手机访问的机器上启动 Rust server，并显式监听非 loopback 地址，例如：
+1. 在一台可被测试手机访问的机器上启动 Rust daemon，并显式监听非 loopback 地址，例如：
    ```bash
-   cargo run -p server-bin --bin server -- --data-dir /path/to/data --listen 0.0.0.0:7316
+   cargo run -p daemon --bin daemon -- --data-dir /path/to/data --listen 0.0.0.0:7316
    ```
    需要自行解决真机到这台机器的网络可达性（同一局域网、内网隧道或其他方式），仓库当前不提供
    现成方案。
 2. 在 Play Console 的 Internal testing 页面把测试者邮箱加入 Testers 名单，并通过 opt-in 链接
    在真机上安装刚提交的版本。
-3. 打开 app，按照连接表单填写 server 的 Host、端口 `7316` 和当前 server 的访问令牌，确认能
+3. 打开 app，按照连接表单填写 daemon 的 Host、端口 `7316` 和当前 daemon 的访问令牌，确认能
    正常建立连接、收发消息，覆盖一次完整的鉴权 + RPC 往返。
 4. 把实际验证到的机型、Android 版本和结果记录下来；本节本身不包含任何已完成的验证结果。
 
@@ -250,21 +250,21 @@ eas submit --platform android --profile ait --latest
   `profile: production` 或 fastlane 旧应用路径；`release-mobile.yml` 的
   `submit_ios_for_review` 还会调用 fastlane 提交 App Store 审核。这些是桌面之外的遗留正式发布
   流水线，和本节的内部测试流程无关，误触会导致未经验证的构建被提交审核。
-- `apps/app/scripts/eas-submit-tracks.test.cjs` 和
-  `apps/app/scripts/ios-testflight-workflow.test.cjs` 是保护上述边界的回归测试，确认
+- `apps/mobile/scripts/eas-submit-tracks.test.cjs` 和
+  `apps/mobile/scripts/ios-testflight-workflow.test.cjs` 是保护上述边界的回归测试，确认
   `submit.ait.android` 始终是 `{ track: "internal", releaseStatus: "completed" }`、
   `submit.production.android` 始终是 `{ track: "production", releaseStatus: "completed" }`，
   并且遗留 EAS workflow 没有 `push` 触发器。改动 `eas.json` 或这些 workflow 前，先用
-  `node --test apps/app/scripts/eas-submit-tracks.test.cjs` 确认没有破坏这个边界；该测试文件
+  `node --test apps/mobile/scripts/eas-submit-tracks.test.cjs` 确认没有破坏这个边界；该测试文件
   与 `eas.json` 本身属于移动发布边界的一部分。
 
 ## Apple TestFlight iOS 手动发布
 
-`apps/app` 的 iOS 构建通过 GitHub Actions 手动工作流
+`apps/mobile` 的 iOS 构建通过 GitHub Actions 手动工作流
 `.github/workflows/release-ios-testflight.yml` 发布到 App Store Connect 的 TestFlight，
 用于内部测试组安装，与上文桌面 GitHub Release 和 Google Play Internal Testing 完全独立，
 不经过 `.github/workflows/release.yml` 也不经过 EAS 自带的 `.eas/workflows/*`。
-完整设计见 [ADR-070](../decisions/adr-070-ios-testflight-release.md)。
+完整设计见 [ADR-070](../decisions/clients/adr-070-ios-testflight-release.md)。
 
 ### 触发方式与固定顺序
 
@@ -315,7 +315,7 @@ GitHub 仓库设置里维护。
 
 ### `ait` profile
 
-EAS 构建与提交统一使用 `apps/app/eas.json` 里的 `ait` profile：
+EAS 构建与提交统一使用 `apps/mobile/eas.json` 里的 `ait` profile：
 
 - `build.ait`：`extends: "production"`，携带 `IOS_BUNDLE_IDENTIFIER=com.necokeine.ait`、
   `APPLE_TEAM_ID` 等公开标识，不含任何密钥。
@@ -354,9 +354,9 @@ Connect)”。是否提交正式审核、何时提交，需要人工登录 App S
 
 ### 明确禁止事项
 
-- **不要**运行或触发 `apps/app/.eas/workflows/release-mobile.yml`、
-  `apps/app/.eas/workflows/release-ios-beta.yml` 或
-  `apps/app/.eas/workflows/resubmit-ios-review.yml`。三者都是 Paseo 遗留的正式发布流水线：
+- **不要**运行或触发 `apps/mobile/.eas/workflows/release-mobile.yml`、
+  `apps/mobile/.eas/workflows/release-ios-beta.yml` 或
+  `apps/mobile/.eas/workflows/resubmit-ios-review.yml`。三者都是 Paseo 遗留的正式发布流水线：
   `release-mobile.yml` 在 `submit_ios_for_review` job 里调用 `bundle exec fastlane ios
 submit_review` 直接提交 App Store 审核；`release-ios-beta.yml` 用 `profile: production`
   构建，并通过 `type: testflight` 的 `submit_beta_review: true` 直接提交外部测试组审核；

@@ -2,61 +2,72 @@
 
 <img src="logo.svg" alt="Ait logo" width="96" height="96" />
 
-Ait 是一个本地优先的多 Agent 管理器，目标是统一在线协作平台、本地 Agent 运行时和面向任务的管理界面。
-
-桌面应用由 `apps/paseo` 承载，界面位于 `apps/app`，内置服务实现语言固定为 Rust。核心概念与边界以 `docs/README.md` 中列出的 ADR 为准。
+Ait 是一个本地优先的多 Agent 管理器，统一在线协作平台、本地 Agent 运行时和任务界面。
+本机服务使用 Rust，Electron 桌面与 Expo 界面共用当前 daemon、客户端 SDK 和连接协议。
 
 ## 开始开发
 
-项目提供 `flake.nix` / `flake.lock` 和 direnv 配置，支持 macOS/Linux 的 arm64 与 x86_64：
+可选使用 Nix/direnv 进入包含 Rust、Clippy、LLVM coverage、Node.js 和构建工具的开发环境：
 
 ```bash
-direnv allow
-# 或手动进入同一环境
 nix develop
+# 或使用已审阅的 .envrc
+direnv allow
 ```
 
-开发环境包含 Rust、rustfmt、Clippy、LLVM coverage、Node.js、npm 和常用构建工具。
-安装前端依赖使用下方的 `npm ci`。
-
 ```bash
-cargo fmt --all --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
-
 npm ci
 npm run dev:desktop
 ```
 
-## 本地 server
+桌面入口会构建共享包、daemon 和 Electron 主进程，启动 Expo 与桌面应用。
+移动端与 Web 的启动方式见 [apps/mobile](apps/mobile/README.md)。
+
+独立运行 daemon：
 
 ```bash
-cargo run -p server-bin --bin server -- --help
+export AIT_SERVER_TOKEN="$(openssl rand -hex 32)"
+cargo run -p daemon --bin daemon -- --listen 127.0.0.1:7316
 ```
 
-正式桌面安装包只携带独立 `server`，详见 [server 说明](docs/operations/independent-server.md)。
+配置、认证、数据目录和协议见 [daemon 手册](docs/operations/daemon.md)。
+已有 `AIT_SERVER_*` 配置保持兼容，桌面安装包携带 `resources/bin/daemon`。
 
 ## Workspace
 
-- `bins/server`：桌面和独立运行的 Rust 服务入口。
-- `crates/server-domain`：不依赖运行时或传输层的领域记录。
-- `crates/server-model`、`crates/server-protocol`：公共请求上下文、错误模型与 WebSocket 协议。
-- `crates/server-api`：HTTP/WebSocket 接入、鉴权与能力分发。
-- `crates/server-metadata`：Project/Workspace 目录、配置与元数据。
-- `crates/server-filesystem`：文件、Git、worktree 和 Forge 操作。
-- `crates/server-provider`：Codex/Claude/OpenCode 原生会话、历史投影与 metadata generation。
-- `crates/server-terminal`、`crates/server-voice`、`crates/server-schedule`、`crates/server-browser`：终端、语音、调度和浏览器能力。
-- `packages/`：本地私有 `@ait/client`、`@ait/protocol`、`@ait/highlight` 与 `@ait/expo-two-way-audio` 源码；内部依赖使用 `file:`，通过 `npm run verify:local-packages` 校验。
-- `apps/paseo`：Electron 桌面与 Rust server 生命周期管理。
-- `apps/app`：桌面、Web 与移动端共享界面。
+| 目录           | 职责                                                                                                      |
+| -------------- | --------------------------------------------------------------------------------------------------------- |
+| `bins/daemon`  | Rust 服务入口、配置和组装                                                                                 |
+| `crates/`      | `domain`、`model`、`protocol`、`api` 及 metadata/filesystem/provider/terminal/voice/schedule/browser 能力 |
+| `apps/desktop` | `@ait/desktop` Electron 桌面和 daemon 生命周期                                                            |
+| `apps/mobile`  | `@ait/mobile` 桌面、Web 与移动端共享界面                                                                  |
+| `packages/`    | 本地私有 SDK、协议、高亮和音频模块                                                                        |
+| `docs/`        | 当前架构、分类 ADR、运维、工程规范和验证报告                                                              |
 
-旧 daemon、worker、CLI 及其专用 crate 已移除，见
-[ADR-059](docs/decisions/adr-059-remove-legacy-rust-runtime.md)。旧版操作文档仅供历史追溯；
-当前入口和协议见 [server 说明](docs/operations/independent-server.md)。
+本地包使用显式 `file:` 依赖，运行 `npm run verify:local-packages` 校验。
+Rust 依赖方向见 [当前架构](docs/architecture/README.md)，所有修改遵循 [AGENTS.md](AGENTS.md)。
 
-OpenCode 使用本机已登录的 `opencode`，可用 `AIT_SERVER_OPENCODE_BIN` 指定可执行文件；
-支持 1.x 与 2.0.10+ 协议。当前提供 Build 模式、模型发现、文本对话、单次审批、取消和恢复，
-能力与限制见 [适配报告](docs/reports/opencode-server-migration.md)。
+## OpenCode
 
-GitHub Release 为 Linux x86_64 与 Apple Silicon 构建 **Ait** 桌面产物；
-版本准备、产物校验和故障恢复见 [发布操作指南](docs/operations/releasing.md)。
+使用本机已登录的 `opencode`，可用 `AIT_SERVER_OPENCODE_BIN` 指定可执行文件。
+提供 Build 模式、模型发现、文本对话、单次审批、取消和恢复；
+协议与能力限制见 [OpenCode 适配决策](docs/decisions/providers/adr-074-opencode-native-provider.md)。
+
+## 验证与发布
+
+```bash
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+npm run verify:local-packages
+npm run verify:release
+npm run check:docs
+npm run test:release
+npm run test:mobile-release
+npm run build:desktop-main
+npm run typecheck --workspace=@ait/desktop --workspace=@ait/mobile
+```
+
+迭代时只运行改动代码及直接相关行为的测试；Rust 提交准备运行完整 workspace 测试与覆盖率，
+详见 [Rust 规范](docs/policy/rust.md)。
+GitHub Release 支持 Linux x86_64 和 Apple Silicon；构建、签名与移动发布见
+[发布指南](docs/operations/releasing.md)。更多资料见 [文档索引](docs/README.md)。

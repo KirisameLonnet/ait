@@ -182,6 +182,30 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
+test("connect retries after the transport factory fails synchronously", async () => {
+  const mock = createMockTransport();
+  let attempts = 0;
+  const client = new DaemonClient({
+    url: "ws://test",
+    clientId: "retry_after_factory_failure",
+    transportFactory: () => {
+      if (++attempts === 1) throw new Error("Transport temporarily unavailable");
+      return mock.transport;
+    },
+    reconnect: { enabled: false },
+    logger: createMockLogger(),
+  });
+  clients.push(client);
+
+  await expect(client.connect()).rejects.toThrow("Transport temporarily unavailable");
+  const retry = client.connect();
+  void retry.catch(() => {});
+  expect(attempts).toBe(2);
+  mock.triggerOpen();
+  await retry;
+  expect(client.getConnectionState().status).toBe("connected");
+});
+
 test("traces WebSocket frames, message types, and JSON parse duration", async () => {
   const mock = createMockTransport();
   const recorder = createTraceRecorder();
