@@ -1,0 +1,97 @@
+{
+  "measured_revision": "ff9e86693da0bd2844fb9dc94590ca08f9fad146",
+  "base_revision": "141035d7a613237038d75a6e2c63c8b80a94c17c",
+  "platform": "aarch64-apple-darwin",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "cargo_llvm_cov": "0.8.4",
+  "features": "default workspace features",
+  "excluded_files": "cargo-llvm-cov defaults; no additional exclusion filters",
+  "doctest_instrumentation": false,
+  "unavailable_platforms": ["Linux", "Windows"],
+  "ignored_tests": [
+    {
+      "test": "local::claude::tests::process::installed_claude_control_protocol_discovers_models_without_inference",
+      "reason": "Existing locally installed Claude CLI requirement; no model request"
+    },
+    {
+      "test": "local::claude::tests::process::parity::installed_claude_completes_a_native_turn_and_reopens_history",
+      "reason": "Existing authenticated Claude model request requirement"
+    },
+    {
+      "test": "local::codex::tests::installed::installed_codex_completes_a_native_turn_and_reopens_history",
+      "reason": "Existing authenticated Codex model request requirement"
+    }
+  ],
+  "environment": {
+    "CARGO_TARGET_DIR": "/private/tmp/ait-agent-creation-pr-target",
+    "SHERPA_ONNX_LIB_DIR": "/Users/necokeine/Documents/ait/target/sherpa-onnx-prebuilt/sherpa-onnx-v1.13.8-osx-arm64-static-lib/lib"
+  },
+  "coverage_export_command": "cargo llvm-cov report --json --summary-only --output-path /private/tmp/ait-agent-creation-pr/coverage-summary.json",
+  "source_fingerprint_sha256": "3bd339e37002f897eb432f432666dad70b21db2c71f368921e84ecc84d5b70ed",
+  "modified_rust_source_sha256": {
+    "crates/filesystem/src/service/git_fetch/tests.rs": "a045dfca8340bc3663efe481c5f858df11d80427710f8e80527ed04a18faff14",
+    "crates/provider/src/connection.rs": "f5dc09ed2a88a4b7561445c985c32bad58c178d87a96dc8d3e10efdc365fb921",
+    "crates/provider/src/service/agent_execution/tests.rs": "d51b4584b4147ab7117d6f91b808a4930cdaf400b7e2969edd9f3ee7a667c8ef",
+    "crates/provider/src/service/agent_execution/tests/subscriptions.rs": "e8a2fa282274f795eb16a884eb47e6d9b846d0ae9173a523ba1aaae0220e87f9",
+    "crates/provider/src/service/agent_execution/tests/subscriptions/creation.rs": "ba4a8d40194e53a1eaab1e4bb5c7eba3486ec3a553b438245f8e23d454847dc8"
+  },
+  "scope_line_coverage": {
+    "workspace": {
+      "covered": 48593,
+      "total": 51397,
+      "percent": 94.54
+    },
+    "provider": {
+      "covered": 21221,
+      "total": 22592,
+      "percent": 93.93
+    },
+    "filesystem": {
+      "covered": 11135,
+      "total": 11720,
+      "percent": 95.01
+    }
+  },
+  "relevant_file_line_coverage": {
+    "crates/provider/src/connection.rs": {
+      "covered": 126,
+      "total": 130,
+      "percent": 96.92
+    },
+    "crates/filesystem/src/service/git_fetch.rs": {
+      "covered": 258,
+      "total": 264,
+      "percent": 97.73
+    }
+  },
+  "validation": {
+    "tests": {
+      "command": "cargo test --locked --offline --workspace",
+      "exit_code": 0,
+      "passed": 1757,
+      "failed": 0,
+      "ignored": 3
+    },
+    "coverage": {
+      "command": "cargo llvm-cov --locked --offline --workspace --html",
+      "exit_code": 0,
+      "passed": 1757,
+      "failed": 0,
+      "ignored": 3
+    },
+    "build": {
+      "command": "cargo build --locked --offline --workspace",
+      "exit_code": 0
+    },
+    "clippy": {
+      "command": "cargo clippy --locked --offline --workspace --all-targets -- -D warnings",
+      "exit_code": 0
+    }
+  },
+  "comparable_baseline": null,
+  "limitations": [
+    "No authenticated DeepSeek Harness model turn",
+    "No Electron repackaging or deployment",
+    "No Linux or Windows execution"
+  ]
+}

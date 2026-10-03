@@ -1,6 +1,7 @@
 # Agent 创建时的任务预算竞争
 
-日期：2026-10-03。源码基线：`cbc85078`，验证对象为该提交加本工作树修改。
+日期：2026-10-03。初始复现基线：`cbc85078`；PR 基线为 main `141035d7`。
+提交前验证源码：`ff9e86693da0bd2844fb9dc94590ca08f9fad146`；后续修改只补充验证文档。
 平台：macOS arm64；Cargo 默认 features，离线 ACP fixture，不使用真实模型 API。
 
 ## 现场与判断
@@ -26,6 +27,9 @@ Provider 连接在启动原生进程前，通过 `Runtime::run` 安装创建进�
 后台 Git fetch 使用独立并发预算；失败路径记录 WARN 后等待下一轮重试，
 不会请求 daemon 关闭。现场 daemon 日志没有 panic 或 fatal 退出记录；检查时桌面 daemon
 仍在监听。已有断连记录不足以证明进程退出，更不能据此认定 fetch 是退出原因。
+后台适配器丢弃 Git stderr，并把非零退出统一映射为 `Failed`，无法还原历史失败原因。
+后续使用同一仓库的 SSH origin 进行非交互只读 `git ls-remote origin HEAD` 检查，
+退出码为 0、stderr 为空，只能证明检查时网络与认证正常。
 
 ## 修复
 
@@ -41,7 +45,7 @@ API 的有界请求队列、订阅数量限制、进程关闭取消以及持久�
 创建仍可能等待慢任务结束；本修复没有优化大型 Diff 的计算耗时，
 也没有取消真正耗尽的请求队列或订阅容量限制。
 
-## 验证
+## 本地定向验证
 
 所有 Cargo 命令使用 `CARGO_TARGET_DIR=/private/tmp/ait-git-fetch-target`。
 
@@ -53,8 +57,42 @@ API 的有界请求队列、订阅数量限制、进程关闭取消以及持久�
 
 ## Test coverage
 
-**Not measured**：本次为本地定向修复，未执行完整 workspace 测试或覆盖率测量。
-测试通过数量与行覆盖率分开报告，没有复用历史百分比，没有可提供的本次覆盖率 artifact。
-下一步在准备包含 Rust 修改的提交时，按 Rust style guide 运行完整测试和
-`cargo llvm-cov --workspace --html`，记录行计数、百分比与可审阅证据。
+提交准备阶段使用 cargo-llvm-cov 0.8.4、Rust 1.98.1，在 macOS arm64 测量完整
+Cargo workspace，默认 features 和默认文件过滤，没有额外排除；不插桩 doctest。
+
+| 范围                | 行覆盖率   | covered / total     |
+| ------------------- | ---------- | ------------------- |
+| Workspace           | **94.54%** | **48,593 / 51,397** |
+| provider            | **93.93%** | **21,221 / 22,592** |
+| filesystem          | **95.01%** | **11,135 / 11,720** |
+| Provider connection | **96.92%** | **126 / 130**       |
+| Git fetch service   | **97.73%** | **258 / 264**       |
+
+完整源码指纹、修改的 Rust 文件 SHA-256、命令、范围和测试结果见
+[可审阅覆盖率证据](agent-creation-resource-contention-coverage.json)。
+未在同一环境重新测量目标 main，不计算与历史报告的覆盖率差值。
+HTML 已生成于 `/private/tmp/ait-agent-creation-pr-target/llvm-cov/html/index.html`；
+PR 中的 JSON 是共享测量证据，HTML 和原始执行日志留在本地。
+
+提交前检查结果与行覆盖率分开记录：
+
+- `cargo test --locked --offline --workspace`：1,757 passed、0 failed、3 ignored。
+- `cargo build --locked --offline --workspace`：通过，无编译警告。
+- `cargo clippy --locked --offline --workspace --all-targets -- -D warnings`：通过。
+- `cargo llvm-cov --locked --offline --workspace --html`：1,757 passed、0 failed、3 ignored。
+- `cargo fmt --all --check`、`git diff --check`、文档 Oxfmt 和 `npm run check:docs`：通过。
+
+首次受限沙箱运行因禁止绑定本地端口而中止；允许离线测试夹具启动后，完整测试与覆盖率
+均通过。3 项 ignored 沿用现有声明：已安装 Claude 的模型发现、真实 Claude 回合和
+真实 Codex 回合；没有新增跳过。以下环境同时用于 test、build、clippy 和 coverage：
+
+```sh
+export CARGO_TARGET_DIR=/private/tmp/ait-agent-creation-pr-target
+export SHERPA_ONNX_LIB_DIR=/Users/necokeine/Documents/ait/target/sherpa-onnx-prebuilt/sherpa-onnx-v1.13.8-osx-arm64-static-lib/lib
+cargo llvm-cov --locked --offline --workspace --html
+cargo llvm-cov report --json --summary-only --output-path /private/tmp/ait-agent-creation-pr/coverage-summary.json
+```
+
+新修复路径及取消、初始化失败、订阅限额已有回归测试。Provider connection 尚有
+非法 key、缺失 executor 和部分发送失败分支未覆盖，后续可补充直接连接级错误测试。
 本次没有真实认证 Harness 回合、Electron 重打包或 Linux/Windows 平台验证。
