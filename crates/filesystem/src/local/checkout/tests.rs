@@ -3,6 +3,7 @@ use std::process::Command;
 
 use tempfile::TempDir;
 
+mod file_diff;
 mod highlight;
 mod naming;
 mod parser;

@@ -14,6 +14,7 @@ use metadata::ports::registry::{
 use super::*;
 
 mod activity;
+mod concurrency;
 
 #[derive(Debug, Clone, Default)]
 struct Agents(
@@ -26,6 +27,7 @@ struct Agents(
 struct Faults {
     list: bool,
     update: Option<UpdateFailure>,
+    replacement: Option<PersistedAgentRuntimeRecord>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -80,6 +82,9 @@ impl AgentRuntimeRegistry for Agents {
             return Ok(None);
         };
         if agent_id == "changed" {
+            if let Some(replacement) = &self.2.lock().unwrap().replacement {
+                record.clone_from(replacement);
+            }
             match self.2.lock().unwrap().update {
                 Some(UpdateFailure::Io) => return Err(AgentRuntimeRegistryError::Io),
                 Some(UpdateFailure::Missing) => return Ok(None),

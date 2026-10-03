@@ -1,5 +1,6 @@
 use super::*;
 
+mod literal_paths;
 mod paseo;
 
 fn fixture() -> (tempfile::TempDir, LocalFiles, String) {

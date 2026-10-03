@@ -123,7 +123,7 @@ impl FileSystem for LocalFiles {
             entries.push(FileEntry {
                 name,
                 path: child.relative,
-                kind: if entry.file_type()?.is_dir() {
+                kind: if stats.is_dir() {
                     EntryKind::Directory
                 } else {
                     EntryKind::File
@@ -259,7 +259,13 @@ impl FileSystem for LocalFiles {
         // Git stages the rename of tracked entries, matching Paseo's context action.
         let tracked = crate::local::git::run(
             &source.root,
-            &["ls-files", "--error-unmatch", "--", &source.relative],
+            &[
+                "--literal-pathspecs",
+                "ls-files",
+                "--error-unmatch",
+                "--",
+                &source.relative,
+            ],
         )
         .is_ok();
         if tracked {

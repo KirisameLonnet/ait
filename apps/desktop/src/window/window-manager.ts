@@ -394,16 +394,29 @@ export function setupDefaultContextMenu(win: BrowserWindow): void {
   });
 }
 
-/**
- * Prevent Electron from navigating to files dragged onto the window.
- * The renderer handles drag-drop via standard HTML5 APIs instead.
- */
-export function setupDragDropPrevention(win: BrowserWindow): void {
-  win.webContents.on("will-navigate", (event, url) => {
-    // Allow normal navigation (e.g. dev server hot-reload) but block file:// URLs
-    // that result from dropping files onto the window.
-    if (url.startsWith("file://")) {
+/** Keep the privileged application preload on the configured renderer origin. */
+export function setupRendererNavigationGuards(win: BrowserWindow, rendererUrl: string): void {
+  const trusted = new URL(rendererUrl);
+  const guard = (event: { preventDefault(): void }, url: string): void => {
+    let allowed = false;
+    try {
+      const target = new URL(url);
+      // Custom application schemes have opaque URL origins; compare their full authority too.
+      allowed =
+        target.protocol === trusted.protocol &&
+        target.host === trusted.host &&
+        !target.username &&
+        !target.password;
+    } catch {
+      // Malformed and non-application destinations cannot inherit desktop privileges.
+    }
+    if (!allowed) {
       event.preventDefault();
     }
-  });
+  };
+  win.webContents.on("will-navigate", guard);
+  win.webContents.on("will-redirect", guard);
+  // Application links use the external opener or workspace browser; arbitrary popups must
+  // not inherit this window's preload. Workspace webviews have their own popup policy.
+  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
 }

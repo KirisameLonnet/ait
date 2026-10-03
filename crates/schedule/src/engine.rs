@@ -363,6 +363,10 @@ fn advance(
     anchor: DateTime<Utc>,
     now: DateTime<Utc>,
 ) -> Result<DateTime<Utc>, Error> {
+    // An in-flight run can finish after an edit/resume has already scheduled a future slot.
+    if anchor > now {
+        return Ok(anchor);
+    }
     if let Cadence::Every { every_ms } = cadence {
         let delta = now.signed_duration_since(anchor).num_milliseconds().max(0);
         let steps = delta

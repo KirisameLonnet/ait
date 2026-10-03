@@ -312,6 +312,7 @@ impl CheckoutRuntime for LocalCheckout {
         let output = run_git(
             &cwd,
             &[
+                "--literal-pathspecs",
                 "show",
                 sha,
                 "--format=",
@@ -323,7 +324,7 @@ impl CheckoutRuntime for LocalCheckout {
             DIFF_OUTPUT_LIMIT,
         )?
         .stdout;
-        if output.trim().is_empty() || output.contains("Binary files") {
+        if output.trim().is_empty() {
             return Ok(None);
         }
         let mut file = parse_diff(&output)

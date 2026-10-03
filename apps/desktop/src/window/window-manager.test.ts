@@ -9,9 +9,55 @@ import {
   readWindowChromeUpdate,
   readWindowTheme,
   resolveWindowBounds,
+  setupRendererNavigationGuards,
 } from "./window-manager";
 
 describe("window-manager", () => {
+  it.each(["ait://app/", "http://localhost:8081/"])(
+    "restricts navigation, redirects and popups from renderer %s",
+    (rendererUrl) => {
+      const listeners = new Map<string, (event: { preventDefault(): void }, url: string) => void>();
+      const setWindowOpenHandler = vi.fn();
+      const win = {
+        webContents: {
+          on: (
+            name: string,
+            listener: (event: { preventDefault(): void }, url: string) => void,
+          ) => {
+            listeners.set(name, listener);
+          },
+          setWindowOpenHandler,
+        },
+      } as unknown as Parameters<typeof setupRendererNavigationGuards>[0];
+      setupRendererNavigationGuards(win, rendererUrl);
+      for (const name of ["will-navigate", "will-redirect"]) {
+        const guard = listeners.get(name)!;
+        for (const url of [
+          "https://untrusted.example/",
+          "ait://untrusted/",
+          "http://localhost:8082/",
+          "http://localhost:8081.untrusted.example/",
+          "http://user:password@localhost:8081/",
+          "file:///tmp/page.html",
+          "javascript:alert(1)",
+          "data:text/html,untrusted",
+          "about:blank",
+          "invalid",
+        ]) {
+          const event = { preventDefault: vi.fn() };
+          guard(event, url);
+          expect(event.preventDefault).toHaveBeenCalledOnce();
+        }
+        const event = { preventDefault: vi.fn() };
+        guard(event, new URL("/workspace?view=files#current", rendererUrl).href);
+        expect(event.preventDefault).not.toHaveBeenCalled();
+      }
+      expect(setWindowOpenHandler.mock.calls[0][0]({ url: "https://untrusted.example/" })).toEqual({
+        action: "deny",
+      });
+    },
+  );
+
   describe("readBadgeCount", () => {
     it("returns valid non-negative integers", () => {
       expect(readBadgeCount(0)).toBe(0);

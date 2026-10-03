@@ -1,0 +1,193 @@
+{
+  "base_revision": "3c2cb5d4cfb9661ae7475fbd40eb1f23e281a4c4",
+  "measurement": "base_revision plus this PR changes; Rust source content fingerprint and changed source hashes recorded below",
+  "source_fingerprint": "1afbf29426e0ada1b518b54dc3f6829eff04d60e3b400f177516c7e32e0f9a79",
+  "source_fingerprint_algorithm": "SHA256 of compact JSON array of sorted tracked/untracked Rust sources, Cargo manifests/lockfile and rust-toolchain.toml, with path/sha256 keys and comma/colon separators",
+  "scope": "Cargo workspace; default features; macOS arm64; Rust 1.98.1; cargo-llvm-cov 0.8.4",
+  "commands": [
+    "SHERPA_ONNX_LIB_DIR=/private/tmp/ait-workspace-sidebar-cov-target/sherpa-onnx-prebuilt/sherpa-onnx-v1.13.8-osx-arm64-static-lib/lib CARGO_TARGET_DIR=/private/tmp/ait-workspace-sidebar-cov-target cargo llvm-cov --workspace --locked --offline --html",
+    "CARGO_TARGET_DIR=/private/tmp/ait-workspace-sidebar-cov-target cargo llvm-cov report --json --summary-only --output-path /private/tmp/ait-audit-pr-coverage-summary.json"
+  ],
+  "workspace_lines": {
+    "count": 47707,
+    "covered": 43974,
+    "percent": 92.1751524933448
+  },
+  "crate_lines": {
+    "daemon": {
+      "count": 932,
+      "covered": 879,
+      "percent": 94.31330472103005
+    },
+    "api": {
+      "count": 1724,
+      "covered": 1650,
+      "percent": 95.70765661252901
+    },
+    "browser": {
+      "count": 725,
+      "covered": 706,
+      "percent": 97.37931034482759
+    },
+    "domain": {
+      "count": 121,
+      "covered": 121,
+      "percent": 100.0
+    },
+    "filesystem": {
+      "count": 11710,
+      "covered": 10570,
+      "percent": 90.26473099914602
+    },
+    "metadata": {
+      "count": 7732,
+      "covered": 7019,
+      "percent": 90.77858251422658
+    },
+    "model": {
+      "count": 659,
+      "covered": 629,
+      "percent": 95.44764795144158
+    },
+    "protocol": {
+      "count": 57,
+      "covered": 57,
+      "percent": 100.0
+    },
+    "provider": {
+      "count": 19625,
+      "covered": 18334,
+      "percent": 93.42165605095542
+    },
+    "schedule": {
+      "count": 823,
+      "covered": 805,
+      "percent": 97.81287970838396
+    },
+    "terminal": {
+      "count": 1701,
+      "covered": 1549,
+      "percent": 91.06407995296884
+    },
+    "voice": {
+      "count": 1898,
+      "covered": 1655,
+      "percent": 87.19704952581665
+    }
+  },
+  "test_execution": {
+    "passed": 1572,
+    "failed": 0,
+    "ignored": 3
+  },
+  "coverage_test_execution": {
+    "passed": 1572,
+    "failed": 0,
+    "ignored": 3
+  },
+  "excluded_files": "cargo-llvm-cov defaults; no additional exclusions; no TypeScript/Kotlin or doctest instrumentation",
+  "ignored_tests": [
+    "test local::claude::tests::process::installed_claude_control_protocol_discovers_models_without_inference ... ignored, requires a locally installed Claude Code CLI; sends no model request",
+    "test local::claude::tests::process::parity::installed_claude_completes_a_native_turn_and_reopens_history ... ignored, requires installed Claude authentication and makes one small model request",
+    "test local::codex::tests::installed::installed_codex_completes_a_native_turn_and_reopens_history ... ignored, requires installed Codex authentication and makes one small model request"
+  ],
+  "baseline": {
+    "artifact": "docs/reports/workspace/large-diff-loading-coverage.json",
+    "scope": "Cargo workspace; default features; macOS arm64; Rust 1.98.1; cargo-llvm-cov 0.8.4",
+    "workspace_lines": {
+      "count": 47697,
+      "covered": 43958,
+      "percent": 92.16093255341006
+    },
+    "delta_percentage_points": 0.014219939934733361,
+    "note": "Previous PR measurement, same platform/toolchain/default workspace scope; its production Rust sources are included in the current main baseline. This is a recorded comparison, not a fresh baseline rerun."
+  },
+  "uncovered_behavior": [
+    "Linux/Windows and on-device Android/iOS behavior was not executed.",
+    "Real authenticated provider integration tests remain ignored.",
+    "Android audio resource teardown was compiled against Android 36 but still requires device lifecycle validation.",
+    "Desktop navigation tests exercise Electron event handlers via mocks, not a packaged UI session."
+  ],
+  "raw_report_sha256": "02789b5d7e34a84edda4dd86835f50241ebe4a51d182bfae80ad79d1425c1e57",
+  "coverage_files": [
+    {
+      "path": "crates/filesystem/src/local/checkout.rs",
+      "lines": {
+        "count": 1484,
+        "covered": 1305,
+        "percent": 87.93800539083558
+      }
+    },
+    {
+      "path": "crates/filesystem/src/local/files.rs",
+      "lines": {
+        "count": 528,
+        "covered": 493,
+        "percent": 93.37121212121212
+      }
+    },
+    {
+      "path": "crates/provider/src/service/workspace_attention.rs",
+      "lines": {
+        "count": 248,
+        "covered": 230,
+        "percent": 92.74193548387096
+      }
+    },
+    {
+      "path": "crates/schedule/src/engine.rs",
+      "lines": {
+        "count": 444,
+        "covered": 436,
+        "percent": 98.1981981981982
+      }
+    }
+  ],
+  "rust_sources": [
+    {
+      "path": "crates/filesystem/src/local/checkout.rs",
+      "sha256": "e6e452a58fe9571623a8a44d795e58b0d2361c30d8c143ceeb67c6286834b437"
+    },
+    {
+      "path": "crates/filesystem/src/local/checkout/tests.rs",
+      "sha256": "6a05ac7c74d0074d6a88cecac91f1fe0a0a4e1e8af98d90eb49d5ec1774d8d8f"
+    },
+    {
+      "path": "crates/filesystem/src/local/checkout/tests/file_diff.rs",
+      "sha256": "e4d4a552546ac1e464c48c64d6ebe6104ad3191e59679944218b921c009ade46"
+    },
+    {
+      "path": "crates/filesystem/src/local/files.rs",
+      "sha256": "a416dd705f5d7f031621d4b4e73823cb4a1c53d5b91b717db0db8d4804b83963"
+    },
+    {
+      "path": "crates/filesystem/src/local/files/tests.rs",
+      "sha256": "995871d89f958750b6b33127a5b4dcf40ce693eb9f6cfc90cad8e93649670908"
+    },
+    {
+      "path": "crates/filesystem/src/local/files/tests/literal_paths.rs",
+      "sha256": "fc890baa17ffa6c4ceb2537cf036c1c7828927cff5e16ef2c04cf50ba6c8d2cf"
+    },
+    {
+      "path": "crates/provider/src/service/workspace_attention.rs",
+      "sha256": "1c9849568369d12ee9fc80dfc54f53e23a751c744cd8349ff819da5510feef56"
+    },
+    {
+      "path": "crates/provider/src/service/workspace_attention/tests.rs",
+      "sha256": "bad57beeee98d8d43806536708b759039711c19c7af7e84e6f72a4b84f04983a"
+    },
+    {
+      "path": "crates/provider/src/service/workspace_attention/tests/concurrency.rs",
+      "sha256": "aeba81ff5a4ef5e9cc7b178615d26130543a00752848a769b21443e9eec61b46"
+    },
+    {
+      "path": "crates/schedule/src/engine.rs",
+      "sha256": "fc168714a3dc22b7714991178b1f5e3e3fbb55245b2e4d2b504ea4384f0041f5"
+    },
+    {
+      "path": "crates/schedule/src/engine/tests/mutation.rs",
+      "sha256": "b3deeacac21b8821803ce7a1efd93c74017eecce1e9ba0958092bbd7292ab241"
+    }
+  ],
+  "artifact_scope": "Workspace/crate line totals, changed Rust file coverage, source fingerprints and test exclusions"
+}

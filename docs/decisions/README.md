@@ -58,6 +58,7 @@
 - [ADR-062：Ait 运行路径与项目配置文件](clients/adr-062-ait-runtime-paths.md)
 - [ADR-063：Ait 本地 UI 包与原生测试连接](clients/adr-063-ait-local-ui-packages.md)
 - [ADR-070：Ait iOS TestFlight 手动发布工作流](clients/adr-070-ios-testflight-release.md)
+- [ADR-073：桌面主窗口的导航信任边界](clients/adr-073-desktop-renderer-navigation.md)
 
 ## 品牌与视觉
 
