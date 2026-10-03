@@ -1,6 +1,29 @@
 //! Paseo schedule/service.test.ts update, timing and history cases.
 use super::*;
 
+#[test]
+fn finishing_a_run_preserves_a_future_slot_created_by_cadence_update() {
+    let (mut engine, _) = fixture();
+    let id = create(&mut engine);
+    let (_, run) = engine.begin(&id, false, now()).unwrap();
+    let updated_at = now() + chrono::Duration::seconds(10);
+    engine
+        .request(
+            "schedule.update.request",
+            json!({"scheduleId":id,"cadence":{"type":"every","everyMs":120_000}}),
+            updated_at,
+        )
+        .unwrap();
+    let expected = updated_at + chrono::Duration::minutes(2);
+
+    engine
+        .finish(&id, &run, false, Outcome::default(), updated_at)
+        .unwrap();
+
+    assert_eq!(engine.inspect(&id).unwrap().next_run_at, Some(expected));
+    assert_eq!(engine.due(expected).unwrap(), vec![id]);
+}
+
 fn new_agent(engine: &mut Engine) -> String {
     let mut params = input();
     params["target"] = json!({"type":"new-agent","config":{

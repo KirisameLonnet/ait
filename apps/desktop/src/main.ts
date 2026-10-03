@@ -99,7 +99,7 @@ import {
   resolveSystemWindowTheme,
   resolveWindowBounds,
   setupDefaultContextMenu,
-  setupDragDropPrevention,
+  setupRendererNavigationGuards,
   setupWindowResizeEvents,
   setupWindowStatePersistence,
 } from "./window/window-manager.js";
@@ -746,7 +746,10 @@ async function createWindow(
     setupWindowStatePersistence(mainWindow, windowStateStore);
   }
   setupDefaultContextMenu(mainWindow);
-  setupDragDropPrevention(mainWindow);
+  setupRendererNavigationGuards(
+    mainWindow,
+    app.isPackaged ? `${APP_SCHEME}://app/` : DEV_SERVER_URL,
+  );
   mainWindow.webContents.on("will-attach-webview", (event, webPreferences, params) => {
     if (!isPaseoBrowserWebviewAttach(params)) {
       event.preventDefault();

@@ -4,6 +4,7 @@
 
 ## Daemon 与协议
 
+- [2026-10-03 仓库审计与修复](daemon/repository-audit-2026-10-03.md)
 - [Workspace 重命名与文档整理](daemon/workspace-rename.md)
 
 - [Local 0.0.7 subscription and live-session compatibility](daemon/local-subscription-failure.md)

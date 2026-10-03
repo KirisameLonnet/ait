@@ -1,6 +1,7 @@
 import android.annotation.SuppressLint
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioFocusRequest
 import android.media.AudioFormat
@@ -14,10 +15,9 @@ import android.os.Build
 import android.os.PowerManager
 import android.util.Log
 import androidx.annotation.RequiresApi
-import java.util.LinkedList
-import java.util.Queue
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
-import kotlin.math.pow
+import expo.modules.twowayaudio.pcm16VolumeLevel
 
 
 class AudioEngine (context: Context) {
@@ -29,7 +29,8 @@ class AudioEngine (context: Context) {
     private lateinit var audioManager: AudioManager
     private lateinit var audioTrack: AudioTrack
     private var audioFocusRequest: AudioFocusRequest? = null
-    private val audioSampleQueue: Queue<ByteArray> = LinkedList()
+    private var audioDeviceCallback: AudioDeviceCallback? = null
+    private val audioSampleQueue = ConcurrentLinkedQueue<ByteArray>()
     private var echoCanceler: AcousticEchoCanceler? = null
     private var noiseSuppressor: NoiseSuppressor? = null
     private val executorServiceMicrophone = Executors.newFixedThreadPool(1)
@@ -43,10 +44,11 @@ class AudioEngine (context: Context) {
     private var playbackQueuedBytes = 0L
     private var playbackWrites = 0
     private var playbackWriteBytes = 0L
+    @Volatile private var destroyed = false
 
-    var isRecording = false
+    @Volatile var isRecording = false
     private var isRecordingBeforePause = false
-    var isPlaying = false
+    @Volatile var isPlaying = false
 
     // Callbacks
     var onMicDataCallback: ((ByteArray) -> Unit)? = null
@@ -89,7 +91,7 @@ class AudioEngine (context: Context) {
         }
 
         // Listen for changes in audio routing
-        audioManager.registerAudioDeviceCallback(object:android.media.AudioDeviceCallback(){
+        val deviceCallback = object : AudioDeviceCallback() {
             override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>?) {
                 Log.d("AudioEngine", "onAudioDevicesAdded")
                 super.onAudioDevicesAdded(addedDevices)
@@ -104,7 +106,9 @@ class AudioEngine (context: Context) {
                     updateAudioRouting()
                 }
             }
-        }, null)
+        }
+        audioManager.registerAudioDeviceCallback(deviceCallback, null)
+        audioDeviceCallback = deviceCallback
 
         val bufferSize = AudioTrack.getMinBufferSize(
             SAMPLE_RATE,
@@ -359,7 +363,7 @@ class AudioEngine (context: Context) {
                         micEvents += 1
                         micBytes += data.size.toLong()
                         flushBridgeStats("mic")
-                        val micVolume = calculateRMSLevel(data)
+                        val micVolume = pcm16VolumeLevel(data)
                         onInputVolumeCallback?.invoke(micVolume)
                         onMicDataCallback?.invoke(data)
                     }
@@ -377,15 +381,24 @@ class AudioEngine (context: Context) {
     private fun stopRecording() {
         if (!isRecording) return
         isRecording = false
-        if (audioRecord.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
-            audioRecord.stop()
+        try {
+            if (audioRecord.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                audioRecord.stop()
+            }
+        } finally {
             audioRecord.release()
+            echoCanceler?.release()
+            echoCanceler = null
+            noiseSuppressor?.release()
+            noiseSuppressor = null
         }
         onInputVolumeCallback?.invoke(0.0F)
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
+    @Synchronized
     fun toggleRecording(value: Boolean): Boolean {
+        if (destroyed) return false
         if (value == isRecording) return isRecording
 
         if (value) {
@@ -399,7 +412,9 @@ class AudioEngine (context: Context) {
     }
 
     @SuppressLint("NewApi")
+    @Synchronized
     fun playPCMData(data: ByteArray) {
+        if (destroyed) return
         acquireAudioSessionIfNeeded()
         audioSampleQueue.add(data)
         playbackEvents += 1
@@ -423,7 +438,7 @@ class AudioEngine (context: Context) {
                     val data = audioSampleQueue.poll()
                     if (data != null){
                         playSample(data)
-                        val audioVolume = calculateRMSLevel(data)
+                        val audioVolume = pcm16VolumeLevel(data)
                         onOutputVolumeCallback?.invoke(audioVolume)
                     }else{
                         break
@@ -512,46 +527,33 @@ class AudioEngine (context: Context) {
     }
 
     @SuppressLint("NewApi")
+    @Synchronized
     fun tearDown() {
-        stopRecording()
-        audioTrack.stop()
-        releaseCommunicationRoute()
-        audioFocusRequest?.let { request ->
-            audioManager.abandonAudioFocusRequest(request)
+        if (destroyed) return
+        destroyed = true
+        try {
+            stopRecording()
+        } finally {
+            audioDeviceCallback?.let { audioManager.unregisterAudioDeviceCallback(it) }
+            audioDeviceCallback = null
+            releaseCommunicationRoute()
+            audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+            audioFocusRequest = null
+            executorServiceMicrophone.shutdownNow()
+            executorServicePlayback.shutdownNow()
+            audioSampleQueue.clear()
+            isPlaying = false
+            echoCanceler?.release()
+            echoCanceler = null
+            noiseSuppressor?.release()
+            noiseSuppressor = null
+            if (::audioTrack.isInitialized) {
+                try {
+                    audioTrack.stop()
+                } finally {
+                    audioTrack.release()
+                }
+            }
         }
-        audioFocusRequest = null
-        executorServiceMicrophone.shutdownNow()
     }
-
-
-    private fun calculateRMSLevel(buffer: ByteArray): Float {
-        val epsilon = 1e-5f // To avoid log(0)
-
-        // Convert ByteArray to FloatArray by treating each pair of bytes as a single 16-bit PCM sample
-        val floatBuffer = FloatArray(buffer.size / 2)
-        for (i in floatBuffer.indices) {
-            // Combine two bytes into a 16-bit signed integer
-            val sample = (buffer[i * 2].toInt() or (buffer[i * 2 + 1].toInt() shl 8)).toShort()
-            // Normalize sample to -1.0 to 1.0 range for FloatArray
-            floatBuffer[i] = sample / 32768.0f
-        }
-
-        // Calculate RMS value
-        val rmsValue = kotlin.math.sqrt(floatBuffer.fold(0f) { acc, sample -> acc + sample * sample } / floatBuffer.size)
-
-        // Convert to decibels
-        val dbValue = 20 * kotlin.math.log10(maxOf(rmsValue, epsilon))
-
-        // Normalize decibel value to 0-1 range
-        // Assuming minimum audible is -80dB and maximum is 0dB
-        val minDb = -80.0f
-        val normalizedValue = maxOf(0.0f, minOf(1.0f, (dbValue - minDb) / kotlin.math.abs(minDb)))
-
-        // Optional: Apply exponential factor to push smaller values down
-        val expFactor = 2.0f // Adjust this value to change the curve
-        val adjustedValue = normalizedValue.pow(expFactor)
-
-        return adjustedValue
-    }
-
 }

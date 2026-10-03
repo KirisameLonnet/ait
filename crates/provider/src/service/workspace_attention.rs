@@ -164,34 +164,26 @@ impl WorkspaceAttention for AgentWorkspaceAttention {
         });
         let candidate = candidates
             .first()
+            .copied()
             .ok_or_else(|| WorkspaceStateError::NoFinishedAgent(workspace_id.to_owned()))?;
         let agent_id = candidate.id.clone();
-        let next_updated_at = monotonic_timestamp(&candidate.updated_at, updated_at);
+        let mut desired = candidate.clone();
+        desired.updated_at = monotonic_timestamp(&candidate.updated_at, updated_at);
+        desired.requires_attention = true;
+        desired.attention_reason = Some(AgentAttentionReason::Finished);
+        desired.attention_timestamp = Some(desired.updated_at.clone());
         let updated = self
             .agents
             .update(&agent_id, &|current| {
-                if current.internal
-                    || is_archived(current.archived_at.as_deref())
-                    || current.requires_attention
-                    || !matches!(
-                        current.last_status,
-                        AgentRuntimeStatus::Idle | AgentRuntimeStatus::Closed
-                    )
-                {
-                    return current.clone();
+                if current == candidate {
+                    desired.clone()
+                } else {
+                    current.clone()
                 }
-                let mut next = current.clone();
-                next.updated_at.clone_from(&next_updated_at);
-                next.requires_attention = true;
-                next.attention_reason = Some(AgentAttentionReason::Finished);
-                next.attention_timestamp = Some(next_updated_at.clone());
-                next
             })
             .map_err(map_agent_error)?
             .ok_or_else(|| WorkspaceStateError::AgentNoLongerFinished(agent_id.clone()))?;
-        if !updated.requires_attention
-            || updated.attention_reason != Some(AgentAttentionReason::Finished)
-        {
+        if updated != desired {
             return Err(WorkspaceStateError::AgentNoLongerFinished(agent_id));
         }
         Ok(updated.id)
@@ -219,6 +211,11 @@ impl WorkspaceAttentionScan for AttentionScan<'_> {
         }) {
             let next_updated_at = monotonic_timestamp(&agent.updated_at, updated_at);
             match self.registry.update(&agent.id, &|current| {
+                // The batch snapshot can precede a new permission, completion or placement.
+                // Compare under the registry's update lock before consuming its attention.
+                if current != agent {
+                    return current.clone();
+                }
                 let mut next = current.clone();
                 next.updated_at.clone_from(&next_updated_at);
                 next.requires_attention = false;
@@ -226,7 +223,10 @@ impl WorkspaceAttentionScan for AttentionScan<'_> {
                 next.attention_timestamp = None;
                 next
             }) {
-                Ok(Some(_)) => result.cleared_agent_ids.push(agent.id.clone()),
+                Ok(Some(updated)) if !updated.requires_attention => {
+                    result.cleared_agent_ids.push(agent.id.clone());
+                }
+                Ok(Some(_)) => {}
                 Ok(None) => {
                     result.error =
                         Some(WorkspaceStateError::AgentNoLongerFinished(agent.id.clone()));
