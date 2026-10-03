@@ -68,6 +68,12 @@ impl Screen {
         }
     }
 
+    /// Return the current screen dimensions in character cells.
+    pub(super) fn size(&self) -> Size {
+        let (rows, cols) = self.parser.screen().size();
+        Size { rows, cols }
+    }
+
     pub(super) fn resize(&mut self, size: Size) {
         self.parser.screen_mut().set_size(size.rows, size.cols);
         self.revision += 1;
