@@ -56,6 +56,12 @@
 
 ## Provider、Agent 与会话
 
+- [OpenCode 上游 PR 验证](providers/opencode-upstream-pr.md)
+- [OpenCode 时间线顺序与工具历史](providers/opencode-history-order-and-tools.md)
+- [OpenCode 原生流式与会话恢复](providers/opencode-native-streaming.md)
+- [OpenCode 1.18.33 兼容性](providers/opencode-1.18.33-compatibility.md)
+- [OpenCode Provider 迁移](providers/opencode-server-migration.md)
+
 - [Claude Code Provider](providers/claude-code-provider.md)
 - [Codex 大图片事件导致 Rust 会话失败](providers/codex-large-image-frames.md)
 - [DeepSeek Harness ACP 验证](providers/deepseek-harness-acp.md)

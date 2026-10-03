@@ -18,7 +18,7 @@ pub const CAPABILITIES: &[&str] = &[
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionConfig {
-    /// Provider identity: Codex or Claude Code.
+    /// Identity of a registered native provider adapter.
     pub provider: String,
     /// Absolute existing directory.
     pub cwd: String,

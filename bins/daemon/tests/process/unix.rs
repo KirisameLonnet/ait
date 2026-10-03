@@ -44,6 +44,10 @@ fn start_with_path(directory: &Path, log: &Path, path: Option<&std::ffi::OsStr>)
             directory.parent().unwrap().join("claude"),
         )
         .env(
+            "AIT_SERVER_OPENCODE_BIN",
+            directory.parent().unwrap().join("opencode"),
+        )
+        .env(
             "AIT_SERVER_DEEPSEEK_HARNESS_BIN",
             directory.parent().unwrap().join("dsh"),
         )
@@ -75,6 +79,9 @@ mod agent_execution;
 
 #[path = "claude.rs"]
 mod claude;
+
+#[path = "opencode.rs"]
+mod opencode;
 
 #[path = "deepseek_harness.rs"]
 mod deepseek_harness;

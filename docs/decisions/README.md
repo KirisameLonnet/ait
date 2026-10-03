@@ -45,6 +45,8 @@
 - [ADR-058：Server 的有界 metadata generation](providers/adr-058-daemon-metadata-generation.md)
 - [ADR-067：DeepSeek Harness ACP Provider](providers/adr-067-deepseek-harness-acp.md)
 
+- [ADR-074：OpenCode 原生 Provider](providers/adr-074-opencode-native-provider.md)
+
 ## 客户端、连接与品牌
 
 - [ADR-076：Android 账户与中继客户端](clients/adr-076-android-account-relay.md)

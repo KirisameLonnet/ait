@@ -272,6 +272,9 @@ impl ExecutionState {
 
     async fn create(&mut self, params: Value) -> Result<Value, ErrorCode> {
         let (mut request, intent) = parse_creation(params)?;
+        self.manager
+            .validate_provider(&request.config.provider)
+            .map_err(|error| map_manager(&error))?;
         if let Some(id) = &request.agent_id {
             Uuid::parse_str(id).map_err(|_| ErrorCode::InvalidMessage)?;
         }
@@ -644,12 +647,6 @@ fn parse_creation(params: Value) -> Result<(CreateRequest, Value), ErrorCode> {
         }
         .validate()
         .map_err(|_| ErrorCode::InvalidMessage)?;
-    }
-    if !matches!(
-        request.config.provider.as_str(),
-        "codex" | "claude" | "deepseek-harness"
-    ) {
-        return Err(ErrorCode::UnsupportedCapability);
     }
     if request
         .config

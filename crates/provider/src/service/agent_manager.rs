@@ -110,6 +110,14 @@ pub struct AgentManager {
 }
 
 impl AgentManager {
+    pub(crate) fn validate_provider(&self, provider: &str) -> Result<(), AgentManagerError> {
+        if self.clients.contains_key(provider) {
+            Ok(())
+        } else {
+            Err(AgentManagerError::ProviderUnavailable(provider.to_owned()))
+        }
+    }
+
     /// Compose the manager with a durable Agent runtime registry.
     #[must_use]
     pub fn new(registry: Box<dyn AgentRuntimeRegistry>) -> Self {

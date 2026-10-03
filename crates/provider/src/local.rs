@@ -7,5 +7,6 @@ pub mod deepseek_harness;
 mod elicitation;
 mod images;
 mod notes;
+pub mod opencode;
 mod tool_detail;
 mod usage;

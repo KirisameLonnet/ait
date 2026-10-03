@@ -31,12 +31,15 @@
 - [DeepSeek Harness](operations/deepseek-harness.md)：ACP 运行与模型配置。
 - [语音与听写](operations/speech.md)：离线模型、后端配置和限制。
 
+- [OpenCode 原生 Provider](decisions/providers/adr-074-opencode-native-provider.md)：接入范围、审批与会话恢复。
+
 ## 工程规范与验证
 
 - [Rust style guide](policy/rust.md)：Rust 代码、测试、lint 与覆盖率规范。
 - [文档规范](policy/documentation.md)：分类、维护和历史资料清理规则。
 - [Provider 能力清单](plans/provider-parity.md)：当前能力与后续工作。
 - [大 Diff 加载与超限降级](reports/workspace/large-diff-loading.md)：输出预算、连接保持与验证结果。
+- [OpenCode 上游 PR 验证](reports/providers/opencode-upstream-pr.md)：上游整合、冲突处理与测试范围。
 - [验证报告分类索引](reports/README.md)：实现、兼容性、发布及覆盖率记录。
 - [2026-10-03 仓库审计](reports/daemon/repository-audit-2026-10-03.md)：审计范围、已修复问题与验证限制。
 - [移动端 E2E](../apps/mobile/e2e/README.md)、[Maestro](../apps/mobile/maestro/README.md)：真实 daemon 连接验证。

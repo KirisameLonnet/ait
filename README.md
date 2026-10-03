@@ -7,6 +7,14 @@ Ait 是一个本地优先的多 Agent 管理器，统一在线协作平台、本
 
 ## 开始开发
 
+可选使用 Nix/direnv 进入包含 Rust、Clippy、LLVM coverage、Node.js 和构建工具的开发环境：
+
+```bash
+nix develop
+# 或使用已审阅的 .envrc
+direnv allow
+```
+
 ```bash
 npm ci
 npm run dev:desktop
@@ -55,6 +63,12 @@ Android 作为客户端连接在线电脑，不发布手机为工作主机。退
 
 本地包使用显式 `file:` 依赖，运行 `npm run verify:local-packages` 校验。
 Rust 依赖方向见 [当前架构](docs/architecture/README.md)，所有修改遵循 [AGENTS.md](AGENTS.md)。
+
+## OpenCode
+
+使用本机已登录的 `opencode`，可用 `AIT_SERVER_OPENCODE_BIN` 指定可执行文件。
+提供 Build 模式、模型发现、文本对话、单次审批、取消和恢复；
+协议与能力限制见 [OpenCode 适配决策](docs/decisions/providers/adr-074-opencode-native-provider.md)。
 
 ## 验证与发布
 

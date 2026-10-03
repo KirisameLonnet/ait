@@ -1,4 +1,5 @@
 /target/
+.direnv/
 /output/imagegen/
 *.profraw
 *.profdata

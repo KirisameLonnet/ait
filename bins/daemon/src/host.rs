@@ -426,6 +426,9 @@ fn compose_provider(
     let (codex, claude) = native_clients(data_dir);
     manager.register_client(Box::new(codex))?;
     manager.register_client(Box::new(claude))?;
+    manager.register_client(Box::new(provider::local::opencode::OpenCodeClient::new(
+        std::env::var_os("AIT_SERVER_OPENCODE_BIN").map_or_else(|| "opencode".into(), Into::into),
+    )))?;
     manager.register_client(Box::new(
         provider::local::deepseek_harness::DeepSeekHarnessClient::new(
             std::env::var_os("AIT_SERVER_DEEPSEEK_HARNESS_BIN")
