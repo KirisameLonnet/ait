@@ -11,7 +11,8 @@
 - **账户与跨主机连接。** 桌面和 Android 支持账户登录、发现账户下的 Host 和反向中继连接。
   [PR #138](https://github.com/ait-app/ait/pull/138)、
   [验证说明](../clients/account-host-relay-validation.md)。
-- **Android APK。** 与桌面安装包一起提供 ARM64、ARMv7 下载，验证版本、架构、签名和原生库对齐。
+- **可选 Android APK。** 增加手动构建 ARM64、ARMv7 的入口，验证版本、架构、签名和原生库对齐。
+  推送标签默认只发布桌面；需要 APK 时手动勾选 `build_android`，本次发布保持默认关闭。
   当前使用测试签名，安装及后续签名兼容性见 [Android APK 发布](../../operations/android-releases.md)。
   [PR #158](https://github.com/ait-app/ait/pull/158)。
 - **大 Diff 与 Codex 选项。** 改善大 Diff 加载，超出响应预算时保留 Host 连接；按模型展示
@@ -29,11 +30,9 @@
 | ------------------------------ | ---------------------------------------------------------- |
 | macOS Apple Silicon，macOS 13+ | `Ait-0.0.15-macos-arm64.dmg`、`Ait-0.0.15-macos-arm64.zip` |
 | Linux x86_64                   | `Ait-linux-x86_64.AppImage`、`Ait-0.0.15-linux-x64.tar.gz` |
-| Android 10+ ARM64              | `Ait-0.0.15-android-arm64.apk`                             |
-| Android 10+ ARMv7              | `Ait-0.0.15-android-armv7.apk`                             |
 
 退出旧桌面应用，安装新版本后重新打开；远端 Host 也需升级 daemon 才能获得服务端改进。
-Android 按设备架构选择一个 APK。Google Play 和 iOS TestFlight 使用独立的手动发布流程。
+Android APK 仅在另行手动选择构建后提供。Google Play 和 iOS TestFlight 使用独立的手动发布流程。
 
 ## 发布验证
 
@@ -46,6 +45,13 @@ Cargo/npm 锁文件语义比较确认第三方依赖未变。
 `PID_READY`，测试通过终端 capture 等待该信号，继续验证 daemon 关闭后终端进程已退出。
 未跳过测试、延长超时或修改终端生产逻辑。
 
+合并后 [main CI](https://github.com/ait-app/ait/actions/runs/37116836917) 的 Rust job 已通过，
+桌面 job 则暴露 ASAR 测试夹具的写入竞态：`@electron/asar` 3 的 `createPackage` 在
+输出流完成前返回，立即读取可能得到零字节内容。Linux launcher 与资源校验测试改为
+等待 ASAR CLI 进程结束，再读取生成文件；生产打包和校验逻辑不变。
+本地执行 `npm exec --workspace=@ait/desktop -- vitest run src/daemon/linux-launcher.posix.test.ts`：
+1 passed，9 项 Linux 专用测试按原条件跳过；桌面 typecheck 和发布脚本测试通过，Linux 用例由 CI 验证。
+
 Android 发布输入校验增加显式失败退出，避免 macOS Bash 3.2 的 `errexit` 行为使非法
 标签检查被后续成功命令覆盖；现有非法标签/源码回归用例已验证。
 
@@ -53,7 +59,7 @@ Android 发布输入校验增加显式失败退出，避免 macOS Bash 3.2 的 `
 
 - `npm ci --no-audit --no-fund`：锁定依赖安装通过；初次离线安装因新依赖未缓存而失败，联网安装后通过。
 - `npm run verify:release -- v0.0.15`、`npm run verify:local-packages`：版本与本地依赖验证通过。
-- `npm run test:release`：15 passed；`npm run test:mobile-release`：29 passed。
+- `npm run test:release`：17 passed；`npm run test:mobile-release`：29 passed（包含 Android 可选发布回归）。
 - `npm run build:desktop-main`、`npm run typecheck --workspace=@ait/desktop --workspace=@ait/mobile`：通过。
 - `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 npm run test --workspace=@ait/mobile -- --project unit native-release-version.test.ts src/changelog`：3 文件、46 passed。
 - `cargo metadata --locked --offline --no-deps --format-version 1`、`cargo fmt --all --check`：通过。
@@ -71,11 +77,16 @@ cargo build --locked --offline --workspace
 cargo clippy --locked --offline --workspace --all-targets -- -D warnings
 ```
 
-正式安装包由 Release Ait 工作流生成；Linux、macOS、Android
-全部成功后才创建 GitHub Release。macOS 需通过签名、公证和成品启动检查，Android 需通过
-两个 ABI 的 APK 检查。发布后核对资产完整性、SHA-256、桌面更新摘要和构建来源。
+正式安装包由 Release Ait 工作流生成；Linux、macOS 全部成功后才创建 GitHub Release。
+Android 默认跳过，仅手动选中时要求两个 ABI 的 APK 检查通过。
+macOS 需通过签名、公证和成品启动检查。发布后核对资产完整性、SHA-256、桌面更新摘要和构建来源。
 
 ## Test coverage
+
+后续 Android 可选发布与 ASAR 夹具调整只改工作流、发布脚本、测试与文档，没有 Rust 改动，按仓库规则
+未重复 Rust 测试或覆盖率。定向回归覆盖默认桌面发布、显式 Android、缺失 APK、意外 APK、
+选定平台失败/跳过/取消和实际工作流向校验脚本传参；Oxlint、Oxfmt 与文档检查通过。
+该调整的 JavaScript 行覆盖率未测量，后续扩展发布脚本行为时继续补充相应回归。
 
 本次提交准备实测 workspace 行覆盖率 **94.5328%（48,587 / 51,397）**；
 相关 daemon 为 **95.2991%（892 / 936）**，terminal 为 **96.3528%（1,453 / 1,508）**。
