@@ -1,6 +1,9 @@
 # Daemon 每 crate 95% 行覆盖率
 
-日期：2026-10-03。基线：main `3c2cb5d4cfb9661ae7475fbd40eb1f23e281a4c4`。
+本报告记录 rebase 前 `5c91c637` 的 12-crate 测量。分支已更新到 main `be9347f8`，
+当前 13-crate 的验证与覆盖率见 [rebase 验证](crate-coverage-rebase.md)。
+
+日期：2026-10-03。基线：main `6ce645040c0ef03d9d677ce9224c0fa9cdcb028b`。
 测量对象为该提交加 `codex/daemon-crate-coverage` 的 Rust 改动；精确源码 SHA-256
 及各文件计数见[可审阅覆盖率证据](crate-coverage-95.json)。
 
@@ -18,10 +21,12 @@
 - 文件浏览器的大目录 JSON 可以超过 4 MiB 队列并断连。复用 Checkout 的编码预算，
   返回目录过大的业务错误；真实 daemon 测试验证同一 WebSocket 随后的文件读取仍成功。
 - 尚无首个提交的仓库读取历史时报错。现在返回空历史；同时验证新文件撤销后的索引和目录状态。
-- 指向允许目录的符号链接被显示成文件。使用完成路径校验后的目标 metadata 判断类型。
 - Setup 命令在两次轮询之间快速输出超过 8 MiB 并退出时绕过上限。退出后读取同样有界，
   并返回明确错误；8 MiB + 1 字节用例在修复前失败。
 - 离线 TTS 因样本上限中止后被误报为 Provider 故障。优先保留 Capacity 错误分类。
+
+目录符号链接的回归用例验证允许目标按目录显示；该生产修复已包含在最新 main 中，
+本 PR 保留回归测试。
 
 离线引擎将编解码、容量和文本规范化与 native 调用隔开；worker 的协议循环接收
 输入输出与引擎操作，使失败、重用、清理可以独立验证。没有改变领域归属或向外增加依赖。
@@ -30,8 +35,8 @@ DeepSeek 正常握手夹具的 2 秒等待在插桩与并行编译时曾失败�
 
 ## Test coverage
 
-全部 **12 个 crate 均达到 95% 行覆盖率**。整体 **95.2300%（45,299 / 47,568）**，
-可比基线为 92.3185%（43,855 / 47,504），提升 2.9114 个百分点。
+全部 **12 个 crate 均达到 95% 行覆盖率**。整体 **95.2289%（45,308 / 47,578）**，
+可比基线为 92.3328%（43,871 / 47,514），提升 2.8961 个百分点。
 覆盖率是行执行计数，不代表分支、真实外部模型或所有平台均已覆盖。
 
 | crate      | 当前行覆盖率 | covered / total | 可比基线  |
@@ -40,17 +45,17 @@ DeepSeek 正常握手夹具的 2 秒等待在插桩与并行编译时曾失败�
 | browser    | 97.3793%     | 706 / 725       | 97.3793%  |
 | daemon     | 95.3863%     | 889 / 932       | 94.3133%  |
 | domain     | 100.0000%    | 121 / 121       | 100.0000% |
-| filesystem | 95.0055%     | 11,128 / 11,713 | 90.2333%  |
+| filesystem | 95.0171%     | 11,136 / 11,720 | 90.2647%  |
 | metadata   | 95.0904%     | 7,360 / 7,740   | 90.7786%  |
 | model      | 95.5994%     | 630 / 659       | 95.4476%  |
 | protocol   | 100.0000%    | 57 / 57         | 100.0000% |
-| provider   | 95.0471%     | 18,653 / 19,625 | 93.4064%  |
-| schedule   | 97.8049%     | 802 / 820       | 97.8049%  |
-| terminal   | 96.3528%     | 1,453 / 1,508   | 95.8886%  |
+| provider   | 95.0471%     | 18,653 / 19,625 | 93.4217%  |
+| schedule   | 97.8129%     | 805 / 823       | 97.8129%  |
+| terminal   | 96.2202%     | 1,451 / 1,508   | 95.8886%  |
 | voice      | 95.1646%     | 1,850 / 1,944   | 87.1970%  |
 
-基线采用[大 Diff 验证证据](../workspace/large-diff-loading-coverage.json)，其记录的 Rust 源码
-与合并后的基线一致。原始整体为 43,958 / 47,697；原 terminal 的 `test_support.rs`
+基线采用[主线仓库审计证据](repository-audit-2026-10-03-coverage.json)，其记录的 Rust 源码
+与合并后的基线一致。原始整体为 43,974 / 47,707；原 terminal 的 `test_support.rs`
 本已受 `cfg(test)` 保护，本次移到标准的 `tests/support.rs`，被 llvm-cov 默认测试过滤识别。
 因此比较时从基线扣除该夹具的 103 / 193 行，terminal 的生产代码基线为 1,446 / 1,508。
 夹具重排带来的分母变化没有计作生产覆盖提升。没有新增覆盖率排除规则或忽略测试。
@@ -67,12 +72,12 @@ python3 scripts/check-crate-coverage.py /private/tmp/ait-crate-coverage/final.js
 
 HTML 位于 `/private/tmp/ait-workspace-sidebar-cov-target/llvm-cov/html/index.html`。
 共享证据为仓库中的 JSON 摘要：包含全部生产文件行计数、每个 crate、可比基线、测试数量
-及 Rust 源码哈希。源码指纹为 `ecd4ff81476ad5d2feb4391a5144b561071525191512a8f13c1b622071b4d83a`。
+及 Rust 源码哈希。源码指纹为 `4bb7fa6c8e1105ded926bbff9f8adeae47ef4ae8bad2eb6d58aad9abfd7731c9`。
 
 ## 验证与本地检查
 
-测试数量与覆盖率分别统计：普通全量和插桩全量均为 **1,682 passed、0 failed、3 ignored**；
-基线为 1,564 passed，新增 118 项。
+测试数量与覆盖率分别统计：普通全量和插桩全量均为 **1,690 passed、0 failed、3 ignored**；
+基线为 1,572 passed，新增 118 项。
 保留的 3 项 ignored 分别依赖已安装 Claude 模型发现、已认证 Claude 原生回合和 Codex 原生回合。
 
 以下提交前检查通过，Rust 命令带 `--locked --offline`：

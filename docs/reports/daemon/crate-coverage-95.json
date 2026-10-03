@@ -1,7 +1,7 @@
 {
-  "base_revision": "3c2cb5d4cfb9661ae7475fbd40eb1f23e281a4c4",
+  "base_revision": "6ce645040c0ef03d9d677ce9224c0fa9cdcb028b",
   "measurement": "Base revision plus this change; exact Rust sources identified by the hashes below.",
-  "source_fingerprint": "ecd4ff81476ad5d2feb4391a5144b561071525191512a8f13c1b622071b4d83a",
+  "source_fingerprint": "4bb7fa6c8e1105ded926bbff9f8adeae47ef4ae8bad2eb6d58aad9abfd7731c9",
   "fingerprint_algorithm": "SHA-256 of sorted relative path + NUL + content SHA-256 + newline for every current Rust source in bins/ and crates/.",
   "scope": "All 12 Cargo workspace members; default features; macOS arm64; Rust 1.98.1; cargo-llvm-cov 0.8.4; default filename filtering, no custom exclusions.",
   "commands": [
@@ -10,9 +10,9 @@
     "python3 scripts/check-crate-coverage.py /private/tmp/ait-crate-coverage/final.json"
   ],
   "workspace_lines": {
-    "covered": 45299,
-    "count": 47568,
-    "percent": 95.22998654557686
+    "covered": 45308,
+    "count": 47578,
+    "percent": 95.22888730085333
   },
   "crate_lines": {
     "api": {
@@ -36,9 +36,9 @@
       "percent": 100.0
     },
     "filesystem": {
-      "covered": 11128,
-      "count": 11713,
-      "percent": 95.00554938956715
+      "covered": 11136,
+      "count": 11720,
+      "percent": 95.01706484641639
     },
     "metadata": {
       "covered": 7360,
@@ -61,14 +61,14 @@
       "percent": 95.04713375796179
     },
     "schedule": {
-      "covered": 802,
-      "count": 820,
-      "percent": 97.8048780487805
+      "covered": 805,
+      "count": 823,
+      "percent": 97.81287970838396
     },
     "terminal": {
-      "covered": 1453,
+      "covered": 1451,
       "count": 1508,
-      "percent": 96.35278514588859
+      "percent": 96.22015915119363
     },
     "voice": {
       "covered": 1850,
@@ -258,9 +258,9 @@
       "percent": 90.5511811023622
     },
     "crates/filesystem/src/local/checkout.rs": {
-      "count": 1489,
-      "covered": 1400,
-      "percent": 94.02283411685694
+      "count": 1490,
+      "covered": 1402,
+      "percent": 94.09395973154362
     },
     "crates/filesystem/src/local/checkout/highlight.rs": {
       "count": 314,
@@ -274,13 +274,13 @@
     },
     "crates/filesystem/src/local/checkout/summary.rs": {
       "count": 118,
-      "covered": 111,
-      "percent": 94.0677966101695
+      "covered": 110,
+      "percent": 93.22033898305084
     },
     "crates/filesystem/src/local/files.rs": {
-      "count": 522,
-      "covered": 495,
-      "percent": 94.82758620689656
+      "count": 528,
+      "covered": 501,
+      "percent": 94.88636363636364
     },
     "crates/filesystem/src/local/files/search.rs": {
       "count": 193,
@@ -494,8 +494,8 @@
     },
     "crates/filesystem/src/service/git_fetch.rs": {
       "count": 264,
-      "covered": 258,
-      "percent": 97.72727272727273
+      "covered": 259,
+      "percent": 98.10606060606061
     },
     "crates/filesystem/src/service/github_projects.rs": {
       "count": 101,
@@ -1109,8 +1109,8 @@
     },
     "crates/provider/src/local/deepseek_harness/session.rs": {
       "count": 259,
-      "covered": 241,
-      "percent": 93.05019305019306
+      "covered": 242,
+      "percent": 93.43629343629344
     },
     "crates/provider/src/local/deepseek_harness/streaming.rs": {
       "count": 187,
@@ -1334,8 +1334,8 @@
     },
     "crates/provider/src/service/agent_manager/generated_titles.rs": {
       "count": 99,
-      "covered": 93,
-      "percent": 93.93939393939394
+      "covered": 92,
+      "percent": 92.92929292929293
     },
     "crates/provider/src/service/agent_manager/native_sessions.rs": {
       "count": 297,
@@ -1478,9 +1478,9 @@
       "percent": 93.02325581395348
     },
     "crates/schedule/src/engine.rs": {
-      "count": 441,
-      "covered": 433,
-      "percent": 98.1859410430839
+      "count": 444,
+      "covered": 436,
+      "percent": 98.1981981981982
     },
     "crates/schedule/src/ports.rs": {
       "count": 19,
@@ -1509,8 +1509,8 @@
     },
     "crates/terminal/src/connection.rs": {
       "count": 383,
-      "covered": 357,
-      "percent": 93.21148825065274
+      "covered": 355,
+      "percent": 92.68929503916449
     },
     "crates/terminal/src/dispatch.rs": {
       "count": 78,
@@ -1649,13 +1649,18 @@
     }
   },
   "comparable_baseline": {
-    "source": "../workspace/large-diff-loading-coverage.json",
+    "source": "repository-audit-2026-10-03-coverage.json",
     "workspace_lines": {
-      "covered": 43855,
-      "count": 47504,
-      "percent": 92.31854159649714
+      "covered": 43871,
+      "count": 47514,
+      "percent": 92.33278612619438
     },
     "crate_lines": {
+      "daemon": {
+        "count": 932,
+        "covered": 879,
+        "percent": 94.31330472103005
+      },
       "api": {
         "count": 1724,
         "covered": 1650,
@@ -1666,20 +1671,15 @@
         "covered": 706,
         "percent": 97.37931034482759
       },
-      "daemon": {
-        "count": 932,
-        "covered": 879,
-        "percent": 94.31330472103004
-      },
       "domain": {
         "count": 121,
         "covered": 121,
         "percent": 100.0
       },
       "filesystem": {
-        "count": 11703,
-        "covered": 10560,
-        "percent": 90.23327351961035
+        "count": 11710,
+        "covered": 10570,
+        "percent": 90.26473099914602
       },
       "metadata": {
         "count": 7732,
@@ -1698,13 +1698,13 @@
       },
       "provider": {
         "count": 19625,
-        "covered": 18331,
-        "percent": 93.4063694267516
+        "covered": 18334,
+        "percent": 93.42165605095542
       },
       "schedule": {
-        "count": 820,
-        "covered": 802,
-        "percent": 97.8048780487805
+        "count": 823,
+        "covered": 805,
+        "percent": 97.81287970838396
       },
       "terminal": {
         "covered": 1446,
@@ -1721,16 +1721,16 @@
   },
   "tests": {
     "plain": {
-      "passed": 1682,
+      "passed": 1690,
       "failed": 0,
       "ignored": 3
     },
     "coverage": {
-      "passed": 1682,
+      "passed": 1690,
       "failed": 0,
       "ignored": 3
     },
-    "baseline_passed": 1564,
+    "baseline_passed": 1572,
     "added": 118,
     "ignored": [
       "installed Claude model discovery",
@@ -1873,22 +1873,24 @@
     "crates/filesystem/src/dispatch/metadata/tests.rs": "294b4641133a58a4db87735a2f8180d4ce59550a545b01300507c37d9a0a87fe",
     "crates/filesystem/src/lib.rs": "ab9222f2713cf9229d763b494ada7e5bf461adcc9c30aef2878d36bbf3d7f997",
     "crates/filesystem/src/local.rs": "eb8eb5d09713977e0bdf1914ab3de328015d9d12ea8edfc50e4475f178377ea7",
-    "crates/filesystem/src/local/checkout.rs": "22e4c6b67bb0e4f79074ac1049660814dd4bc94978a80fd9070517bf98715c75",
+    "crates/filesystem/src/local/checkout.rs": "95143b5542db313daf72d896ce3ece27fd5897b43ce294327a58351562c2dbaf",
     "crates/filesystem/src/local/checkout/highlight.rs": "4621f582a1f1eff1854490e350776d1a38389ac1416fa0161ed43a1854b5187d",
     "crates/filesystem/src/local/checkout/highlight/tests.rs": "d0ee40fc05ddb9b94e4f22cbdb937670c96cf1ba83aab76a269f9290b9c07909",
     "crates/filesystem/src/local/checkout/naming.rs": "4fa19311a1eef6a481101dd9e01d34d9f21966be4298c68341a1d77b5ee97d49",
     "crates/filesystem/src/local/checkout/summary.rs": "ac0b996e861209e2417167e1777216739043d801a9b906acd02b153b8a6d17b2",
     "crates/filesystem/src/local/checkout/summary/tests.rs": "471ef39b50714634f9aa936a6e26bb6ee8b2f462bf63687832cb9ef530e812a6",
-    "crates/filesystem/src/local/checkout/tests.rs": "91e9b88d1d1b57653dc2b57c2cd1d09a06b426a57c17dfc0184adde01706a7f8",
+    "crates/filesystem/src/local/checkout/tests.rs": "fae0a3f373ab930a8d6d18deee583f6d1c9b83c0545ec2373d02ff61fc6f9702",
     "crates/filesystem/src/local/checkout/tests/failures.rs": "d8fd9430e561093e52c2b2c6cddfbc51718f3f3eadf004204ccd7cb8c35ee326",
+    "crates/filesystem/src/local/checkout/tests/file_diff.rs": "e4d4a552546ac1e464c48c64d6ebe6104ad3191e59679944218b921c009ade46",
     "crates/filesystem/src/local/checkout/tests/highlight.rs": "5ef617df4b1b2fc8c3fdf5909412520f76f79ed9b6016b3de5a157f526b472ce",
     "crates/filesystem/src/local/checkout/tests/naming.rs": "b32a9d1c1bfc1728c7e71e024f061a9ceb9d5218908807786ad0e0010b433cf0",
     "crates/filesystem/src/local/checkout/tests/parser.rs": "8edf5008576e4490724110b7b7ab6b7eb9fc491d489d9eb8ecd7053a5561ab58",
     "crates/filesystem/src/local/checkout/tests/paseo.rs": "edfa19bc251ae94ccb4d99cceeb72da1d34c235b994c366516d9fc9bb54b5d03",
     "crates/filesystem/src/local/checkout/tests/remote_base.rs": "7b59156382155af650f229ef4c13afc9b6319e9e7b5f376dc0c8715829123a96",
-    "crates/filesystem/src/local/files.rs": "8228c2cec9d83c97a125b79171036d596cbda4c9e3cba4f790267588dcc5409e",
+    "crates/filesystem/src/local/files.rs": "a416dd705f5d7f031621d4b4e73823cb4a1c53d5b91b717db0db8d4804b83963",
     "crates/filesystem/src/local/files/search.rs": "5cc33a86a24e6aaf44376692dc843d0b59c1af1a020a7d27765efe70365024c5",
-    "crates/filesystem/src/local/files/tests.rs": "0c7c78ddc69745ccdf68baf81ba1c9b551926e7f0b93216eb518b01ae4827912",
+    "crates/filesystem/src/local/files/tests.rs": "e9e7dae99b26bff4d4682d4f196d119f4d93d6e6182f46a2781f75d1df30703b",
+    "crates/filesystem/src/local/files/tests/literal_paths.rs": "fc890baa17ffa6c4ceb2537cf036c1c7828927cff5e16ef2c04cf50ba6c8d2cf",
     "crates/filesystem/src/local/files/tests/paseo.rs": "a7ac369cf8c48c4e07dd70ecb31e161776dfbdf3e77d42a8ed3d798bd919f8aa",
     "crates/filesystem/src/local/files/upload.rs": "b53c170dcfd9b641b189ee96cbb0cb24e8f1e06e33db46020cafdfc1b5e834f0",
     "crates/filesystem/src/local/forge.rs": "a14a8208fc804a7d3bcae975b4a8c2c3ef065a0970a79bc45ac589be170113d8",
@@ -2398,9 +2400,10 @@
     "crates/provider/src/service/provider_catalog/tests.rs": "f0f5d528b4a2370c072c0e51bb13847090718db54919b0c7bc06b48c5113ac8a",
     "crates/provider/src/service/provider_catalog/tests/paseo.rs": "c22647df32f90c018145f79e4e4ee8c5c90df812eacb969ef3bacf1e050e9e43",
     "crates/provider/src/service/provider_catalog/tests/paseo/current.rs": "99b8c152e5ad6048c8ba1350e17c08c8be972183dd41e9fa0c3d01a239c1a0fa",
-    "crates/provider/src/service/workspace_attention.rs": "9545b1bcd452c06b954020490c629d4de9b0dbbb98c98a8599d16bc5822cfc7e",
-    "crates/provider/src/service/workspace_attention/tests.rs": "582820d3f437ec7d0be492ba29aed80458a996b9ef7da005d00b3ba2d9565ef4",
+    "crates/provider/src/service/workspace_attention.rs": "1c9849568369d12ee9fc80dfc54f53e23a751c744cd8349ff819da5510feef56",
+    "crates/provider/src/service/workspace_attention/tests.rs": "bad57beeee98d8d43806536708b759039711c19c7af7e84e6f72a4b84f04983a",
     "crates/provider/src/service/workspace_attention/tests/activity.rs": "22016c9197eabc1d390b8fe6366b679139a0a458f7aea39ae1b9661f9f4e3869",
+    "crates/provider/src/service/workspace_attention/tests/concurrency.rs": "aeba81ff5a4ef5e9cc7b178615d26130543a00752848a769b21443e9eec61b46",
     "crates/provider/src/storage.rs": "666f15d741a97a86163314c41e2334d3625d78887a77aeec00a0455d014acc15",
     "crates/provider/src/storage/agent_runtime.rs": "84a8d54a8e8f59c452870bbad463fc3f60c978c9fa93e764208f79a60a336b01",
     "crates/provider/src/storage/agent_runtime/tests.rs": "ac82b076d292234d485c46c32ff9e081bf8e67c4f75e0bbf269fd9a69b90367c",
@@ -2424,10 +2427,10 @@
     "crates/schedule/src/cadence/tests/calendar_model.rs": "ee775c1fb068a03db4e33351917686f6e16e426490f01f2379a921df7b22d836",
     "crates/schedule/src/capabilities.rs": "c72227d34c3f01fda70f74ec98a1d7b9a4b4130ce72afbe1ecaaea8abfc6ee63",
     "crates/schedule/src/dispatch.rs": "1307b3b54ac96bfcfccec2d12a0f417b951117312946fb47fa839192269ba509",
-    "crates/schedule/src/engine.rs": "5dd03780eae272f2e676085d93dea53e368b5c1b76f023daf695f01190c27844",
+    "crates/schedule/src/engine.rs": "fc168714a3dc22b7714991178b1f5e3e3fbb55245b2e4d2b504ea4384f0041f5",
     "crates/schedule/src/engine/tests.rs": "a724b1f4f1e3e4d97d4d5b565d5f07e7e80ff71aae0b3b9e1153cb04d557e890",
     "crates/schedule/src/engine/tests/lifecycle.rs": "7fea4575a53ff53cca89a18b8fc094211b17c07600374b8af40681aa54c73bae",
-    "crates/schedule/src/engine/tests/mutation.rs": "91db66f54cd9295e32a9c4a8497cad701d7ce26b3d474a49f7f6166b15b245de",
+    "crates/schedule/src/engine/tests/mutation.rs": "b3deeacac21b8821803ce7a1efd93c74017eecce1e9ba0958092bbd7292ab241",
     "crates/schedule/src/engine/tests/recovery.rs": "7960d4aff11dd073d45fe091d280447258b1935e82461d702431ef8b38898d75",
     "crates/schedule/src/lib.rs": "0a729f0018025fa93d6b7c76d9365be21b135a8784e59852892cada2a0c35b09",
     "crates/schedule/src/ports.rs": "6933f70c5baa0934050e1cab6148b6b35f57486b745638ada4c7f194827e6267",
