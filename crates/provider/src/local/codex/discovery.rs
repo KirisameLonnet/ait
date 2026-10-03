@@ -21,7 +21,7 @@ impl CodexClient {
                 let page = transport
                     .request(
                         "model/list",
-                        json!({"cursor":cursor,"limit":100,"includeHidden":true}),
+                        json!({"cursor":cursor,"limit":100,"includeHidden":false}),
                     )
                     .await?;
                 let entries = page["data"].as_array().ok_or(AgentSessionError::Failed)?;
@@ -96,7 +96,7 @@ fn model(native: &Value) -> Result<Value, AgentSessionError> {
         })
         .collect::<Result<Vec<_>, AgentSessionError>>()?;
     let mut value = json!({"provider":"codex","id":id,"label":label,
-        "isSelectable":native["hidden"].as_bool()!=Some(true) || id == "gpt-6.1-sol",
+        "isSelectable":native["hidden"].as_bool()!=Some(true),
         "isDefault":native["isDefault"].as_bool().unwrap_or(false),"thinkingOptions":options});
     value["supportsFastMode"] = json!(
         native["serviceTiers"]
