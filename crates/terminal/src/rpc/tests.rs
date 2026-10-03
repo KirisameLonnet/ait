@@ -1,5 +1,5 @@
 use super::*;
-use crate::test_support::fixture;
+use crate::tests::support::fixture;
 
 #[test]
 fn rpc_projects_success_failure_and_inclusive_negative_capture_ranges() {

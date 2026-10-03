@@ -1,5 +1,6 @@
 //! Transport-independent filesystem request handling.
 
+mod budget;
 pub mod checkout;
 pub mod files;
 pub mod forge;

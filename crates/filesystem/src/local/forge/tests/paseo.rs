@@ -2,6 +2,61 @@
 use super::*;
 use serde_json::json;
 
+#[test]
+fn incomplete_and_missing_forge_objects_remain_absent_instead_of_fabricated() {
+    let context = ForgeContext {
+        kind: ForgeKind::Github,
+        host: "github.com".into(),
+        project_path: "acme/app".into(),
+    };
+    for value in [
+        json!({}),
+        json!({"url":"https://github.com/acme/app/pull/1"}),
+    ] {
+        assert!(
+            parse_status(&value.to_string(), "main", &context)
+                .unwrap()
+                .is_none()
+        );
+    }
+    for value in [
+        json!({}),
+        json!({"data":{"repository":{"pullRequest":null}}}),
+    ] {
+        let result = parse_timeline(&value.to_string(), 42).unwrap();
+        assert_eq!(result.pr_number, 42);
+        assert!(result.items.is_empty());
+        assert!(result.error.is_some());
+    }
+}
+
+#[test]
+fn checks_ignore_incomplete_nodes_and_keep_pending_cancelled_and_skipped_states() {
+    for (conclusion, expected) in [
+        ("CANCELLED", "cancelled"),
+        ("SKIPPED", "skipped"),
+        ("NEUTRAL", "skipped"),
+        ("FUTURE_STATE", "pending"),
+    ] {
+        let result = status(json!({"reviewDecision":"FUTURE_STATE","statusCheckRollup":[
+            {"__typename":"CheckRun"}, {"__typename":"StatusContext"}, {"__typename":"Unknown"},
+            {"__typename":"CheckRun","name":"build","status":"COMPLETED","conclusion":conclusion},
+            {"__typename":"StatusContext","context":"legacy","state":"PENDING"}
+        ]}));
+        assert_eq!(result.checks.len(), 2);
+        assert_eq!(result.checks[0].status, expected);
+        assert_eq!(result.checks[1].status, "pending");
+        assert!(result.review_decision.is_none());
+    }
+    assert!(
+        check_duration(
+            &json!({"startedAt":"2026-01-02T00:00:00Z","completedAt":"2026-01-01T00:00:00Z"})
+        )
+        .is_none()
+    );
+    assert!(check_duration(&json!({"startedAt":"2020-01-01T00:00:00Z"})).is_some());
+}
+
 fn status(fields: Value) -> PullRequestStatus {
     let mut value = json!({"number":42,"url":"https://github.example/parent/project/pull/42",
         "title":"Change","state":"OPEN"});

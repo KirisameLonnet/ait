@@ -452,3 +452,6 @@ pub trait AgentClient: Debug + Send + Sync {
         purpose: AgentResumePurpose,
     ) -> AgentSessionFuture<'a, Box<dyn AgentSession>>;
 }
+
+#[cfg(test)]
+mod tests;

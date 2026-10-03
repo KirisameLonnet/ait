@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use super::*;
 use crate::local::claude::history;
 
@@ -146,4 +148,55 @@ fn live_child_reads_ignore_only_an_unfinished_final_record() {
     assert!(history::read_active_records(&path).is_err());
     std::fs::write(&path, "x".repeat(2 * 1024 * 1024)).unwrap();
     assert!(history::read_active_records(&path).is_err());
+}
+
+#[test]
+fn history_input_limits_reject_large_files_and_record_counts_but_allow_blank_lines() {
+    let root = tempfile::tempdir().unwrap();
+    assert!(history::read_records(root.path()).is_err());
+    let path = root.path().join("bounded.jsonl");
+    let file = std::fs::File::create(&path).unwrap();
+    file.set_len(64 * 1024 * 1024 + 1).unwrap();
+    assert!(history::read_records(&path).is_err());
+    std::fs::write(&path, "{}\n".repeat(16385)).unwrap();
+    assert!(history::read_records(&path).is_err());
+    std::fs::write(&path, " \t\n{}\n\n").unwrap();
+    assert_eq!(history::read_records(&path).unwrap(), [json!({})]);
+}
+
+#[test]
+fn completed_history_ignores_sidechains_and_preserves_the_latest_explicit_title() {
+    let root = tempfile::tempdir().unwrap();
+    let mut client = ClaudeClient::new("unused".into());
+    client.config_dir = Some(root.path().join("config"));
+    let cwd = root.path().to_str().unwrap();
+    let handle = AgentPersistenceHandle {
+        provider: "claude".into(),
+        session_id: uuid::Uuid::new_v4().to_string(),
+        native_handle: None,
+        metadata: None,
+    };
+    let directory = history::project_dir(&client, cwd).unwrap();
+    std::fs::create_dir_all(&directory).unwrap();
+    let records = [
+        json!({"type":"user","uuid":"prompt","sessionId":handle.session_id,"cwd":cwd,"timestamp":"2026-09-26T00:00:00Z","message":{"content":"Hello"}}),
+        json!({"isSidechain":true,"sessionId":"other","customTitle":"ignored"}),
+        json!({"summary":"summary"}),
+        json!({"customTitle":"User title"}),
+        json!({"type":"result","subtype":"success","result":"Done"}),
+    ];
+    let mut file =
+        std::fs::File::create(directory.join(format!("{}.jsonl", handle.session_id))).unwrap();
+    for record in records {
+        writeln!(file, "{record}").unwrap();
+    }
+    let result = history::read(&client, &handle, cwd).unwrap().unwrap();
+    assert!(!result.active);
+    assert_eq!(result.descriptor.title.as_deref(), Some("User title"));
+    assert!(
+        result
+            .entries
+            .iter()
+            .any(|entry| entry.item["text"] == "Done")
+    );
 }

@@ -1,6 +1,4 @@
 //! Checkout request dispatch and wire projections.
-use std::io::{self, Write};
-
 use serde::Serialize;
 use serde_json::Value;
 
@@ -8,8 +6,7 @@ use crate::protocol::checkout as protocol;
 use crate::rpc::ErrorCode;
 use crate::service::checkout::{self as port, Checkout};
 
-// Reserve room for the response/event envelope and other in-flight output.
-const DIFF_OUTPUT_BUDGET: usize = model::server::MAX_QUEUE_BYTES - 64 * 1024;
+use super::budget::fits as fits_diff_output_budget;
 
 /// Decode and execute a checkout request.
 ///
@@ -487,28 +484,6 @@ fn protocol_diff_file(file: port::ParsedDiffFile) -> protocol::ParsedDiffFile {
 fn clear_diff_tokens(file: &mut protocol::ParsedDiffFile) {
     for line in file.hunks.iter_mut().flat_map(|hunk| &mut hunk.lines) {
         line.tokens = None;
-    }
-}
-
-fn fits_diff_output_budget(value: &impl Serialize) -> bool {
-    let mut size = DiffEncodedSize::default();
-    serde_json::to_writer(&mut size, value).is_ok() && size.0 <= DIFF_OUTPUT_BUDGET
-}
-
-#[derive(Default)]
-struct DiffEncodedSize(usize);
-
-impl Write for DiffEncodedSize {
-    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-        self.0 = self.0.saturating_add(bytes.len());
-        if self.0 > DIFF_OUTPUT_BUDGET {
-            return Err(io::Error::other("Diff exceeds the output budget"));
-        }
-        Ok(bytes.len())
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
     }
 }
 

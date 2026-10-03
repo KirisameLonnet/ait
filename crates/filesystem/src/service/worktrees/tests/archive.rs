@@ -1,5 +1,94 @@
 use super::*;
 
+#[test]
+fn archive_rpc_keeps_cleanup_failure_inline_and_a_retry_can_finish() {
+    use crate::rpc::worktrees::execute;
+    let managed = Managed::default();
+    let mut service = service(&Projects::default(), &Workspaces::default(), &managed);
+    managed.state.lock().unwrap().fail_remove = true;
+    let params = serde_json::json!({"worktreePath":"/managed/hash/topic","scope":"worktree"});
+    let failed = execute(
+        &mut service,
+        "workspace.worktree.archive.request",
+        params.clone(),
+    )
+    .unwrap();
+    assert_eq!(failed.value["success"], false);
+    assert!(
+        failed.value["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("cleanup denied")
+    );
+    assert!(failed.event.is_none());
+    managed.state.lock().unwrap().fail_remove = false;
+    let retried = execute(&mut service, "workspace.worktree.archive.request", params).unwrap();
+    assert_eq!(retried.value["success"], true);
+    assert!(retried.value["error"].is_null());
+    assert!(matches!(
+        execute(&mut service, "unknown", serde_json::json!({})),
+        Err(crate::rpc::ErrorCode::MethodNotFound)
+    ));
+}
+
+#[test]
+fn archive_resolves_legacy_selectors_and_rejects_incomplete_or_missing_targets() {
+    for (slug, branch, root) in [
+        (Some("topic"), None, Some("/repo")),
+        (None, Some("topic"), Some("/repo")),
+    ] {
+        let managed = Managed::default();
+        let service = service(&Projects::default(), &Workspaces::default(), &managed);
+        let input = ArchiveWorktree {
+            worktree_path: None,
+            worktree_slug: slug.map(str::to_owned),
+            branch_name: branch.map(str::to_owned),
+            repo_root: root.map(str::to_owned),
+            ..archive_input(ArchiveScope::Worktree)
+        };
+        service.archive(&input, "archived").unwrap();
+        assert_eq!(
+            managed.state.lock().unwrap().removed,
+            ["/managed/hash/topic"]
+        );
+    }
+    for (slug, branch, root, workspace_id) in [
+        (Some("topic"), None, None, None),
+        (None, Some("missing"), Some("/repo"), None),
+        (None, None, None, Some("missing")),
+        (None, None, None, None),
+    ] {
+        let managed = Managed::default();
+        let service = service(&Projects::default(), &Workspaces::default(), &managed);
+        let input = ArchiveWorktree {
+            worktree_path: None,
+            worktree_slug: slug.map(str::to_owned),
+            branch_name: branch.map(str::to_owned),
+            repo_root: root.map(str::to_owned),
+            workspace_id: workspace_id.map(str::to_owned),
+            scope: ArchiveScope::Worktree,
+        };
+        assert!(service.archive(&input, "archived").is_err());
+        assert!(managed.state.lock().unwrap().removed.is_empty());
+    }
+}
+
+#[test]
+fn failed_registration_reports_failed_rollback_and_keeps_the_original_cause() {
+    let managed = Managed::default();
+    managed.state.lock().unwrap().fail_remove = true;
+    let service = service(&Projects::default(), &Workspaces::default(), &managed);
+    let error = service
+        .create(&create_input(Some("missing")), "now")
+        .unwrap_err();
+    assert_eq!(error.kind(), WorktreeFailureKind::Other);
+    let WorktreesError::Rollback { cause, rollback } = error else {
+        panic!("rollback failure was lost")
+    };
+    assert!(matches!(*cause, WorktreesError::UnknownProject(_)));
+    assert_eq!(rollback, WorktreeError::Io("cleanup denied".into()));
+}
+
 #[derive(Debug, Clone, Default)]
 struct Cleanup {
     failed: std::sync::Arc<std::sync::atomic::AtomicBool>,

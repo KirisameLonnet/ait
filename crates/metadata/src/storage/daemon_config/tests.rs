@@ -5,6 +5,58 @@ use serde_json::json;
 
 use super::*;
 
+#[test]
+fn invalid_known_fields_do_not_change_the_persisted_config() {
+    let root = tempfile::tempdir().unwrap();
+    let store = store(&root);
+    let before = store.patch(&json!({})).unwrap();
+    let original = fs::read(root.path().join("config.json")).unwrap();
+    for patch in [
+        json!({"mcp":{"injectIntoAgents":1}}),
+        json!({"browserTools":{"enabled":"yes"}}),
+        json!({"providers":{"":{}}}),
+        json!({"providers":{"codex":false}}),
+        json!({"metadataGeneration":{"providers":[{"provider":""}]}}),
+        json!({"appendSystemPrompt":false}),
+        json!({"relay":{"enabled":1}}),
+    ] {
+        assert!(
+            matches!(store.patch(&patch), Err(DaemonConfigStoreError::Invalid)),
+            "{patch}"
+        );
+        assert_eq!(store.get().unwrap(), before);
+        assert_eq!(fs::read(root.path().join("config.json")).unwrap(), original);
+    }
+    let mut no_optional_mcp = before.clone();
+    no_optional_mcp["mcp"]
+        .as_object_mut()
+        .unwrap()
+        .remove("enabled");
+    validate_config(&no_optional_mcp).unwrap();
+    for (key, value) in [
+        (
+            "git",
+            json!({"maxProcessesPerSecond":0,"maxProcessConcurrency":1}),
+        ),
+        ("catalogRefreshTimeoutMs", json!(0)),
+    ] {
+        let mut invalid = before.clone();
+        invalid[key] = value;
+        fs::write(root.path().join("config.json"), invalid.to_string()).unwrap();
+        assert!(matches!(
+            store.reload(),
+            Err(DaemonConfigStoreError::Invalid)
+        ));
+        assert_eq!(store.get().unwrap(), before);
+    }
+    fs::write(root.path().join("config.json"), "[]").unwrap();
+    assert!(matches!(
+        store.reload(),
+        Err(DaemonConfigStoreError::Invalid)
+    ));
+    assert_eq!(store.get().unwrap(), before);
+}
+
 fn store(directory: &tempfile::TempDir) -> FileDaemonConfigStore {
     FileDaemonConfigStore::new(
         directory.path().join("config.json"),

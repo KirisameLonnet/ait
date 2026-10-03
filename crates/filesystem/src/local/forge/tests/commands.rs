@@ -228,3 +228,179 @@ fn bounded_command_accepts_the_output_limit_and_rejects_one_extra_byte() {
         }
     }
 }
+
+#[test]
+fn detached_checkout_has_no_current_pull_request_and_never_invokes_the_cli() {
+    let fixture = Fixture::new("exit 99");
+    run(&fixture.repository, &["switch", "--detach", "--quiet"]);
+    let result = fixture
+        .forge
+        .current_pull_request_status(fixture.cwd())
+        .unwrap();
+    assert!(result.status.is_none());
+    assert_eq!(result.forge.as_deref(), Some("github"));
+    assert_eq!(result.auth_state, ForgeAuthState::NoRemote);
+    assert!(!fixture.root.path().join("calls").exists());
+}
+
+#[test]
+fn check_identity_is_validated_before_requesting_remote_data() {
+    use crate::ports::forge::CheckDetailsQuery;
+    let fixture = Fixture::new("exit 99");
+    for query in [
+        CheckDetailsQuery::default(),
+        CheckDetailsQuery {
+            repo_owner: Some("acme"),
+            ..Default::default()
+        },
+        CheckDetailsQuery {
+            repo_owner: Some("acme"),
+            repo_name: Some("app"),
+            ..Default::default()
+        },
+    ] {
+        let error = fixture
+            .forge
+            .check_details(fixture.cwd(), query)
+            .unwrap_err();
+        assert_eq!(error.kind, ForgeFailureKind::Invalid);
+    }
+    assert!(!fixture.root.path().join("calls").exists());
+}
+
+#[test]
+fn standalone_checks_do_not_request_an_unrelated_workflow() {
+    let fixture = Fixture::new(
+        "case \"$2\" in */annotations) printf '[]';; *) printf '{\"id\":9,\"name\":\"lint\"}';; esac",
+    );
+    let result = fixture
+        .forge
+        .check_details(
+            fixture.cwd(),
+            crate::ports::forge::CheckDetailsQuery {
+                repo_owner: Some("acme"),
+                repo_name: Some("app"),
+                check_run_id: Some(9),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    assert_eq!(result.check_run_id, 9);
+    assert!(result.workflow_run_id.is_none());
+    assert!(result.failed_jobs.is_empty());
+    assert!(!result.truncated);
+    assert!(!fixture.calls().contains("actions/runs"));
+}
+
+#[test]
+fn unexpected_cli_failures_are_not_reported_as_successful_empty_status() {
+    let fixture = Fixture::new("echo 'unexpected transport failure' >&2; exit 1");
+    let error = fixture
+        .forge
+        .current_pull_request_status(fixture.cwd())
+        .unwrap_err();
+    assert_eq!(error.kind, ForgeFailureKind::Unknown);
+    assert!(error.message.contains("unexpected transport failure"));
+    for source in [
+        fixture.repository.join("tracked.txt"),
+        fixture.root.path().to_path_buf(),
+    ] {
+        assert!(
+            fixture
+                .forge
+                .current_pull_request_status(source.to_str().unwrap())
+                .is_err()
+        );
+    }
+}
+
+#[test]
+fn inferred_pull_request_base_prefers_remote_head_and_rejects_using_head_itself() {
+    let fixture = Fixture::new("exit 99");
+    assert_eq!(
+        resolve_base(&fixture.repository, None, "feature").unwrap(),
+        "main"
+    );
+    run(
+        &fixture.repository,
+        &["update-ref", "refs/remotes/origin/release", "HEAD"],
+    );
+    run(
+        &fixture.repository,
+        &[
+            "symbolic-ref",
+            "refs/remotes/origin/HEAD",
+            "refs/remotes/origin/release",
+        ],
+    );
+    assert_eq!(
+        resolve_base(&fixture.repository, None, "feature").unwrap(),
+        "release"
+    );
+    run(
+        &fixture.repository,
+        &["symbolic-ref", "--delete", "refs/remotes/origin/HEAD"],
+    );
+    run(&fixture.repository, &["branch", "-m", "main", "master"]);
+    assert_eq!(
+        resolve_base(&fixture.repository, None, "feature").unwrap(),
+        "master"
+    );
+    assert_eq!(
+        resolve_base(&fixture.repository, None, "master")
+            .unwrap_err()
+            .kind,
+        ForgeFailureKind::Unknown
+    );
+    assert!(!fixture.root.path().join("calls").exists());
+}
+
+#[test]
+fn checkout_falls_back_to_pr_view_for_a_missing_head_and_rejects_mismatched_forge_data() {
+    use metadata::ports::worktrees::WorktreeChangeRequest;
+    let fixture = Fixture::new(
+        "case \"$1\" in repo) printf '{\"owner\":{\"login\":\"acme\"},\"name\":\"app\"}';; api) cat \"$root/facts\";; pr) printf '{\"headRefName\":\"feature/fallback\"}';; esac",
+    );
+    let source = WorktreeChangeRequest {
+        forge: Some("github".to_owned()),
+        number: 42,
+        project_path: None,
+    };
+    fixture.payload(
+        "facts",
+        &json!({"data":{"repository":{"pullRequest":{"number":42,"baseRefName":"main"}}}}),
+    );
+    let checkout = fixture
+        .forge
+        .worktree_checkout(fixture.cwd(), &source, None)
+        .unwrap();
+    assert_eq!(checkout.head_ref, "feature/fallback");
+    assert_eq!(checkout.local_branch, "feature/fallback");
+    assert!(checkout.track_origin);
+    assert!(
+        fixture
+            .calls()
+            .contains("pr\nview\n42\n--json\nheadRefName")
+    );
+    fixture.payload(
+        "facts",
+        &json!({"data":{"repository":{"pullRequest":{"number":43}}}}),
+    );
+    assert!(
+        fixture
+            .forge
+            .worktree_checkout(fixture.cwd(), &source, None)
+            .is_err()
+    );
+    let other_forge = WorktreeChangeRequest {
+        forge: Some("gitlab".to_owned()),
+        number: 42,
+        project_path: None,
+    };
+    assert_eq!(
+        fixture
+            .forge
+            .worktree_checkout(fixture.cwd(), &other_forge, None),
+        Err(crate::ports::worktrees::WorktreeError::ForgeUnavailable)
+    );
+}

@@ -136,38 +136,60 @@ pub(super) async fn execute(
 /// Returns a safe error for malformed requests, missing models, native failures or file I/O.
 pub fn run() -> Result<(), Error> {
     let input = std::io::stdin();
-    let mut input = input.lock();
-    let mut output = std::io::stdout().lock();
+    serve(input.lock(), std::io::stdout().lock(), Engine::new, process)
+}
+
+fn serve<E>(
+    mut input: impl BufRead,
+    mut output: impl Write,
+    initialize: impl FnOnce(&Init) -> Result<E, Error>,
+    mut execute: impl FnMut(&E, Vec<u8>) -> Result<Vec<u8>, Error>,
+) -> Result<(), Error> {
     let init: Init = read_message(&mut input)?.ok_or(Error::Invalid)?;
-    let engine = Engine::new(&init)?;
+    let engine = initialize(&init)?;
     output.write_all(b"ok\n").map_err(|_| Error::Provider)?;
     output.flush().map_err(|_| Error::Provider)?;
     while let Some(request) = read_message::<Request>(&mut input)? {
         let bytes = read_file(&request.input, MAX_AUDIO_BYTES + 44)?;
-        let result = match &engine {
-            Engine::Recognizer(recognizer) => {
-                let transcript = super::engine::transcribe(
-                    recognizer,
-                    Audio {
-                        bytes,
-                        format: Format::Wav,
-                    },
-                )?;
-                serde_json::to_vec(&transcript).map_err(|_| Error::Provider)?
-            }
-            Engine::Synthesizer(tts, speaker) => {
-                if bytes.len() > MAX_TEXT_BYTES {
-                    return Err(Error::Capacity);
-                }
-                let text = std::str::from_utf8(&bytes).map_err(|_| Error::Invalid)?;
-                super::engine::synthesize(tts, *speaker, text)?.wav()?
-            }
-        };
+        let result = execute(&engine, bytes)?;
         std::fs::write(request.output, result).map_err(|_| Error::Provider)?;
         output.write_all(b"ok\n").map_err(|_| Error::Provider)?;
         output.flush().map_err(|_| Error::Provider)?;
     }
     Ok(())
+}
+
+fn process(engine: &Engine, bytes: Vec<u8>) -> Result<Vec<u8>, Error> {
+    match engine {
+        Engine::Recognizer(recognizer) => {
+            recognize_request(bytes, |audio| super::engine::transcribe(recognizer, audio))
+        }
+        Engine::Synthesizer(tts, speaker) => synthesize_request(&bytes, |text| {
+            super::engine::synthesize(tts, *speaker, text)
+        }),
+    }
+}
+
+fn recognize_request(
+    bytes: Vec<u8>,
+    recognize: impl FnOnce(Audio) -> Result<crate::ports::Transcript, Error>,
+) -> Result<Vec<u8>, Error> {
+    let transcript = recognize(Audio {
+        bytes,
+        format: Format::Wav,
+    })?;
+    serde_json::to_vec(&transcript).map_err(|_| Error::Provider)
+}
+
+fn synthesize_request(
+    bytes: &[u8],
+    synthesize: impl FnOnce(&str) -> Result<Audio, Error>,
+) -> Result<Vec<u8>, Error> {
+    if bytes.len() > MAX_TEXT_BYTES {
+        return Err(Error::Capacity);
+    }
+    let text = std::str::from_utf8(bytes).map_err(|_| Error::Invalid)?;
+    synthesize(text)?.wav()
 }
 
 fn read_message<T: serde::de::DeserializeOwned>(

@@ -1,5 +1,90 @@
 use super::*;
 
+#[test]
+fn task_snapshots_filter_malformed_rows_and_keep_earlier_snapshots_immutable() {
+    let mut tasks = Tasks::default();
+    tasks.observe(&call("list", "TaskList", json!({}))).unwrap();
+    let initial = tasks
+        .observe(&result(
+            "list",
+            json!({"tasks":[
+                {"taskId":"one","subject":"Original","status":"unknown"},
+                {"id":"deleted","subject":"Gone","status":"deleted"},
+                {"subject":"Missing identity"},
+                {"id":"missing-subject"}
+            ]}),
+        ))
+        .unwrap();
+    assert_eq!(
+        initial[0].1["items"],
+        json!([{"id":"one","text":"Original","status":"pending","completed":false}])
+    );
+    tasks
+        .observe(&call(
+            "rename",
+            "TaskUpdate",
+            json!({"taskId":"one","subject":"Renamed","activeForm":"Renaming"}),
+        ))
+        .unwrap();
+    let changed = tasks.observe(&result("rename", json!({}))).unwrap();
+    assert_eq!(changed[0].1["items"][0]["text"], "Renamed");
+    assert_eq!(changed[0].1["items"][0]["activeForm"], "Renaming");
+    assert_eq!(initial[0].1["items"][0]["text"], "Original");
+    for (index, name, input, output) in [
+        (0, "TaskCreate", json!({"subject":"No identity"}), json!({})),
+        (1, "TaskCreate", json!({}), json!({"taskId":"no-subject"})),
+        (2, "TaskUpdate", json!({}), json!({})),
+        (3, "TaskUpdate", json!({"taskId":"absent"}), json!({})),
+        (4, "TaskList", json!({}), json!({"tasks":false})),
+    ] {
+        let id = format!("invalid-{index}");
+        tasks.observe(&call(&id, name, input)).unwrap();
+        assert!(tasks.observe(&result(&id, output)).unwrap().is_empty());
+        assert_eq!(tasks.snapshot(), changed[0].1);
+    }
+    assert!(tasks.observe(&result("", json!({}))).unwrap().is_empty());
+    tasks
+        .observe(&call(
+            "error",
+            "TaskUpdate",
+            json!({"taskId":"one","status":"deleted"}),
+        ))
+        .unwrap();
+    let mut failed = result("error", json!({}));
+    failed["message"]["content"][0]["is_error"] = json!(true);
+    assert!(tasks.observe(&failed).unwrap().is_empty());
+    assert_eq!(tasks.snapshot(), changed[0].1);
+}
+
+#[test]
+fn unbounded_task_lists_and_pending_calls_are_rejected_without_losing_saved_tasks() {
+    let mut tasks = Tasks::default();
+    tasks
+        .observe(&call(
+            "saved",
+            "TodoWrite",
+            json!({"todos":[{"content":"Keep"}]}),
+        ))
+        .unwrap();
+    let before = tasks.snapshot();
+    let oversized = json!({"todos":vec![json!({"content":"too many"});1025]});
+    assert_eq!(
+        tasks.observe(&call("large", "TodoWrite", oversized)),
+        Err(AgentSessionError::Failed)
+    );
+    assert_eq!(tasks.snapshot(), before);
+    for index in 0..1022 {
+        tasks
+            .observe(&call(&format!("pending-{index}"), "TaskList", json!({})))
+            .unwrap();
+    }
+    assert_eq!(
+        tasks.observe(&call("overflow", "TaskList", json!({}))),
+        Err(AgentSessionError::Failed)
+    );
+    assert_eq!(tasks.snapshot(), before);
+}
+
 fn call(id: &str, name: &str, input: Value) -> Value {
     let mut message =
         json!({"type":"assistant","message":{"content":[{"type":"tool_use","id":id,"name":name}]}});

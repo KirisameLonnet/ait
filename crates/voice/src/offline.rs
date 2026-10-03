@@ -125,3 +125,6 @@ impl Synthesizer for Offline {
         })
     }
 }
+
+#[cfg(test)]
+mod tests;

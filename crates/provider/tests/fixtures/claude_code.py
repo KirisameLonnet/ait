@@ -133,13 +133,22 @@ for line in sys.stdin:
         if prompt == "unknown-control":
             emit({"type":"control_request", "request_id":"unknown", "request":{"subtype":"unsupported"}})
             continue
-        if prompt in ("permission", "question"):
+        if prompt in ("permission", "question", "withdraw-permission"):
             tool = "AskUserQuestion" if prompt == "question" else "Bash"
             tool_input = {"questions":[{"question":"Which color?", "header":"Color", "options":[{"label":"Blue", "description":"Blue"}], "multiSelect":False}]} if prompt == "question" else {"command":"echo fixture"}
             call = str(uuid.uuid4())
             pending = (call, prompt)
             assistant([{"type":"tool_use", "id":call, "name":tool, "input":tool_input}])
             emit({"type":"control_request", "request_id":"permission", "request":{"subtype":"can_use_tool", "tool_name":tool, "input":tool_input, "tool_use_id":call}})
+            if prompt == "withdraw-permission":
+                pending = None
+                emit({"type":"control_cancel_request", "request_id":"unrelated"})
+                emit({"type":"control_cancel_request", "request_id":"permission"})
+                record = {"type":"user", "uuid":str(uuid.uuid4()), "session_id":session,
+                    "message":{"role":"user", "content":[{"type":"tool_result", "tool_use_id":call, "content":"Permission withdrawn", "is_error":True}]}}
+                save(record)
+                emit(record)
+                finish("Permission withdrawn")
             continue
         finish("Claude: " + prompt, prompt == "usage")
     elif message["type"] == "control_response" and pending:

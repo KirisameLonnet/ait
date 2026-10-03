@@ -1,6 +1,6 @@
 use crate::activity::ReportState;
 use crate::protocol::{Input, ListRequest};
-use crate::test_support::{fixture, request};
+use crate::tests::support::{fixture, request};
 
 #[test]
 fn reports_require_a_live_terminal_and_its_own_secret_and_interrupts_clear_running() {

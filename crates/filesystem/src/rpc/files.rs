@@ -104,6 +104,11 @@ fn explorer(files: &Files, request: wire::ExplorerRequest) -> Result<Value, Erro
         }),
     };
     result.error = operation.err().map(|error| error.0);
+    if !super::budget::fits(&result) {
+        result.directory = None;
+        result.file = None;
+        result.error = Some("Directory is too large to display".to_owned());
+    }
     encode(result)
 }
 

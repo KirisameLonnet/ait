@@ -2,6 +2,48 @@ use super::*;
 use crate::protocol::resume::Overrides;
 
 #[tokio::test]
+async fn failed_registration_and_failed_cleanup_retain_the_session_until_retry_succeeds() {
+    let (mut manager, registry, client) = make_manager();
+    let record = stored_record();
+    registry.0.lock().unwrap().fail_upsert = true;
+    client.0.lock().unwrap().fail_close = true;
+    assert_eq!(
+        manager.restore_new(record.clone()).await,
+        Err(AgentManagerError::Session)
+    );
+    assert!(registry.list().unwrap().is_empty());
+    assert_eq!(client.0.lock().unwrap().close_calls, 1);
+    assert_eq!(
+        manager.resume(&record.id).await,
+        Err(AgentManagerError::Session)
+    );
+    assert_eq!(client.0.lock().unwrap().resume_specs.len(), 1);
+    client.0.lock().unwrap().fail_close = false;
+    manager.close(&record.id).await.unwrap();
+    assert!(manager.live.is_empty());
+    assert_eq!(client.0.lock().unwrap().close_calls, 2);
+    registry.0.lock().unwrap().fail_upsert = false;
+    assert_eq!(
+        manager.restore_new(record.clone()).await.unwrap().id,
+        record.id
+    );
+}
+
+#[tokio::test]
+async fn resume_rejects_a_handle_from_another_provider_without_native_io() {
+    let (mut manager, registry, client) = make_manager();
+    let mut record = stored_record();
+    record.persistence.as_mut().unwrap().provider = "claude".to_owned();
+    registry.upsert(&record).unwrap();
+    assert_eq!(
+        manager.resume(&record.id).await,
+        Err(AgentManagerError::InvalidRequest)
+    );
+    assert_eq!(registry.get(&record.id).unwrap(), Some(record));
+    assert!(client.0.lock().unwrap().resume_specs.is_empty());
+}
+
+#[tokio::test]
 async fn unknown_native_restore_registers_only_after_open_and_preserves_failure_cleanup() {
     let (mut manager, registry, client) = make_manager();
     let record = stored_record();

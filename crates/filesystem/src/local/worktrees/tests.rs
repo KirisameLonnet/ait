@@ -5,6 +5,7 @@ use super::*;
 #[cfg(unix)]
 mod change_request;
 mod directory;
+mod failures;
 mod paseo;
 
 struct Fixture {

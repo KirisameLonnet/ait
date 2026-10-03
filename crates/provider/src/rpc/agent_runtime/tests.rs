@@ -44,6 +44,74 @@ fn history_defaults_to_archived_while_active_list_does_not() {
 }
 
 #[test]
+fn query_preserves_status_filters_sort_precedence_and_page_boundaries() {
+    use crate::service::agent_runtime::{AgentSortKey, SortDirection};
+    let request: AgentListRequest = serde_json::from_value(json!({
+        "filter": {"statuses":["initializing","idle","running","error","closed","idle"], "includeArchived":true},
+        "sort": [
+            {"key":"status_priority","direction":"desc"},
+            {"key":"created_at","direction":"asc"},
+            {"key":"updated_at","direction":"desc"},
+            {"key":"title","direction":"asc"}
+        ],
+        "page":{"limit":1,"cursor":"continuation"}
+    })).unwrap();
+    let query = query(
+        request.filter,
+        request.sort,
+        request.page,
+        QueryScope::Active,
+        Some("needle".to_owned()),
+    )
+    .unwrap();
+    assert!(query.active_scope && query.include_archived);
+    assert_eq!(
+        query.statuses.unwrap().into_iter().collect::<Vec<_>>(),
+        [
+            AgentRuntimeStatus::Initializing,
+            AgentRuntimeStatus::Idle,
+            AgentRuntimeStatus::Running,
+            AgentRuntimeStatus::Error,
+            AgentRuntimeStatus::Closed
+        ]
+    );
+    assert_eq!(
+        query
+            .sort
+            .iter()
+            .map(|sort| (sort.key, sort.direction))
+            .collect::<Vec<_>>(),
+        [
+            (AgentSortKey::StatusPriority, SortDirection::Desc),
+            (AgentSortKey::CreatedAt, SortDirection::Asc),
+            (AgentSortKey::UpdatedAt, SortDirection::Desc),
+            (AgentSortKey::Title, SortDirection::Asc)
+        ]
+    );
+    assert_eq!(query.limit, 1);
+    assert_eq!(query.cursor.as_deref(), Some("continuation"));
+    assert_eq!(query.search.as_deref(), Some("needle"));
+}
+
+#[test]
+fn invalid_page_sizes_are_rejected_before_querying_the_registry() {
+    for limit in [0, 201, usize::MAX] {
+        let request: AgentListRequest =
+            serde_json::from_value(json!({"page":{"limit":limit}})).unwrap();
+        assert!(matches!(
+            query(
+                request.filter,
+                request.sort,
+                request.page,
+                QueryScope::All,
+                None
+            ),
+            Err(super::ErrorCode::InvalidMessage)
+        ));
+    }
+}
+
+#[test]
 fn stored_projection_marks_provider_unavailable_and_hides_resume_handle() {
     let mut record = record();
     record.updated_at = "2026-09-20T09:00:00-02:00".to_owned();

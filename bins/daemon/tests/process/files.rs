@@ -13,6 +13,41 @@ use super::{ready, start, terminate};
 mod paseo;
 
 #[tokio::test]
+async fn oversized_directory_does_not_disconnect_the_filesystem_socket() {
+    let temp = tempfile::tempdir().unwrap();
+    let cwd = temp.path().join("workspace");
+    fs::create_dir(&cwd).unwrap();
+    for index in 0..10_000 {
+        fs::write(cwd.join(format!("{index:05}{}", "x".repeat(195))), []).unwrap();
+    }
+    fs::write(cwd.join("healthy.txt"), "healthy").unwrap();
+    let log = temp.path().join("log");
+    let mut process = start(&temp.path().join("state"), &log);
+    let address = ready(&mut process, &log).await;
+    let mut socket = connect(&address, &["fs.explorer.request"]).await;
+    let listed = request(
+        &mut socket,
+        "fs.explorer.request",
+        json!({"cwd":cwd,"mode":"list"}),
+    )
+    .await;
+    assert_eq!(listed["type"], "response", "{listed}");
+    assert_eq!(
+        listed["result"]["error"],
+        "Directory is too large to display"
+    );
+    assert!(listed["result"]["directory"].is_null());
+    let read = request(
+        &mut socket,
+        "fs.explorer.request",
+        json!({"cwd":cwd,"path":"healthy.txt","mode":"file"}),
+    )
+    .await;
+    assert_eq!(read["result"]["file"]["content"], "healthy", "{read}");
+    terminate(&mut process).await;
+}
+
+#[tokio::test]
 async fn filesystem_requests_preserve_edits_and_connection_owned_versions() {
     let temp = tempfile::tempdir().unwrap();
     let cwd = temp.path().join("workspace");

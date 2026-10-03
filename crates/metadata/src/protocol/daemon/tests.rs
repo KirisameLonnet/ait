@@ -3,6 +3,89 @@ use serde_json::json;
 use super::*;
 
 #[test]
+fn full_configuration_rejects_empty_identifiers_and_zero_limits() {
+    for (field, value) in [
+        (
+            "git",
+            json!({"maxProcessesPerSecond":0,"maxProcessConcurrency":1}),
+        ),
+        (
+            "git",
+            json!({"maxProcessesPerSecond":1,"maxProcessConcurrency":0}),
+        ),
+        ("catalogRefreshTimeoutMs", json!(0)),
+        ("providers", json!({"":{}})),
+        (
+            "providers",
+            json!({"codex":{"additionalModels":[{"id":"","label":"Model"}]}}),
+        ),
+        (
+            "providers",
+            json!({"codex":{"additionalModels":[{"id":"custom","label":""}]}}),
+        ),
+        ("metadataGeneration", json!({"providers":[{"provider":""}]})),
+        (
+            "metadataGeneration",
+            json!({"providers":[{"provider":"codex","model":""}]}),
+        ),
+        (
+            "metadataGeneration",
+            json!({"providers":[{"provider":"codex","thinkingOptionId":""}]}),
+        ),
+    ] {
+        let mut config = serde_json::to_value(DaemonConfig::default()).unwrap();
+        config[field] = value;
+        let parsed: DaemonConfig = serde_json::from_value(config.clone()).unwrap();
+        assert!(parsed.validate().is_err(), "{config}");
+    }
+    let mut config = serde_json::to_value(DaemonConfig::default()).unwrap();
+    config["providers"] = json!({"codex":{"additionalModels":[{"id":"custom","label":"Model"}]}});
+    config["metadataGeneration"] =
+        json!({"providers":[{"provider":"codex","model":"custom","thinkingOptionId":"high"}]});
+    serde_json::from_value::<DaemonConfig>(config)
+        .unwrap()
+        .validate()
+        .unwrap();
+}
+
+#[test]
+fn partial_configuration_validates_nested_values_without_requiring_a_full_document() {
+    for invalid in [
+        json!({"relay":[]}),
+        json!({"mcp":false}),
+        json!({"browserTools":"yes"}),
+        json!({"relay":{"enabled":1}}),
+        json!({"mcp":{"injectIntoAgents":"yes"}}),
+        json!({"browserTools":{"enabled":[]}}),
+        json!({"metadataGeneration":{"providers":{}}}),
+        json!({"metadataGeneration":{"providers":[false]}}),
+        json!({"metadataGeneration":{"providers":[{"provider":""}]}}),
+        json!({"providers":{"codex":[]}}),
+        json!({"providers":{"codex":{"enabled":1}}}),
+        json!({"providers":{"codex":{"additionalModels":{}}}}),
+        json!({"providers":{"codex":{"additionalModels":[false]}}}),
+        json!({"providers":{"codex":{"additionalModels":[{"id":"custom"}]}}}),
+        json!({"providers":{"codex":{"additionalModels":[{"id":"","label":"Model"}]}}}),
+        json!({"removeProviders":[""]}),
+    ] {
+        let patch: DaemonConfigPatch = serde_json::from_value(invalid.clone()).unwrap();
+        assert!(patch.validate().is_err(), "{invalid}");
+    }
+    for valid in [
+        json!({}),
+        json!({"relay":{},"mcp":{},"browserTools":{}}),
+        json!({"metadataGeneration":{"providers":[{"provider":"codex"}]}}),
+        json!({"providers":{"codex":{"additionalModels":[{"id":"custom","label":"Model","future":true}]}}}),
+        json!({"removeProviders":["codex"]}),
+    ] {
+        serde_json::from_value::<DaemonConfigPatch>(valid.clone())
+            .unwrap()
+            .validate()
+            .unwrap();
+    }
+}
+
+#[test]
 fn status_and_pairing_shapes_match_paseo_payload_fields() {
     let status = DaemonStatus {
         server_id: "srv-1".to_owned(),

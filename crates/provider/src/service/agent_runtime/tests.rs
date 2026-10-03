@@ -13,6 +13,76 @@ mod archive;
 mod paseo_api;
 mod synchronization;
 
+#[tokio::test]
+async fn directory_only_hosts_check_identity_and_retire_only_the_requested_workspaces() {
+    let (directory, agents) = service();
+    let runtime = Arc::new(model::Runtime::new(model::ServerInfo {
+        server_id: "server".to_owned(),
+        instance_id: "instance".to_owned(),
+        version: None,
+        listen: "127.0.0.1:1".to_owned(),
+        lifecycle: model::Lifecycle::Ready,
+        protocol: model::VERSION,
+        capabilities: Vec::new(),
+        implemented_capabilities: Vec::new(),
+        features: Vec::new(),
+        limits: model::Limits::default(),
+    }));
+    let mut state = crate::dispatch::State {
+        runtime: runtime.clone(),
+        agents: None,
+        agent_runtime: Some(Arc::new(Mutex::new(directory))),
+        agent_execution: None,
+        has_terminals: false,
+    };
+    agents
+        .upsert(&agent("independent", "wks-two", "Keep", false))
+        .unwrap();
+    assert!(
+        crate::dispatch::contains_identity(&state, "agent-a".to_owned())
+            .await
+            .unwrap()
+    );
+    assert!(
+        !crate::dispatch::contains_identity(&state, "agent-".to_owned())
+            .await
+            .unwrap()
+    );
+    let retired = crate::dispatch::retire_workspaces(&state, vec!["wks-one".to_owned()])
+        .await
+        .unwrap();
+    assert_eq!(retired, ["agent-a", "agent-b"]);
+    assert!(
+        agents
+            .get("agent-a")
+            .unwrap()
+            .unwrap()
+            .archived_at
+            .is_some()
+    );
+    assert!(
+        agents
+            .get("independent")
+            .unwrap()
+            .unwrap()
+            .archived_at
+            .is_none()
+    );
+    state.agent_runtime = None;
+    assert!(
+        crate::dispatch::retire_workspaces(&state, vec!["wks-two".to_owned()])
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        crate::dispatch::contains_identity(&state, "independent".to_owned()).await,
+        Err(model::ErrorCode::UnsupportedCapability)
+    );
+    runtime.tasks.close();
+    runtime.tasks.wait().await;
+}
+
 #[test]
 fn creation_identity_checks_include_internal_agents_without_prefix_or_title_resolution() {
     let (service, agents) = service();

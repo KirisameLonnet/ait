@@ -9,6 +9,39 @@ use crate::service::checkout::{
 };
 
 #[test]
+fn absent_checkouts_report_inline_failures_for_reads_and_mutations() {
+    let root = tempfile::tempdir().unwrap();
+    let checkout = Checkout::new(Box::new(crate::local::checkout::LocalCheckout::new(
+        root.path().join("managed"),
+    )));
+    let cwd = root.path().join("missing");
+    for (method, fields) in [
+        ("checkout.status.get.request", json!({})),
+        ("checkout.commits.list.request", json!({})),
+        (
+            "checkout.commits.file_diff.request",
+            json!({"sha":"HEAD","path":"file.txt"}),
+        ),
+        (
+            "checkout.branch.validate.request",
+            json!({"branchName":"main"}),
+        ),
+        ("checkout.branch.suggestions.request", json!({})),
+        ("checkout.stash.list.request", json!({})),
+        ("checkout.commit.request", json!({"message":"change"})),
+    ] {
+        let mut params = fields;
+        params["cwd"] = json!(cwd);
+        let result = execute(&checkout, method, params).unwrap();
+        assert!(!result["error"].is_null(), "{method}: {result}");
+    }
+    assert_eq!(
+        execute(&checkout, "unknown", json!({})),
+        Err(crate::rpc::ErrorCode::MethodNotFound)
+    );
+}
+
+#[test]
 fn diff_projection_preserves_highlight_tokens_on_the_wire() {
     use crate::ports::checkout::{DiffHunk, DiffLine, DiffLineKind, HighlightToken};
     let file = ParsedDiffFile {

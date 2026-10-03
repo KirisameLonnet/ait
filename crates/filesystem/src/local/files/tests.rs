@@ -3,6 +3,107 @@ use super::*;
 mod literal_paths;
 mod paseo;
 
+#[test]
+fn nested_copy_and_edit_limits_preserve_the_source_and_reject_nonfiles() {
+    let (_temp, files, cwd) = fixture();
+    let nested = Path::new(&cwd).join("nested");
+    fs::create_dir(&nested).unwrap();
+    fs::write(nested.join("note.txt"), "original").unwrap();
+    assert_eq!(
+        files.duplicate(&cwd, "nested/note.txt").unwrap(),
+        "nested/note copy.txt"
+    );
+    assert_eq!(read(&files, &cwd, "nested/note copy.txt").1, b"original");
+    let (info, _) = read(&files, &cwd, "nested/note.txt");
+    let large = nested.join("large.txt");
+    fs::write(
+        &large,
+        vec![b'x'; usize::try_from(MAX_EDITABLE).unwrap() + 1],
+    )
+    .unwrap();
+    assert_eq!(
+        files
+            .write(&edit(&cwd, "nested/large.txt", &info, "replacement"))
+            .unwrap_err()
+            .0,
+        "File is too large to edit"
+    );
+    assert_eq!(fs::metadata(&large).unwrap().len(), MAX_EDITABLE + 1);
+    assert!(
+        files
+            .write(&edit(&cwd, "nested", &info, "replacement"))
+            .is_err()
+    );
+    assert!(matches!(
+        files.version(&cwd, "../outside"),
+        FileVersion::Error(_)
+    ));
+    assert!(nested.is_dir());
+}
+
+#[test]
+fn copy_budget_rejects_depth_entry_and_byte_limits_before_creating_a_destination() {
+    let root = tempfile::tempdir().unwrap();
+    let source = root.path().join("source");
+    let target = root.path().join("target");
+    fs::write(&source, "content").unwrap();
+    for (mut budget, depth) in [
+        (CopyBudget::default(), 65),
+        (
+            CopyBudget {
+                entries: 20_000,
+                bytes: 0,
+            },
+            0,
+        ),
+        (
+            CopyBudget {
+                entries: 0,
+                bytes: 64 * 1024 * 1024,
+            },
+            0,
+        ),
+    ] {
+        assert_eq!(
+            copy_entry(&source, &target, &mut budget, depth)
+                .unwrap_err()
+                .0,
+            "Copy exceeds filesystem operation limit"
+        );
+        assert!(!target.exists());
+        assert_eq!(fs::read_to_string(&source).unwrap(), "content");
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn directory_links_are_listed_but_special_files_cannot_be_copied() {
+    let (_temp, files, cwd) = fixture();
+    let target = Path::new(&cwd).join("target");
+    fs::create_dir(&target).unwrap();
+    std::os::unix::fs::symlink(&target, Path::new(&cwd).join("alias")).unwrap();
+    let listed = files.list(&cwd, ".").unwrap();
+    assert_eq!(
+        listed
+            .1
+            .iter()
+            .find(|entry| entry.name == "alias")
+            .unwrap()
+            .kind,
+        EntryKind::Directory
+    );
+    let socket_path = target.join("socket");
+    let _socket = std::os::unix::net::UnixListener::bind(&socket_path).unwrap();
+    assert!(
+        files
+            .duplicate(&cwd, "target/socket")
+            .unwrap_err()
+            .0
+            .contains("Special files")
+    );
+    assert!(!target.join("socket copy").exists());
+}
+
 fn fixture() -> (tempfile::TempDir, LocalFiles, String) {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("workspace");

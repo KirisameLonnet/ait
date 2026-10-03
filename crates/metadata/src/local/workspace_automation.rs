@@ -648,7 +648,15 @@ fn run_setup_command(
     };
     capture.seek(SeekFrom::Start(0)).map_err(setup_io)?;
     let mut output = Vec::new();
-    capture.read_to_end(&mut output).map_err(setup_io)?;
+    capture
+        .take(CAPTURE_BYTES + 1)
+        .read_to_end(&mut output)
+        .map_err(setup_io)?;
+    if output.len() as u64 > CAPTURE_BYTES {
+        return Err(WorkspaceAutomationError::Io(
+            "Setup command output exceeded 8 MiB".to_owned(),
+        ));
+    }
     let (output, truncated) = bound_output(&output);
     Ok((status, output, truncated))
 }

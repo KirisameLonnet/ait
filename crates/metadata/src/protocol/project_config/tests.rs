@@ -3,6 +3,58 @@ use serde_json::json;
 use super::*;
 
 #[test]
+fn service_ports_reject_invalid_ranges_and_normalize_script_only_settings() {
+    for invalid in [
+        json!({"scripts":[]}),
+        json!({"worktree":false}),
+        json!({"worktree":{"servicePorts":[]}}),
+        json!({"worktree":{"servicePorts":{"portScript":42}}}),
+        json!({"worktree":{"servicePorts":{"portScript":"  "}}}),
+    ] {
+        assert!(PaseoConfigRaw::new(invalid.clone()).is_err(), "{invalid}");
+    }
+    for range in [
+        "3000",
+        "-3000",
+        "3000-",
+        "a-3000",
+        "3000-b",
+        "100000-100001",
+        "1-100000",
+        "0-1",
+        "65535-65536",
+    ] {
+        assert!(
+            PaseoConfigRaw::new(json!({"worktree":{"servicePorts":{"range":range}}})).is_err(),
+            "{range}"
+        );
+    }
+    let config = PaseoConfigRaw::new(json!({"worktree":{"servicePorts":{"portScript":"  echo 3000  "}},"metadataGeneration":false})).unwrap().into_value();
+    assert_eq!(
+        config["worktree"]["servicePorts"]["portScript"],
+        "echo 3000"
+    );
+    assert_eq!(config["metadataGeneration"], json!({}));
+    let config = PaseoConfigRaw::new(json!({"metadataGeneration":{"title":false,"branchName":{"instructions":"keep"},"future":true}})).unwrap();
+    assert_eq!(
+        config.value()["metadataGeneration"],
+        json!({"title":{},"branchName":{"instructions":"keep"},"future":true})
+    );
+}
+
+#[test]
+fn failed_reads_keep_the_requested_root_and_stable_inline_error() {
+    assert_eq!(
+        serde_json::to_value(ProjectConfigReadResult::Failure {
+            repo_root: "/missing".to_owned(),
+            error: ProjectConfigRpcError::ProjectNotFound,
+        })
+        .unwrap(),
+        json!({"ok":false,"repoRoot":"/missing","error":{"code":"project_not_found"}})
+    );
+}
+
+#[test]
 fn raw_config_matches_paseo_known_field_validation_and_passthrough() {
     let parsed = PaseoConfigRaw::new(json!({
         "worktree": {

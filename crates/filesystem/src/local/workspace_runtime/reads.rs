@@ -180,3 +180,6 @@ fn read_forge(inner: &Inner, cwd: &std::path::Path, identity: &Identity) {
     entry.value.forge = Some(read);
     entry.forge_read.finish();
 }
+
+#[cfg(test)]
+mod tests;

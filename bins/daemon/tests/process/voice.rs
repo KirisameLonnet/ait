@@ -13,6 +13,28 @@ use super::{
     transport::{connect, receive, request},
 };
 
+#[test]
+fn speech_worker_rejects_empty_and_malformed_input_without_starting_a_host() {
+    use std::io::Write;
+    for input in [b"".as_slice(), b"not-json\n".as_slice()] {
+        let root = tempfile::tempdir().unwrap();
+        let mut worker = Command::new(env!("CARGO_BIN_EXE_daemon"))
+            .arg("--speech-worker")
+            .current_dir(root.path())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        worker.stdin.take().unwrap().write_all(input).unwrap();
+        let output = worker.wait_with_output().unwrap();
+        assert!(!output.status.success());
+        assert!(output.stdout.is_empty());
+        assert!(output.stderr.is_empty());
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
+    }
+}
+
 async fn transcription(State(hang): State<Arc<AtomicBool>>) -> Json<Value> {
     Json(json!({"text":if hang.load(Ordering::SeqCst) { "hang" } else { "hello voice" }}))
 }

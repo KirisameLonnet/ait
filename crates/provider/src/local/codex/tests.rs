@@ -3,7 +3,95 @@ use crate::test_support::Fixture;
 
 mod configuration;
 mod installed;
+mod persistence;
 mod progress;
+
+#[tokio::test]
+async fn cancelling_a_pending_goal_pauses_native_work_once_and_releases_admission() {
+    let fixture = Fixture::new();
+    fixture.mode("workflows");
+    let client = fixture.client();
+    let mut session = client.create_session(&fixture.spec()).await.unwrap();
+    let mut prompt = crate::protocol::prompt::AgentPrompt::text("/goal waiting fixture");
+    prompt.client_message_id = Some("goal-request".to_owned());
+    session.out_of_band(&prompt).await.unwrap();
+    assert!(session.pending_foreground());
+    session.cancel_pending().await.unwrap();
+    session.cancel_pending().await.unwrap();
+    assert!(!session.pending_foreground());
+    let requests = fixture.requests();
+    let goals: Vec<_> = requests
+        .iter()
+        .filter(|request| request["method"] == "thread/goal/set")
+        .collect();
+    assert_eq!(goals.len(), 2);
+    assert_eq!(goals[1]["params"]["status"], "paused");
+    session.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn cancelling_a_turn_resolves_its_async_questions_and_rejects_late_answers() {
+    let fixture = Fixture::new();
+    let client = fixture.client();
+    let mut session = client.create_session(&fixture.spec()).await.unwrap();
+    let turn = session
+        .start_turn("async-question-running", &fixture.spec().config)
+        .await
+        .unwrap();
+    let requested = terminal(session.as_mut()).await.unwrap();
+    assert!(matches!(requested, AgentTurnEvent::PermissionRequested(_)));
+    let pending = session.pending_permissions();
+    assert_eq!(pending.len(), 1);
+    session.cancel_turn(&turn).await.unwrap();
+    let resolved = terminal(session.as_mut()).await.unwrap();
+    assert_eq!(
+        resolved,
+        AgentTurnEvent::PermissionResolved(pending[0]["id"].as_str().unwrap().to_owned())
+    );
+    assert_eq!(
+        terminal(session.as_mut()).await.unwrap(),
+        AgentTurnEvent::Cancelled
+    );
+    assert!(session.pending_permissions().is_empty());
+    assert_eq!(
+        session
+            .respond_permission(
+                pending[0]["id"].as_str().unwrap(),
+                &json!({"behavior":"deny"})
+            )
+            .await,
+        Err(AgentSessionError::Rejected)
+    );
+    session.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn text_steering_preserves_the_active_turn_and_rejects_a_stale_turn_id() {
+    let fixture = Fixture::new();
+    let client = fixture.client();
+    let mut session = client.create_session(&fixture.spec()).await.unwrap();
+    let turn = session
+        .start_turn("hang", &fixture.spec().config)
+        .await
+        .unwrap();
+    assert_eq!(
+        session.steer_turn("stale", "ignored").await,
+        Err(AgentSessionError::Rejected)
+    );
+    session.steer_turn(&turn, "new direction").await.unwrap();
+    assert!(matches!(
+        terminal(session.as_mut()).await.unwrap(),
+        AgentTurnEvent::Completed(_)
+    ));
+    let requests = fixture.requests();
+    let steers: Vec<_> = requests
+        .iter()
+        .filter(|request| request["method"] == "turn/steer")
+        .collect();
+    assert_eq!(steers.len(), 1);
+    assert_eq!(steers[0]["params"]["expectedTurnId"], turn);
+    session.close().await.unwrap();
+}
 
 fn process_is_running(pid: u32) -> bool {
     let output = std::process::Command::new("ps")

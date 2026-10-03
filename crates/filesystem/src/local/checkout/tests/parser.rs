@@ -60,3 +60,30 @@ fn genuine_line_start_headers_work_with_crlf_and_no_final_newline() {
     assert_eq!(files[0].path, "a.rs");
     assert_eq!(files[0].additions, 1);
 }
+
+#[test]
+fn commit_statistics_normalize_braced_renames_and_ignore_malformed_rows() {
+    use crate::local::checkout::parse_commit_records;
+    use crate::ports::checkout::CheckoutCommitFileStatus;
+    let history = concat!(
+        "malformed record\x1e\0short\0author\0date\0subject\n",
+        "\x1e123456\0abc123\0Author\02026-10-01T00:00:00Z\0Move file\n",
+        ":100644 100644 old new R100\tsrc/old/file.rs\tsrc/new/file.rs\n",
+        ":100644 100644 old new X\tignored\n",
+        "3\t2\tsrc/{old => new}/file.rs\n",
+        "not a stat\n1\t2\n",
+    );
+    let commits = parse_commit_records(history);
+    assert_eq!(commits.len(), 1);
+    assert_eq!(commits[0].subject, "Move file");
+    assert_eq!(commits[0].files.len(), 1);
+    assert_eq!(commits[0].files[0].path, "src/new/file.rs");
+    assert_eq!(
+        commits[0].files[0].status,
+        Some(CheckoutCommitFileStatus::Renamed)
+    );
+    assert_eq!(
+        (commits[0].files[0].additions, commits[0].files[0].deletions),
+        (3, 2)
+    );
+}
