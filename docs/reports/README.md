@@ -73,6 +73,9 @@
 
 ## 客户端、连接与品牌
 
+- [账户主机中继初版验证](clients/account-host-relay-validation.md)
+- [Relay 协议重构验证](clients/relay-protocol-refactor-validation.md)
+
 - [桌面 daemon 版本状态修复](clients/desktop-daemon-version.md)
 - [AIT 飞鸟 Logo 落地报告](clients/ait-brand-rollout.md)
 - [Ait E2E 迁移：提交准备覆盖率报告](clients/ait-e2e-coverage.md)

@@ -1,7 +1,10 @@
 import { isElectronRuntime } from "@/desktop/host";
+import { AccountHostPanel } from "./account-host-panel";
+import { supportsAccountRelay } from "@/runtime/account-state";
 import type { Theme } from "@/styles/theme";
 import { Link2, Terminal } from "lucide-react-native";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
+import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
@@ -51,6 +54,20 @@ export function AddHostMethodModal({
   onRemoteSsh,
 }: AddHostMethodModalProps) {
   const { t } = useTranslation();
+  const router = useRouter();
+  const pendingAccountServerId = useRef<string | null>(null);
+  const handleAccountConnected = useCallback(
+    (serverId: string) => {
+      pendingAccountServerId.current = serverId;
+      onClose();
+    },
+    [onClose],
+  );
+  const handleDismiss = useCallback(() => {
+    const serverId = pendingAccountServerId.current;
+    pendingAccountServerId.current = null;
+    if (serverId) router.push(`/h/${serverId}`);
+  }, [router]);
   const header = useMemo<SheetHeader>(() => ({ title: t("pairing.connectionMethods.title") }), [t]);
 
   const handleDirect = useCallback(() => {
@@ -66,8 +83,10 @@ export function AddHostMethodModal({
       header={header}
       visible={visible}
       onClose={onClose}
+      onDismiss={handleDismiss}
       testID="add-host-method-modal"
     >
+      {supportsAccountRelay() ? <AccountHostPanel onConnected={handleAccountConnected} /> : null}
       <Pressable
         style={styles.option}
         onPress={handleDirect}

@@ -47,6 +47,10 @@
 
 ## 客户端、连接与品牌
 
+- [ADR-076：Android 账户与中继客户端](clients/adr-076-android-account-relay.md)
+- [ADR-075：Relay 协议定义与连接执行分离](clients/adr-075-relay-protocol-modules.md)
+- [ADR-074：账户发现与按需反向中继](clients/adr-074-account-host-relay.md)
+
 - [ADR-044：Paseo 前端适配 Rust server 协议](clients/adr-044-paseo-client-rust-transport.md)
 - [ADR-048：Paseo workspace 与 Rust 桌面服务启动](clients/adr-048-paseo-desktop-rust-launcher.md)
 - [ADR-049：独立 App 的 Rust server 浏览器连接](clients/adr-049-app-rust-browser-transport.md)
