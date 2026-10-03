@@ -4,7 +4,7 @@
 
 - Add native OpenCode sessions with model discovery, streaming, tool approvals, cancellation, and conversation restore.
 - Add account sign-in, account host discovery, and reverse-relay connections on desktop and Android.
-- Publish Android APKs for ARM64 and ARMv7 alongside the Linux and macOS installers.
+- Add optional Android APK publishing for ARM64 and ARMv7; tag releases build only Linux and macOS by default.
 - Keep Hosts connected when diffs or directory listings exceed response limits, and improve large-diff loading.
 - Show model-specific Codex reasoning options, including max and ultra when supported.
 - Harden desktop navigation and connection retries; fix stale workspace notifications, literal Git paths, directory symlinks, and schedule updates.
