@@ -27,6 +27,7 @@
 
 - [Android APK 发布](operations/android-releases.md)：随 Release 自动构建并上传 ARM64、ARMv7 安装包。
 - [发布指南](operations/releasing.md)：桌面 Release、Android Internal Testing、iOS TestFlight。
+- [Ait 0.0.15 发布说明](reports/releases/release-0.0.15.md)：OpenCode、账户主机中继、Android APK 与稳定性修复。
 - [Ait 0.0.14 发布说明](reports/releases/release-0.0.14.md)：Diff 语法高亮、侧边栏统计与 Codex 推理等级。
 - [Apple 本机构建](operations/apple-builds.md)：DMG、模拟器和 IPA。
 - [Claude Code](operations/claude-code.md)：认证、原生会话与审批。

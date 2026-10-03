@@ -4,6 +4,9 @@
 Rust `daemon`。发布边界见 [ADR-053](../decisions/clients/adr-053-paseo-desktop-release.md)，
 旧桌面源码的移除见 [当前架构](../architecture/README.md)。
 
+从 0.0.15 起，同一次 GitHub Release 还构建 Android ARM64、ARMv7 APK，全部平台成功后
+统一发布。APK 的签名方式、安装要求与手动测试入口见 [Android APK 发布](android-releases.md)。
+
 `apps/mobile` 的 Google Play Android Internal Testing 发布流程见下方
 [Google Play Android Internal Testing](#google-play-android-internal-testing) 一节，
 与桌面 GitHub Release 相互独立。`apps/mobile` 的 Apple TestFlight 发布流程见下方
@@ -18,6 +21,8 @@ Rust `daemon`。发布边界见 [ADR-053](../decisions/clients/adr-053-paseo-des
 | Linux    | x86_64              | `Ait-VERSION-linux-x64.tar.gz`                           |
 | macOS    | Apple Silicon arm64 | `Ait-VERSION-macos-arm64.dmg`                            |
 | macOS    | Apple Silicon arm64 | `Ait-VERSION-macos-arm64.zip`                            |
+| Android  | arm64               | `Ait-VERSION-android-arm64.apk`                          |
+| Android  | armv7               | `Ait-VERSION-android-armv7.apk`                          |
 | 自动更新 | 各平台              | `latest-linux.yml`、`latest-mac.yml`、生成的 `.blockmap` |
 | 校验     | 全部资产            | `SHA256SUMS`                                             |
 
@@ -32,8 +37,9 @@ Cargo.lock、根 package.json、所有活跃 npm workspace 及其 lockfile。然
 
 ```bash
 npm ci
-npm run verify:release -- v0.0.14
+npm run verify:release -- v0.0.15
 npm run test:release
+npm run test:mobile-release
 npm run build:desktop-main
 npm run typecheck --workspace=@ait/desktop --workspace=@ait/mobile
 ```
@@ -46,19 +52,20 @@ npm run typecheck --workspace=@ait/desktop --workspace=@ait/mobile
 ```bash
 git switch main
 git pull --ff-only
-npm run verify:release -- v0.0.14
-git tag -a v0.0.14 -m "Ait v0.0.14"
-git push origin v0.0.14
+npm run verify:release -- v0.0.15
+git tag -a v0.0.15 -m "Ait v0.0.15"
+git push origin v0.0.15
 ```
 
-`.github/workflows/release.yml` 在 Linux x86_64 和 macOS arm64 原生 runner 上执行：
+`.github/workflows/release.yml` 在 Linux x86_64 和 macOS arm64 原生 runner 上构建桌面，
+并调用 Android 工作流构建两个 APK：
 
 1. 校验标签和全部活跃版本，安装根 npm workspace，验证发布脚本。
 2. 用锁定依赖只构建 `daemon` 的 `daemon`。
 3. 导出界面、编译 Electron 主进程，验证 daemon 版本并暂存单个可执行文件。
 4. 检查打包内容；macOS 签名、公证；隔离启动成品应用并验证真实 daemon 生命周期。
-5. 收集两种平台的安装包和自动更新资产，核对更新摘要。
-6. 两个平台都成功后生成 SHA256SUMS，再创建或修复 GitHub Release。
+5. 收集桌面安装包和自动更新资产，核对更新摘要；Android 独立校验 APK 签名、版本和架构。
+6. 三个平台都成功后汇总资产并生成 SHA256SUMS，再创建或修复 GitHub Release。
 
 macOS 需要 GitHub Secrets：`MAC_CSC_LINK`、`MAC_CSC_KEY_PASSWORD`、`APPLE_ID`、
 `APPLE_BUILD_APP_SECRET`、`APPLE_TEAM_ID`。缺失签名、公证凭据会阻止发布；不会降级为未签名包。
@@ -79,7 +86,7 @@ gh workflow run release.yml --ref main -f tag=v0.0.7
 新提交的工具修复。[GitHub 工作流版本说明](https://docs.github.com/en/actions/reference/workflows-and-actions/variables)
 
 明确要求更新既有版本的安装包时，可以额外传入 `source_commit`（必须是完整 40 位 SHA）。
-两个平台和发布步骤均从该提交检出，仍须通过版本、签名、公证和成品启动门禁。
+所有平台和发布步骤均从该提交检出，仍须通过各自的版本、签名、公证和成品启动门禁。
 这不会移动原标签；`BUILD-INFO.json` 记录源码、工作流提交和运行链接，随校验和一起上传。
 必须在 Release Note 中说明重建修复、实际源码提交及关联 PR，提醒同版本用户重新下载安装。
 GitHub 自动生成的 Source code 归档仍对应原标签；修复后的源码应链接到 `sourceCommit`。
