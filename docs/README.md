@@ -30,6 +30,7 @@
 - [Rust style guide](policy/rust.md)：Rust 代码、测试、lint 与覆盖率规范。
 - [文档规范](policy/documentation.md)：分类、维护和历史资料清理规则。
 - [Provider 能力清单](plans/provider-parity.md)：当前能力与后续工作。
+- [大 Diff 加载与超限降级](reports/workspace/large-diff-loading.md)：输出预算、连接保持与验证结果。
 - [验证报告分类索引](reports/README.md)：实现、兼容性、发布及覆盖率记录。
 - [移动端 E2E](../apps/mobile/e2e/README.md)、[Maestro](../apps/mobile/maestro/README.md)：真实 daemon 连接验证。
 - [品牌资产](../assets/brand/README.md)、[Paseo 来源](../paseo/README.md)：资产与许可证。

@@ -1,0 +1,121 @@
+{
+  "base_revision": "6cfd8a1f5d0201b626b167df572ace8e9f7c6073",
+  "measurement": "base_revision plus this PR changes; exact Rust sources recorded below",
+  "source_fingerprint": "d853bdd3003e4241779f776b91d5972cc0761561d4aed91ec90dbadd8fdd9e33",
+  "scope": "Cargo workspace; default features; macOS arm64; Rust 1.98.1; cargo-llvm-cov 0.8.4",
+  "commands": [
+    "SHERPA_ONNX_LIB_DIR=/private/tmp/ait-workspace-sidebar-cov-target/sherpa-onnx-prebuilt/sherpa-onnx-v1.13.8-osx-arm64-static-lib/lib CARGO_TARGET_DIR=/private/tmp/ait-workspace-sidebar-cov-target cargo llvm-cov --locked --offline --workspace --html",
+    "CARGO_TARGET_DIR=/private/tmp/ait-workspace-sidebar-cov-target cargo llvm-cov report --json --summary-only --output-path /private/tmp/ait-large-diff/workspace-coverage-summary.json"
+  ],
+  "workspace_lines": {
+    "count": 47697,
+    "covered": 43958,
+    "percent": 92.16093255341006
+  },
+  "crate_lines": {
+    "api": {
+      "count": 1724,
+      "covered": 1650,
+      "percent": 95.70765661252901
+    },
+    "browser": {
+      "count": 725,
+      "covered": 706,
+      "percent": 97.37931034482759
+    },
+    "daemon": {
+      "count": 932,
+      "covered": 879,
+      "percent": 94.31330472103004
+    },
+    "domain": {
+      "count": 121,
+      "covered": 121,
+      "percent": 100.0
+    },
+    "filesystem": {
+      "count": 11703,
+      "covered": 10560,
+      "percent": 90.23327351961035
+    },
+    "metadata": {
+      "count": 7732,
+      "covered": 7019,
+      "percent": 90.77858251422658
+    },
+    "model": {
+      "count": 659,
+      "covered": 629,
+      "percent": 95.44764795144158
+    },
+    "protocol": {
+      "count": 57,
+      "covered": 57,
+      "percent": 100.0
+    },
+    "provider": {
+      "count": 19625,
+      "covered": 18331,
+      "percent": 93.4063694267516
+    },
+    "schedule": {
+      "count": 820,
+      "covered": 802,
+      "percent": 97.8048780487805
+    },
+    "terminal": {
+      "count": 1701,
+      "covered": 1549,
+      "percent": 91.06407995296884
+    },
+    "voice": {
+      "count": 1898,
+      "covered": 1655,
+      "percent": 87.19704952581665
+    }
+  },
+  "test_execution": {
+    "passed": 1564,
+    "failed": 0,
+    "ignored": 3
+  },
+  "coverage_test_execution": {
+    "passed": 1564,
+    "failed": 0,
+    "ignored": 3
+  },
+  "excluded_files": "cargo-llvm-cov default filtering; no additional exclusion; no TypeScript or doctest instrumentation",
+  "comparable_baseline": null,
+  "uncovered_behavior": [
+    "Large-branch syntax highlighting latency was not optimized.",
+    "Linux/Windows and on-device iOS/Android were not run.",
+    "Installed and authenticated real providers are not exercised by ignored integration tests."
+  ],
+  "raw_report_sha256": "ee753911348b61473a884c0e8bd7550fc33dc6d78293d1e63a3a580c0963138c",
+  "coverage_files": [
+    {
+      "path": "crates/filesystem/src/rpc/checkout.rs",
+      "lines": {
+        "count": 546,
+        "covered": 470,
+        "percent": 86.08058608058607
+      }
+    }
+  ],
+  "rust_sources": [
+    {
+      "path": "bins/daemon/tests/process/checkout.rs",
+      "sha256": "4f78af83d52ab7acfdc7abdbd4341d3015b7a4ae8143b781d98f69652cc63660"
+    },
+    {
+      "path": "crates/filesystem/src/rpc/checkout.rs",
+      "sha256": "1054f7ceacd630036826f20d1ed65a923eacd9a6d6019b3b99d0cef3ffab2f82"
+    },
+    {
+      "path": "crates/filesystem/src/rpc/checkout/tests.rs",
+      "sha256": "7f07f19f49412fa7d0198cc110c1506a075ed8d46252618ce18713215370da9c"
+    }
+  ],
+  "artifact_scope": "workspace and crate totals; changed production module coverage; changed Rust source hashes",
+  "source_fingerprint_algorithm": "SHA256 of compact JSON array of sorted tracked/untracked Rust sources and Cargo metadata, with path/sha256 keys and separators comma/colon"
+}

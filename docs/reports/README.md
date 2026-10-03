@@ -42,6 +42,7 @@
 
 - [活跃工作区后台 Git fetch 实施报告](workspace/background-git-fetch.md)
 - [Diff 修复 PR 验证](workspace/diff-pr-validation.md)
+- [大 Diff 加载与超限降级](workspace/large-diff-loading.md)
 - [Diff 代码语法高亮修复](workspace/diff-syntax-highlighting.md)
 - [filesystem 拆分实施报告](workspace/filesystem-extraction.md)
 - [GitLab Forge 支持与验证](workspace/gitlab-forge.md)

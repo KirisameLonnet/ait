@@ -1,0 +1,137 @@
+{
+  "date": "2026-10-03",
+  "baselineRevision": "3da672bbb7e0a74585f28c283d200172bafb0495",
+  "branch": "codex/large-diff-loading",
+  "platform": "macOS arm64",
+  "baselineBuild": "published 0.0.14 macOS arm64 server",
+  "fixedBuild": "cargo build --locked --offline --release -p server-bin --bin server; working tree changes; reproduction predates ADR-072 directory/package renames",
+  "scope": "isolated local Server and authenticated WebSocket; user worktree read-only",
+  "rawDiffBytes": {
+    "short-lines-1000": 3120,
+    "short-lines-150000": 450122,
+    "short-lines-1500000": 4500123,
+    "user-worktree-base": 4035182
+  },
+  "baseline": [
+    {
+      "label": "short-lines-1000",
+      "outcome": "response",
+      "bytes": 29368,
+      "ms": 58,
+      "files": 1,
+      "tooLargeFiles": 0,
+      "connectionHealthy": true
+    },
+    {
+      "label": "short-lines-150000",
+      "outcome": "disconnected",
+      "code": 1001,
+      "ms": 138
+    },
+    {
+      "label": "short-lines-1500000",
+      "outcome": "response",
+      "bytes": 146,
+      "ms": 236,
+      "files": 0,
+      "tooLargeFiles": 0,
+      "diffTooLarge": true,
+      "connectionHealthy": true
+    },
+    {
+      "label": "user-worktree-base",
+      "outcome": "disconnected",
+      "code": 1001,
+      "ms": 34867
+    }
+  ],
+  "fixed": [
+    {
+      "label": "short-lines-1000",
+      "outcome": "response",
+      "bytes": 29368,
+      "ms": 59,
+      "files": 1,
+      "tooLargeFiles": 0,
+      "connectionHealthy": true
+    },
+    {
+      "label": "short-lines-150000",
+      "outcome": "response",
+      "bytes": 243,
+      "ms": 105,
+      "files": 1,
+      "tooLargeFiles": 1,
+      "connectionHealthy": true
+    },
+    {
+      "label": "short-lines-1500000",
+      "outcome": "response",
+      "bytes": 146,
+      "ms": 226,
+      "files": 0,
+      "tooLargeFiles": 0,
+      "diffTooLarge": true,
+      "connectionHealthy": true
+    },
+    {
+      "label": "user-worktree-base",
+      "outcome": "response",
+      "bytes": 175,
+      "ms": 32076,
+      "files": 0,
+      "tooLargeFiles": 0,
+      "diffTooLarge": true,
+      "connectionHealthy": true
+    }
+  ],
+  "coverage": {
+    "status": "measured",
+    "scope": "Rust workspace; default features; macOS arm64",
+    "artifact": "large-diff-loading-coverage.json",
+    "workspaceLines": {
+      "count": 47697,
+      "covered": 43958,
+      "percent": 92.16093255341006
+    },
+    "filesystemLines": {
+      "count": 11703,
+      "covered": 10560,
+      "percent": 90.23327351961035
+    },
+    "sourceFingerprint": "d853bdd3003e4241779f776b91d5972cc0761561d4aed91ec90dbadd8fdd9e33"
+  },
+  "tests": {
+    "checkoutRpc": {
+      "passed": 14,
+      "failed": 0
+    },
+    "serverProcess": {
+      "passed": 2,
+      "failed": 0
+    },
+    "browser": {
+      "passed": 2,
+      "failed": 0
+    },
+    "workspace": {
+      "passed": 1564,
+      "failed": 0,
+      "ignored": 3
+    }
+  },
+  "checks": [
+    "targeted clippy with -D warnings",
+    "rustfmt",
+    "oxfmt",
+    "oxlint",
+    "mobile TypeScript typecheck",
+    "release server build",
+    "git diff --check",
+    "workspace Rust build",
+    "workspace clippy with -D warnings",
+    "workspace llvm-cov HTML report",
+    "documentation links check"
+  ],
+  "prBaseRevision": "6cfd8a1f5d0201b626b167df572ace8e9f7c6073"
+}

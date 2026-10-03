@@ -8,6 +8,132 @@ use super::transport::{Socket, connect, receive, request};
 use super::{ready, start, terminate};
 
 #[tokio::test]
+async fn large_diff_file_keeps_connection_and_subscription_usable() {
+    let root = tempfile::tempdir().unwrap();
+    let repository = root.path().join("repository");
+    create_clean_repository(&repository);
+    std::fs::write(repository.join("tracked.txt"), "a\n".repeat(150_000)).unwrap();
+    let raw = Command::new("git")
+        .args(["diff", "HEAD"])
+        .current_dir(&repository)
+        .output()
+        .unwrap();
+    assert!(raw.status.success());
+    assert!(raw.stdout.len() < 4 * 1024 * 1024);
+
+    let log = root.path().join("server.log");
+    let mut process = start(&root.path().join("state"), &log);
+    let address = ready(&mut process, &log).await;
+    let mut client = connect(&address, CAPABILITIES).await;
+    let diff = request(
+        &mut client,
+        "checkout.diff.get.request",
+        json!({"cwd":repository,"compare":{"mode":"uncommitted"}}),
+    )
+    .await;
+    assert_eq!(diff["result"]["files"][0]["status"], "too_large");
+    assert_eq!(diff["result"]["files"][0]["hunks"], json!([]));
+    assert_eq!(diff["result"]["files"][0]["additions"], 150_000);
+
+    run(&repository, &["add", "tracked.txt"]);
+    run(&repository, &["commit", "--quiet", "-m", "large diff"]);
+    let sha = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(&repository)
+        .output()
+        .unwrap();
+    assert!(sha.status.success());
+    let sha = String::from_utf8(sha.stdout).unwrap();
+    let commit = request(
+        &mut client,
+        "checkout.commits.file_diff.request",
+        json!({"cwd":repository,"sha":sha.trim(),"path":"tracked.txt"}),
+    )
+    .await;
+    assert_eq!(commit["result"]["file"]["status"], "too_large");
+    assert_eq!(commit["result"]["file"]["hunks"], json!([]));
+    std::fs::write(repository.join("tracked.txt"), "small\n").unwrap();
+    let initial = request(
+        &mut client,
+        "checkout.diff.subscribe.request",
+        json!({"subscriptionId":"large-live","cwd":repository,"compare":{"mode":"uncommitted"}}),
+    )
+    .await;
+    assert_eq!(initial["result"]["files"][0]["status"], "too_large");
+
+    run(&repository, &["reset", "--quiet", "HEAD~1"]);
+    let recovered = receive(&mut client).await;
+    assert_eq!(recovered["method"], "checkout.diff.update");
+    assert_eq!(recovered["params"]["subscriptionId"], "large-live");
+    assert!(
+        recovered["params"]["files"][0]["hunks"][0]["lines"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|line| line["type"] == "add" && line["content"] == "small")
+    );
+    let status = request(
+        &mut client,
+        "checkout.status.get.request",
+        json!({"cwd":repository}),
+    )
+    .await;
+    assert_eq!(status["result"]["isGit"], true);
+    drop(client);
+    terminate(&mut process).await;
+}
+
+#[tokio::test]
+async fn large_diff_snapshot_limits_stay_inline_and_recover() {
+    let root = tempfile::tempdir().unwrap();
+    let repository = root.path().join("repository");
+    create_clean_repository(&repository);
+    std::fs::write(repository.join("first.txt"), "a\n".repeat(75_000)).unwrap();
+    std::fs::write(repository.join("second.txt"), "b\n".repeat(75_000)).unwrap();
+    let log = root.path().join("server.log");
+    let mut process = start(&root.path().join("state"), &log);
+    let address = ready(&mut process, &log).await;
+    let mut client = connect(&address, CAPABILITIES).await;
+    let initial = request(
+        &mut client,
+        "checkout.diff.subscribe.request",
+        json!({"subscriptionId":"large-live","cwd":repository,"compare":{"mode":"uncommitted"}}),
+    )
+    .await;
+    assert_eq!(initial["result"]["diffTooLarge"], true);
+    assert_eq!(initial["result"]["files"], json!([]));
+    assert!(initial["result"]["error"].is_null());
+
+    std::fs::remove_file(repository.join("second.txt")).unwrap();
+    std::fs::write(repository.join("first.txt"), "small\n").unwrap();
+    let recovered = receive(&mut client).await;
+    assert_eq!(recovered["method"], "checkout.diff.update");
+    assert!(
+        recovered["params"]["files"][0]["hunks"][0]["lines"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|line| line["type"] == "add" && line["content"] == "small")
+    );
+    assert!(recovered["params"].get("diffTooLarge").is_none());
+
+    std::fs::write(repository.join("first.txt"), "a\n".repeat(1_500_000)).unwrap();
+    let oversized = receive(&mut client).await;
+    assert_eq!(oversized["method"], "checkout.diff.update");
+    assert_eq!(oversized["params"]["diffTooLarge"], true);
+    assert_eq!(oversized["params"]["files"], json!([]));
+    let status = request(
+        &mut client,
+        "checkout.status.get.request",
+        json!({"cwd":repository}),
+    )
+    .await;
+    assert_eq!(status["result"]["isGit"], true);
+    drop(client);
+    terminate(&mut process).await;
+}
+
+#[tokio::test]
 async fn binary_serves_checkout_reads_and_connection_owned_diff_updates() {
     let root = tempfile::tempdir().unwrap();
     let repository = root.path().join("repository");
