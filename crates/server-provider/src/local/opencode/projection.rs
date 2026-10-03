@@ -1,16 +1,30 @@
 //! Project verified native history into the server's immutable display timeline.
 use std::collections::BTreeMap;
 
-use super::types::{Content, Role, Snapshot, ToolStatus};
+use super::types::{Content, Record, Role, Snapshot, ToolStatus};
 use crate::{ports::agent_session::AgentSessionError, protocol::timeline::NativeItem};
 use serde_json::{Value, json};
+
+/// Return the versioned Ait display key for a native identity.
+/// Existing `OpenCode` projections rebuild once; native IDs and other providers are unaffected.
+pub(super) fn key(id: &str) -> String {
+    format!("native:opencode:projection-v2:{id}")
+}
 
 pub(super) fn entries(
     snapshot: &Snapshot,
     clients: &BTreeMap<String, String>,
 ) -> Result<Vec<NativeItem>, AgentSessionError> {
-    let results = snapshot
-        .messages
+    records(&snapshot.messages, clients)
+}
+
+/// Project normalized native records in their original order, attaching known client IDs.
+/// Returns `Failed` for invalid timestamps, tool arguments, or missing tool results.
+pub(super) fn records(
+    messages: &[Record],
+    clients: &BTreeMap<String, String>,
+) -> Result<Vec<NativeItem>, AgentSessionError> {
+    let results = messages
         .iter()
         .filter_map(|record| {
             record
@@ -21,7 +35,7 @@ pub(super) fn entries(
         .collect::<BTreeMap<_, _>>();
     let mut entries = Vec::new();
     let mut turn = None;
-    for record in &snapshot.messages {
+    for record in messages {
         if record.tool_result.is_some() || record.role == Role::System {
             continue;
         }
@@ -48,7 +62,7 @@ pub(super) fn entries(
                     .as_ref()
                     .and_then(|id| clients.get(id))
                     .map_or(record.id.as_str(), String::as_str);
-                entries.push(NativeItem { key: format!("native:opencode:{}", record.id), turn_id: turn.clone(), timestamp: timestamp.clone(), item: json!({"type":"user_message","messageId":record.id,"clientMessageId":client,"text":texts.join("\n")}) });
+                entries.push(NativeItem { key: key(&record.id), turn_id: turn.clone(), timestamp: timestamp.clone(), item: json!({"type":"user_message","messageId":record.id,"clientMessageId":client,"text":texts.join("\n")}) });
             }
             continue;
         }
@@ -72,7 +86,14 @@ pub(super) fn entries(
                     let input: Value = serde_json::from_str(&call.arguments)
                         .map_err(|_| AgentSessionError::Failed)?;
                     let mut detail = detail(&call.tool_name, &input);
-                    detail["output"] = json!(result.output);
+                    if let Some(output) = &result.output {
+                        let field = if detail["type"] == "read" {
+                            "content"
+                        } else {
+                            "output"
+                        };
+                        detail[field] = json!(output);
+                    }
                     (
                         format!("tool:{}", call.call_id),
                         json!({"type":"tool_call","callId":call.call_id,"name":call.tool_name,
@@ -91,7 +112,7 @@ pub(super) fn entries(
                 item["clientMessageId"] = json!(client);
             }
             entries.push(NativeItem {
-                key: format!("native:opencode:{key}"),
+                key: self::key(&key),
                 turn_id: turn.clone(),
                 timestamp: timestamp.clone(),
                 item,
@@ -103,9 +124,19 @@ pub(super) fn entries(
 
 fn detail(name: &str, input: &Value) -> Value {
     match name {
-        "bash" | "shell" => json!({"type":"shell","command":input["command"],"cwd":input["cwd"]}),
-        "read" => json!({"type":"read","filePath":input["filePath"]}),
-        "edit" | "write" => json!({"type":name,"filePath":input["filePath"]}),
+        "bash" | "shell" if input["command"].is_string() => {
+            let mut detail = json!({"type":"shell","command":input["command"]});
+            if let Some(cwd) = input["cwd"].as_str().or_else(|| input["workdir"].as_str()) {
+                detail["cwd"] = json!(cwd);
+            }
+            detail
+        }
+        "read" | "edit" | "write" if input["filePath"].is_string() => {
+            json!({"type":name,"filePath":input["filePath"]})
+        }
         _ => json!({"type":"unknown","input":input,"output":null}),
     }
 }
+
+#[cfg(test)]
+mod tests;

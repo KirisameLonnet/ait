@@ -29,7 +29,9 @@ async fn run(events: Vec<Value>) -> Vec<Row> {
         state.stream_events = events;
     }
     session.start_turn("hello", &spec.config).await.unwrap();
-    let timeline = Timeline::memory().unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("timeline.sqlite");
+    let timeline = Timeline::open(&path).unwrap();
     tokio::time::timeout(Duration::from_secs(3), async {
         let mut assistant = String::new();
         loop {
@@ -44,6 +46,9 @@ async fn run(events: Vec<Value>) -> Vec<Row> {
                     if assistant == "answer" {
                         break;
                     }
+                }
+                Some(AgentTurnEvent::Timeline(entry)) => {
+                    timeline.append("agent", "opencode", &[entry]).unwrap();
                 }
                 Some(AgentTurnEvent::Failed) => {
                     panic!("legal native text events failed the execution")
@@ -67,7 +72,8 @@ async fn run(events: Vec<Value>) -> Vec<Row> {
     }
     assert_eq!(fixture.state.lock().unwrap().submissions, 1);
     session.close().await.unwrap();
-    timeline.read("agent").unwrap().1
+    drop(timeline);
+    Timeline::open(&path).unwrap().read("agent").unwrap().1
 }
 
 #[tokio::test]
@@ -115,4 +121,24 @@ async fn user_parts_are_never_persisted_as_assistant_messages() {
         .collect::<String>();
     assert_eq!(text, "answer");
     assert!(!rows.iter().any(|row| row.entry.key.ends_with("prt_user")));
+}
+
+#[tokio::test]
+async fn streamed_answer_follows_its_user_after_persistence_and_restart() {
+    let rows = run(vec![
+        message("assistant", "msg_0123456789abABCDEFGHIJKLM1"),
+        part(
+            "prt_0123456789abABCDEFGHIJKLM1",
+            "msg_0123456789abABCDEFGHIJKLM1",
+            "answer",
+        ),
+    ])
+    .await;
+    assert_eq!(rows[0].entry.item["type"], "user_message");
+    assert_eq!(rows[0].entry.item["text"], "hello");
+    assert!(
+        rows[1..]
+            .iter()
+            .all(|row| row.entry.item["type"] == "assistant_message")
+    );
 }

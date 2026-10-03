@@ -2,6 +2,7 @@ use super::super::{OpenCodeExecutionLimits, client::OpenCodeClient, tests::fixtu
 use super::*;
 use crate::ports::agent_session::{AgentClient, AgentResumePurpose, AgentSessionSpec};
 
+mod ordering;
 mod streaming;
 
 fn spec(fixture: &Fixture) -> AgentSessionSpec {

@@ -36,6 +36,8 @@ pub(in crate::local::opencode) struct StateData {
     pub(in crate::local::opencode) pending_permissions: Vec<Value>,
     pub(in crate::local::opencode) replies: Vec<Value>,
     pub(in crate::local::opencode) stream_text: bool,
+    pub(in crate::local::opencode) unfinished_while_busy: bool,
+    pub(in crate::local::opencode) omit_input_history: bool,
     pub(in crate::local::opencode) stream_events: Vec<Value>,
 }
 
@@ -82,6 +84,8 @@ impl Fixture {
             pending_permissions: Vec::new(),
             replies: Vec::new(),
             stream_text: false,
+            unfinished_while_busy: false,
+            omit_input_history: false,
             stream_events: Vec::new(),
         }));
         let router = Router::new()
@@ -217,10 +221,26 @@ async fn handle(State(state): State<Arc<Mutex<StateData>>>, request: Request) ->
         }
         ("GET", "/session/ses_one" | "/api/session/ses_one") => session_info(&state),
         ("GET", "/session/ses_one/message" | "/api/session/ses_one/message") => {
+            let mut history = state.history.clone();
+            if state.omit_input_history {
+                history.retain(|message| {
+                    if v2 {
+                        message["type"] != "user"
+                    } else {
+                        message["info"]["role"] != "user"
+                    }
+                });
+            }
+            if state.busy && state.unfinished_while_busy {
+                for message in &mut history {
+                    let info = if v2 { message } else { &mut message["info"] };
+                    info["time"].as_object_mut().unwrap().remove("completed");
+                }
+            }
             if v2 {
-                json!({"data":state.history,"cursor":{"next":if state.cursor_cycle {Some("same")} else {None}}})
+                json!({"data":history,"cursor":{"next":if state.cursor_cycle {Some("same")} else {None}}})
             } else {
-                json!(state.history)
+                json!(history)
             }
         }
         ("GET", "/permission" | "/api/session/ses_one/permission") => {

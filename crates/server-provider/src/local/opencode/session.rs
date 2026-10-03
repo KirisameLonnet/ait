@@ -455,6 +455,44 @@ impl Connection {
         result
     }
 
+    async fn publish_input(&self, progress: &Arc<dyn ProgressSink>) -> Result<(), ProtocolError> {
+        // A native assistant delta implies its input was admitted. Read that input's canonical
+        // identity and content before assigning any assistant cursor; never replay the request.
+        let raw = self.runtime.api.history(&self.prepared.id).await?;
+        let message = raw
+            .iter()
+            .find(|message| match self.runtime.api.version {
+                Version::V1 => {
+                    message["info"]["role"] == "user"
+                        && message["info"]["id"] == self.prepared.input_id
+                }
+                Version::V2 => {
+                    message["type"] == "user"
+                        && message["metadata"]["aitInputId"] == self.prepared.input_id
+                }
+            })
+            .ok_or_else(|| {
+                failure(
+                    Fault::RunRecoveryFailed,
+                    "streamed reply has no admitted input",
+                )
+            })?;
+        // Other messages may contain unfinished assistant/tool parts while streaming.
+        let records = history::normalize(
+            self.runtime.api.version,
+            &self.prepared.id,
+            std::slice::from_ref(message),
+        )?;
+        let entry = super::projection::records(&records, &std::collections::BTreeMap::new())
+            .map_err(|_| failure(Fault::ProviderFailed, "invalid admitted input"))?
+            .pop()
+            .ok_or_else(|| failure(Fault::RunRecoveryFailed, "admitted input has no text"))?;
+        progress
+            .report(super::types::ProgressEvent::UserMessage(Box::new(entry)))
+            .await;
+        Ok(())
+    }
+
     async fn observe_inner(
         &mut self,
         mut events: Events,
@@ -463,6 +501,7 @@ impl Connection {
         let mut timer = tokio::time::interval(Duration::from_secs(5));
         let mut displayed = Stream::new(&self.prepared.id, &self.prepared.input_id, self.limits);
         let mut approvals = Pending::new();
+        let mut input_published = false;
         loop {
             tokio::select! {
                 event = events.next() => {
@@ -484,6 +523,10 @@ impl Connection {
                                 return Err(error);
                             }
                         };
+                        if !updates.is_empty() && !input_published {
+                            self.publish_input(&progress).await?;
+                            input_published = true;
+                        }
                         for update in updates {progress.report(update).await;}
                     } else {
                         // Lost events require state reconciliation; they never imply execution failure.

@@ -145,6 +145,7 @@ impl Session {
             self.sender.clone(),
             connection.runtime.api.version,
             turn.clone(),
+            prompt.client_message_id.clone(),
         ));
         connection.invocation.approvals = bridge.clone();
         if let Some(client) = &prompt.client_message_id {

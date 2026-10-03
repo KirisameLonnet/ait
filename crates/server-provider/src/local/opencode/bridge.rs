@@ -28,6 +28,7 @@ pub(super) struct Bridge {
     events: mpsc::Sender<AgentTurnEvent>,
     version: Version,
     turn: String,
+    client_message_id: Option<String>,
 }
 
 impl Bridge {
@@ -35,12 +36,14 @@ impl Bridge {
         events: mpsc::Sender<AgentTurnEvent>,
         version: Version,
         turn: String,
+        client_message_id: Option<String>,
     ) -> Self {
         Self {
             pending: Mutex::default(),
             events,
             version,
             turn,
+            client_message_id,
         }
     }
 
@@ -168,14 +171,23 @@ impl ApprovalSink for Bridge {
 #[async_trait]
 impl ProgressSink for Bridge {
     async fn report(&self, event: ProgressEvent) {
-        let ProgressEvent::TextDelta { id, delta } = event;
+        let (id, delta) = match event {
+            ProgressEvent::UserMessage(mut entry) => {
+                if let Some(client) = &self.client_message_id {
+                    entry.item["clientMessageId"] = json!(client);
+                }
+                let _ = self.events.send(AgentTurnEvent::Timeline(*entry)).await;
+                return;
+            }
+            ProgressEvent::TextDelta { id, delta } => (id, delta),
+        };
         let key = if self.version == Version::V1 {
             id
         } else {
             format!("{id}:0")
         };
         let entry = NativeItem {
-            key: format!("native:opencode:{key}"),
+            key: super::projection::key(&key),
             turn_id: Some(self.turn.clone()),
             timestamp: chrono::Utc::now().to_rfc3339(),
             item: json!({"type":"assistant_message","messageId":key,"text":delta}),

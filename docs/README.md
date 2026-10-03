@@ -1,5 +1,7 @@
 # 概念与架构文档
 
+- [OpenCode 时间线顺序与工具历史修复](reports/opencode-history-order-and-tools.md)：流式用户消息先行、旧错序投影恢复与工具字段契约回归。
+
 - [上游同步与 OpenCode 兼容验证（2026-10-02）](reports/upstream-merge-2026-10-02.md)：同步 ait-app/main、合并冲突处理与提交前验证。
 
 - [ADR-072：OpenCode 迁入独立 server Provider](decisions/adr-072-opencode-server-provider.md)：
